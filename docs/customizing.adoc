@@ -1,0 +1,16 @@
+
+== Customizing senders and receivers
+
+The framework provides a general set of adaptors for composing senders. Users
+will write their own senders, receivers, operation states, etc to provide for
+individual use cases.
+
+The basics to remember are:
+
+- senders and receivers are movable (and probably copyable)
+- operation states may be non-movable
+- senders advertise what they send
+
+Senders and receivers must always be movable. In particular, don't put
+non-movable objects (e.g. atomic values, mutexes) into a receiver. The operation
+state, which may be non-movable, is the place to put them.

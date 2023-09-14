@@ -1,0 +1,41 @@
+
+== Concepts
+
+If you are new to these ideas, it is best to forget anything you think you know
+about what "sender" and "receiver" might mean, and for now, try to treat them as
+abstract concepts.
+
+=== Senders
+
+A _sender_ is an object that describes a unit of asynchronous work. Most user
+code deals with defining and composing senders. You can think of a sender as a
+function that will run asynchronously, and the return type of that function
+characterises the sender.
+
+=== Receivers
+
+A _receiver_ is an object that handles what a sender returns. Receivers are the
+glue between senders, but are absent from user code; they exist under the hood.
+A receiver has three callbacks for handling three states:
+
+- set_value (success: handling whatever value a sender returns)
+- set_error (failure: handling an error)
+- set_stopped (cancellation)
+
+=== Operation states
+
+An _operation state_ is the state that represents an asynchronous task.
+Operation states are concrete objects whose lifetime covers the asynchronous
+work. Just as synchronous function calls form an execution stack, operation
+states nest like an onion, the inner layers representing asynchronous operations
+that complete before the outer layers.
+
+The details of operation states are also mostly absent from user code. An
+operation state is the result of a call to `connect` a sender with a receiver.
+
+=== Schedulers
+
+A _scheduler_ is a handle to some compute resource. In the context of the
+proposal that is a broad definition: for this library, a scheduler comes
+primarily from the timer and scheduler components. Something that can actually
+run an asynchronous task.

@@ -1,0 +1,68 @@
+
+== Completion signatures
+
+Senders advertise the types that they may send.
+
+One way to do this, for simple cases, is to expose a
+`completion_signatures` typedef. This is a type list of function signatures
+representing all the ways a sender may complete. The return type of each
+signature signals whether it is a success, error or cancellation. Some trivial
+examples:
+
+[source,cpp]
+----
+// this just sends 42 (as if async::just(42))
+struct just_42_sender {
+  // ...
+  // the only way it completes is by successfully sending an int
+  using completion_signatures =
+    async::completion_signatures<async::set_value_t(int)>;
+};
+----
+
+[source,cpp]
+----
+// this just sends 42 (as if async::just(42)),
+// but it may also error with an error_t
+struct just_42_or_error_sender {
+  // ...
+  using completion_signatures =
+    async::completion_signatures<async::set_value_t(int),
+                                 async::set_error_t(error_t)>;
+};
+----
+
+[source,cpp]
+----
+// this just sends 42 (as if async::just(42)),
+// but it may also be stopped
+struct just_42_or_stopped_sender {
+  // ...
+  using completion_signatures =
+    async::completion_signatures<async::set_value_t(int),
+                                 async::set_stopped_t()>;
+};
+----
+
+Another way that senders can advertise their completions is through a query, which uses
+https://wg21.link/p1895[tag_invoke]. It looks like this:
+
+[source,cpp]
+----
+// this just sends 42 (as if async::just(42))
+struct just_42_sender {
+  // ...
+  // the only way it completes is by successfully sending an int
+  template <typename Env>
+  [[nodiscard]] friend constexpr auto tag_invoke(async::get_completion_signatures_t,
+                                                 just_42_sender const &,
+                                                 Env const &)
+    -> async::completion_signatures<async::set_value_t(int)> {
+    return {};
+  }
+};
+----
+
+For a simple case like this both methods are equivalent. However, by using a
+query a sender can send types dependent on an environment - and when a sender
+connects to a receiver, the receiver provides that environment.
