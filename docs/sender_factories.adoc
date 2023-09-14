@@ -1,0 +1,106 @@
+
+== Sender factories
+
+=== `just`
+
+`just` returns a sender that produces the provided values.
+
+[source,cpp]
+----
+auto sndr = async::just(42, 17);
+// sndr produces (sends) the values 42 and 17
+----
+
+[NOTE]
+.For functional programmers
+====
+`just` is equivalent to `pure` or `return`: lifting a value into the
+continuation monad.
+====
+
+=== `just_error`
+
+`just_error` is like `just`, but instead of completing by calling `set_value` on
+a receiver, it will call `set_error`.
+
+[source,cpp]
+----
+auto sndr = async::just_error(42);
+// sndr produces (sends) the value 42 on the error channel
+----
+
+=== `just_error_result_of`
+
+`just_error_result_of` is like `just_error`, but instead of taking raw values, it takes
+functions that produce values.
+
+[source,cpp]
+----
+auto sndr1 = async::just_error_result_of([] { return 42; });
+// sndr1 sends 42 on the error channel
+
+auto sndr2 = async::just_error_result_of([] { return 42; },
+                                         [] { do_something(); });
+// sndr2 also sends 42 on the error channel,
+// as well as executing do_something() - which returns void
+----
+
+NOTE: Do not rely on the order of evaluation of the functions given to
+`just_error_result_of`!
+
+NOTE: Only one value can be sent on the error channel. Hence `just_error` is a
+unary function. However `just_error_result_of` is an n-ary function: exactly one
+of the functions passed must return something other than `void`.
+
+=== `just_result_of`
+
+`just_result_of` is like `just`, but instead of taking raw values, it takes
+functions that produce values.
+
+[source,cpp]
+----
+auto sndr1 = async::just_result_of([] { return 42; },
+                                   [] { return 17; });
+// sndr1 produces (sends) the values 42 and 17
+
+auto sndr2 = async::just_result_of([] { return 42; },
+                                   [] { do_something(); },
+                                   [] { return 17; });
+// sndr2 also produces (sends) the values 42 and 17,
+// as well as executing do_something() - which returns void
+----
+
+NOTE: Do not rely on the order of evaluation of the functions given to
+`just_result_of`!
+
+=== `read`
+
+`read` takes a _tag_ and returns a sender that sends the value denoted by that
+tag, pulled from the environment of the receiver the sender is connected to.
+
+[source,cpp]
+----
+auto s = async::read(async::get_stop_token_t{});
+// when connected to a receiver, s will send the stop token from that receiver's environment
+----
+
+`read` has some built-in aliases for well-known tags:
+[source,cpp]
+----
+auto s1 = async::get_stop_token(); // same as async::read(async::get_stop_token_t{});
+auto s2 = async::get_scheduler();  // same as async::read(async::get_scheduler_t{});
+----
+
+=== `schedule`
+
+A _scheduler_'s `schedule` function returns a sender that produces nothing, but
+represents running on that scheduler's compute resource. We can chain more work
+(i.e. other senders) on to that starting point.
+
+[source,cpp]
+----
+// s is a scheduler
+auto sndr = s.schedule();
+// sndr does no work (yet) but when consumed, will run according to that
+// scheduler. We can use sender adaptors to compose more work.
+----

@@ -1,0 +1,43 @@
+
+== Variant senders
+
+Variant senders work primarily with
+xref:sender_adaptors.adoc#_let_value[`let_value`] to provide a runtime choice in
+a computation. There are helper functions to create variant senders.
+
+In the simplest formulation, `make_variant_sender` makes a choice between two
+senders based on a boolean value (just like an `if` statement). The consequent
+and alternative are lambda expressions:
+
+[source,cpp]
+----
+auto s = async::make_variant_sender(/* boolean-expression */,
+                                    [] { return /* a sender */; },
+                                    [] { return /* a different sender */; });
+----
+
+This often suffices for a binary choice, but if we want a choice of more
+possibilities, the same function supports that:
+
+[source,cpp]
+----
+auto s = async::make_variant_sender(
+    async::match([] (auto...) { /* test A */ }) >> [] (auto...) { return /* sender A */; },
+    async::match([] (auto...) { /* test B */ }) >> [] (auto...) { return /* sender B */; },
+    async::match([] (auto...) { /* test C */ }) >> [] (auto...) { return /* sender C */; },
+    async::otherwise                            >> [] (auto...) { return /* fallback */; },
+    args...);
+----
+
+Each predicate in turn receives the values of `args...`; the first
+predicate that succeeds indicates the corresponding sender. The pattern matching
+must be exhaustive; `otherwise` is a helpful catch-all to achieve that.
+
+In the simple binary choice overload of `make_variant_sender`, the functions
+take no arguments (but lambda expressions can capture what they need); in the
+second more general overload, the functions take the same arguments as the
+predicates do, so arguments can be used directly without capturing.
+
+CAUTION: Capturing by reference is generally a bad idea in asynchronous code; it
+is easy to get dangling references that way. Init capture by move is preferable
+if needed.

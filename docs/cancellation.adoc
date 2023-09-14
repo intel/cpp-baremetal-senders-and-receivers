@@ -1,0 +1,48 @@
+
+== Cancellation
+
+_Cancellation is cooperative_. That is the most important thing to remember:
+senders and receivers form a general framework for dealing with asynchronous
+computation; as such they do not prescribe any particular mechanism of
+concurrency. Senders and receivers know nothing about threads, fibres,
+interrupts, etc. So there is no way they could support any kind of pre-emptive
+cancellation.
+
+Instead, we use `stop_source`, `stop_token` and `stop_callback` for cooperative
+cancellation.
+
+A `stop_source` is a non-movable object that contains state (typically one or
+more atomic variables) relating to cancellation. It is the object that controls
+cancellation; to cancel an operation, call the associated `stop_source` 's
+`request_stop()` method.
+
+A `stop_token` is a lightweight handle obtained from a `stop_source`. A
+`stop_token` can check whether an operation has been cancelled with the
+`stop_requested()` method. A source may hand out more than one token; all tokens
+will all observe the source in a thread-safe manner.
+
+A `stop_callback` registers a callback that will be called on cancellation of a
+given `stop_source`. `stop_callback` 's constructor takes a `stop_token`
+associated with the `stop_source`.
+
+Find more documentation for these constructs on
+https://en.cppreference.com/w/cpp/header/stop_token[cppreference.com]. In the
+senders and receivers framework, the following implementations are in
+the `stop_token.hpp` header:
+
+- `async::in_place_stop_source` - a non-movable type that keeps the state
+- `async::in_place_stop_token` - lightweight and copyable
+- `async::in_place_stop_callback` - also non-movable
+
+None of these types causes allocation. `in_place_stop_callback` is similar to
+the scheduler and timer task types, implemented as an intrusive list (hence it
+is non-movable).
+
+NOTE: A `stop_callback` is called when `stop_requested` is called, _not_ when an
+operation finally completes. It executes in the thread that calls
+`stop_requested`. If a `stop_callback` is constructed when a stop has already
+been requested, the callback will run immediately in the constructing thread.
+
+IMPORTANT: Once more, _cancellation is cooperative_. Any parts of operations
+that don't support cancellation will run to completion (and then may complete
+with `set_stopped`). Sender adaptors support cancellation at transition points.

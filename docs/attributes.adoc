@@ -1,0 +1,25 @@
+
+== Sender attributes
+
+Senders have attributes that can be retrieved with `get_env` in the same way as
+querying a receiver's environment.
+
+NOTE: Don't blame me for the name: it's in https://wg21.link/p2300[P2300].
+Receivers have environments. Senders have attributes. Both are obtained by
+calling `get_env`.
+
+A sender's attributes often include its _completion scheduler_. In particular, a
+sender obtained from calling `schedule` on a scheduler will always have that
+scheduler as its completion scheduler. Perhaps that's clearer in code:
+
+[source,cpp]
+----
+auto orig_sched = /* some scheduler */;
+auto sndr = orig_sched.schedule();
+auto sched = async::get_completion_scheduler(sndr);
+
+assert(sched == orig_sched);
+----
+
+`get_completion_scheduler` uses `tag_invoke(get_completion_scheduler_t, S)` to
+find the completion scheduler for a sender type `S`.

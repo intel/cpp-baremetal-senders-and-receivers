@@ -1,0 +1,19 @@
+
+== Error handling
+
+Sender adaptors won't touch values and errors that they aren't interested in,
+but will just pass them through, so we can do error handling in a compositional
+style:
+
+[source,cpp]
+----
+auto s1 = async::just(42)
+  | async::then([] (int i) { return i + 17; })
+  | async::upon_error([] (int i) { return std::to_string(i); });
+// when run, s1 will produce 59: upon_error had nothing to do
+
+auto s2 = async::just_error(42)
+  | async::then([] (int i) { return i + 17; })
+  | async::upon_error([] (int i) { return std::to_string(i); });
+// when run, s2 will produce the string "42" as an error: then had nothing to do
+----

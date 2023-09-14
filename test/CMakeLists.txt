@@ -1,0 +1,45 @@
+function(add_tests)
+    foreach(name ${ARGN})
+        add_unit_test(
+            "${name}_test"
+            CATCH2
+            FILES
+            "${name}.cpp"
+            LIBRARIES
+            warnings
+            async
+            pthread)
+    endforeach()
+endfunction()
+
+add_tests(
+    concepts
+    env
+    forwarding_query
+    freestanding_sync_wait
+    hosted_sync_wait
+    inline_scheduler
+    just
+    just_error
+    just_error_result_of
+    just_result_of
+    just_stopped
+    let_error
+    let_stopped
+    let_value
+    on
+    read
+    repeat
+    retry
+    runloop_scheduler
+    split
+    stop_token
+    then
+    thread_scheduler
+    transfer
+    type_traits
+    upon_error
+    upon_stopped
+    variant_sender
+    when_all
+    when_any)

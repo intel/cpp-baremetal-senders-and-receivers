@@ -1,0 +1,47 @@
+
+== Environments
+
+An important mechanism for customization is the idea of an _environment_.
+Environments are usually associated with receivers and the framework looks up
+values in the environment by using https://wg21.link/p1895[tag_invoke]. In particular, the
+framework calls `tag_invoke(get_env_t, R)` to find the environment of a receiver type
+`R`, and `tag_invoke(get_stop_token_t, E)` to find the stop token of an environment
+type E. `async::get_env_t` and `async::get_stop_token_t` are the tag types used for this
+purpose.
+
+In practice, here's what supporting that might look like for a custom receiver
+that supports cancellation:
+
+[source,cpp]
+----
+struct custom_receiver {
+  auto set_value(auto&&...) { ... }
+  auto set_error(auto&&) { ... }
+  auto set_stopped() { ... }
+
+  struct env {
+    [[nodiscard]] friend constexpr auto tag_invoke(async::get_stop_token_t,
+                                                   env const& e) -> async::in_place_stop_token {
+      return e.token;
+    }
+    async::in_place_stop_token token;
+  };
+
+  [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
+                                                 custom_receiver const& r) -> env {
+    return {r.stop_source->get_token()};
+  }
+
+  in_place_stop_source* stop_source;
+};
+----
+
+Given this, we can construct an arbitrary composition of senders with this as
+the final receiver. If we want to cancel the operation, we call `request_stop()`
+on the (external) `in_place_stop_source`. The internal senders, receivers and
+operation states in the composition can observe this request by querying the
+stop token in the environment for the final receiver, and this knowledge can
+propagate through the sender-receiver chain.
+
+NOTE: Remember that a receiver should not own a stop_source: receivers must
+be movable, and in general a stop_source is not.

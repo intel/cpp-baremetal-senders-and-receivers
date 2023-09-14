@@ -1,0 +1,20 @@
+= C++ Baremetal Senders & Receivers
+:revnumber: 0.1
+:revdate: Sep 14, 2023
+:source-highlighter: rouge
+:rouge-style: base16.solarized
+:source-language: c++
+:toc: left
+
+include::intro.adoc[]
+include::concepts.adoc[]
+include::external.adoc[]
+include::senders.adoc[]
+include::pipes.adoc[]
+include::variant_senders.adoc[]
+include::errors.adoc[]
+include::cancellation.adoc[]
+include::customizing.adoc[]
+include::completion_signatures.adoc[]
+include::environments.adoc[]
+include::attributes.adoc[]

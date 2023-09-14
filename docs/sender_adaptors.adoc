@@ -1,0 +1,268 @@
+
+== Sender adaptors
+
+=== `let_value`
+
+`let_value` is like xref:_then[`then`], but the function given to it will itself
+return a sender.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto let_sndr = async::let_value(sndr, [] (int i) { return async::just(std::to_string(i)); });
+// when run, let_sndr will produce the string "42"
+----
+
+[NOTE]
+.For functional programmers
+====
+`let_value` is equivalent to monadic bind.
+====
+
+A primary use case of `let_value` is to allow dynamic selection of senders at
+runtime based on what a previous sender produced. In this case, the function
+passed to `let_value` must return a single type. A naive approach doesn't work:
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto let_sndr = async::let_value(
+    sndr,
+    [] (int i) {
+      if (i == 42) {
+        return async::just(std::to_string(i));
+      } else {
+        return async::just_error(i);
+      }
+    });
+// this fails to compile because the lambda tries to return either a just sender
+// or a just_error: these are different types
+----
+
+For this use case, the function provided to `let_value` must return a
+xref:variant_senders.adoc#_variant_senders[variant sender] : a sender that can
+encapsulate several others and select which one is used at runtime.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto let_sndr = async::let_value(
+    sndr,
+    [] (int i) {
+      return async::make_variant_sender(
+        i == 42,
+        [=] { return async::just(std::to_string(i)); },
+        [=] { return async::just_error(i); }
+      );
+    });
+----
+
+This works: using the helper function `make_variant_sender`, `let_value` can
+successfully make a runtime choice about which sender to proceed with.
+
+=== `on`
+
+`on` takes a scheduler and a sender, and composes them so that the work will run
+on that scheduler. It chains the sender work on to the result of calling
+`schedule`.
+
+[source,cpp]
+----
+// s is a scheduler
+auto sndr = async::on(s, async::just(42));
+// when run, sndr will execute on the compute resource specified by s, producing 42
+----
+
+`on` can be equivalent to `schedule` followed by `then`:
+[source,cpp]
+----
+auto sndr = async::then(s.schedule(), [] {  return 42 ;});
+----
+
+But note that `then` takes a function where `on` takes a sender.
+
+=== `repeat`
+
+`repeat` takes a sender and repeats it indefinitely. When the sender completes
+with a value, it is reconnected and restarted. This is useful for periodic
+tasks. A `repeat` sender can still be stopped, or complete with an error.
+
+[source,cpp]
+----
+auto s = some_sender | async::repeat();
+// when s runs, some_sender runs. If some_sender sends an error or is stopped, s
+// reflects that. If some_sender completes successfully, the result is discarded
+// and some_sender runs again.
+----
+
+=== `repeat_n`
+
+`repeat_n` works the same way as `repeat`, but repeats a given number of times.
+
+NOTE: `repeat_n` must always run at least once to be able to complete. So
+`repeat_n(1)` repeats once, i.e. runs twice. `repeat_n(0)` runs once (thus is redundant).
+
+==== `repeat_until`
+
+`repeat_until` works the same way as `repeat`, but repeats the sender until a
+given (nullary) predicate returns true.
+
+[source,cpp]
+----
+// this is the same as repeat_n(0), i.e. just run once
+auto s = some_sender | async::repeat_until([] { return true; });
+----
+
+=== `retry`
+
+`retry` takes a multishot sender and wraps it: if that sender sends an error,
+the error gets discarded and the sender is reconnected and restarted.
+
+[source,cpp]
+----
+auto s = some_sender | async::retry();
+// if some_sender sends an error, it will be reconnected and restarted
+// s completes when some_sender completes with set_value or set_stopped
+----
+
+=== `retry_until`
+
+`retry_until` works like `retry`, but takes a predicate. If the predicate
+returns false, `retry_until` can complete on the error channel.
+
+=== `split`
+
+Some senders are single shot: they can only run once. Doing so may consume
+resources that the sender owns. The call to `connect` such a sender has an
+overload for rvalue references only.
+
+Other senders are multishot and can connect to multiple receivers and run
+multiple times.
+
+`split` turns a single shot sender into a multishot sender. It has no effect
+when called on a multishot sender.
+
+=== `then`
+
+`then` takes a sender and a function, and returns a sender that will call the
+function with the values that the sender sends.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto then_sndr = async::then(sndr, [] (int i) { return std::to_string(i); });
+// when run, then_sndr will produce the string "42"
+----
+
+[NOTE]
+.For functional programmers
+====
+`then` is equivalent to `fmap`.
+====
+
+=== `transfer`
+
+`transfer` allows an asynchronous computation to switch where it is running.
+
+[source,cpp]
+----
+// s1 and s2 are different schedulers representing different computation contexts
+auto sndr = async::on(s1, async::just(42));
+auto t = async::transfer(sndr, s2);
+auto transferred = async::then(t, [] (int i) { return std::to_string(i); });
+// when transferred runs:
+// first on s1 it will produce 42
+// then on s2 it will convert 42 to a string, producing "42"
+----
+
+=== `upon_error`
+
+`upon_error` works like `then`, but instead of applying the function to values, it applies to errors.
+
+[source,cpp]
+----
+auto sndr = async::just_error(42);
+auto then_sndr = async::upon_error(sndr, [] (int i) { return std::to_string(i); });
+// when run, then_sndr will produce the string "42" as an error
+----
+
+=== `upon_stopped`
+
+`upon_stopped` works like `then`, but instead of applying the function to
+values, it applies to the stopped signal. Therefore the function takes no arguments.
+
+[source,cpp]
+----
+auto sndr = async::just_stopped();
+auto then_sndr = async::upon_stopped(sndr, [] { return 42; });
+// when run, then_sndr will produce 42
+----
+
+=== `when_all`
+
+`when_all` takes a number of senders (which must all produce a single value) and
+after they all complete, forwards all the values. If any of them produces an
+error or is cancelled, `when_all` cancels the remaining senders.
+
+[source,cpp]
+----
+auto s1 = async::just(42);
+auto s2 = async::just(17);
+auto w = async::when_all(s1, s2);
+// when w runs, s1 and s2 both run, and downstream receives both 42 and 17
+----
+
+NOTE: The order in which the sender arguments to `when_all` run is unspecified.
+
+IMPORTANT: If _no_ arguments are given to `when_all`, it will complete
+_immediately_.
+
+=== `when_any`
+
+`when_any` takes a number of senders and races them. It is available in
+different flavors:
+
+`when_any` determines completion as soon as any of its senders completes with
+either `set_value` or `set_error`. It completes with the first such completion
+it sees. If all its senders are complete with `set_stopped`, `when_any`
+completes with `set_stopped`.
+
+`first_successful` determines completion as soon as any of its senders completes
+with `set_value`. It completes with the first such completion it sees. If no
+senders complete with `set_value`, `first_successful` completes with the first
+`set_error` completion it sees. If all its senders complete with `set_stopped`,
+`first_successful` completes with `set_stopped`.
+
+`stop_when` is a binary sender adaptor. It determines completion as soon as
+either of its senders completes on any channel. Because it's a binary function,
+`stop_when` can also be piped.
+
+NOTE: As soon as a completion is determined, any remaining senders whose
+completion becomes irrelevant are cancelled.
+
+[source,cpp]
+----
+auto s1 = async::just(42);
+auto s2 = async::just(17);
+auto w = async::when_any(s1, s2);
+// when w runs, s1 and s2 race; downstream receives either 42 or 17
+----
+
+[source,cpp]
+----
+auto s = some_sender | async::stop_when(some_other_sender);
+// when s runs, some_sender and some_other_sender race
+// the first to complete determines the completion of s
+// the other is requested to stop
+----
+
+NOTE: For all flavors, the order in which the sender arguments run is
+unspecified.
+
+IMPORTANT: Each of these functions completes after all of its senders complete. The
+completion reflects -- according to flavor -- which sender completed first, but
+it cannot occur before all senders complete (regardless of the channel each may
+complete on).
+
+IMPORTANT: If _no_ arguments are given to `when_any`, it will _never_ complete
+unless it is cancelled.

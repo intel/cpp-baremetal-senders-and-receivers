@@ -1,0 +1,11 @@
+
+== External references
+
+- https://wg21.link/p2300[P2300] - the paper that sets out a complete
+  motivation, examples and taxonomy of asynchronous building blocks
+- https://www.youtube.com/watch?v=xLboNIf7BTg[Working with Asynchrony
+  Generically (Part 1)] - Eric Niebler's talk from CppCon 2021
+- https://www.youtube.com/watch?v=6a0zzUBUNW4[Working with Asynchrony
+  Generically (Part 2)] - Eric Niebler's talk from CppCon 2021
+- https://www.youtube.com/watch?v=xXncLUD-4bA[Using Sender/Receiver to Implement
+  Control Flow for Async Processing] - Steve Downey's talk from C++Now 2023

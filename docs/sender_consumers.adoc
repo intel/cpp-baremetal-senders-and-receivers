@@ -1,0 +1,17 @@
+
+== Sender consumers
+
+=== `sync_wait`
+
+`sync_wait` takes a sender and:
+
+. connects and starts it
+. blocks waiting for it to complete
+. returns any values it sends in a `std::optional<stdx::tuple<...>>`
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto [i] = async::sync_wait(sndr).value();
+// i is now 42
+----

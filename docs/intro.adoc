@@ -1,0 +1,27 @@
+
+== Asynchronous computation
+
+Much of what happens in firmware is asynchronous and event-driven. Tasks get
+scheduled for future execution. After sending a messages to a remote endpoint, a
+reply will return at some point. Flows wait for hardware to change signals
+before proceeding.
+
+The asynchronous building blocks provided by this library follow the ideas in
+https://wg21.link/p2300[P2300], the C++ proposal for an execution model based on
+senders and receivers. Among the aims:
+
+- a declarative style of specifying asynchronous behaviour
+- easy composition of asynchronous tasks
+- control of when and where tasks run in an asynchronous context
+- structured error handling that is easy to use
+- clear and safe management of asynchronous object lifetimes
+
+The design is a mature one, proved in practice at Facebook and other companies,
+and rooted in compositional patterns inspired from functional programming. But
+there is no need to be a functional programming expert to use this library.
+
+NOTE: Names in this library purposefully follow naming in the standard proposal.
+If you have a beef with naming, take it up with the C++ standards committee. For
+our purposes it is important not to introduce an extra source of confusion by
+changing names; this library is a partial implementation of P2300, thus external
+documentation is also useful.

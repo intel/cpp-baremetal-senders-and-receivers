@@ -1,0 +1,22 @@
+
+== Composing senders
+
+Sender composition makes up most of what user code does. This is the process of
+defining how tasks run with respect to each other, e.g. "run task A, then
+forward what it returns to task B". To that end, there are three kinds of
+functions in the library:
+
+- sender _factories_: functions that return senders and represent entry points
+  of asynchronous computation.
+- sender _adaptors_: functions that take one or more senders and return a sender
+  that is somehow the composition of them.
+- sender _consumers_: functions that take a sender and actually kick off the
+  asynchronous work.
+
+IMPORTANT: Creating and composing senders _does not do any work_. Senders only
+_describe_ a computation. After composing multiple senders into a sender, a
+sender consumer will actually start the work.
+
+include::sender_factories.adoc[]
+include::sender_adaptors.adoc[]
+include::sender_consumers.adoc[]
