@@ -7,6 +7,8 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/tuple.hpp>
+#include <stdx/tuple_algorithms.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <boost/mp11/algorithm.hpp>
@@ -20,16 +22,43 @@
 namespace async {
 namespace _then {
 
-template <typename R, typename F> struct base_receiver : R {
-    [[no_unique_address]] F f;
+template <typename R, typename... Fs> struct base_receiver : R {
+    [[no_unique_address]] stdx::tuple<Fs...> fs;
+
+    struct void_t {};
+    template <typename T>
+    using nonvoid_result_t = std::bool_constant<not std::is_same_v<void_t, T>>;
+
+    template <typename Tag, typename... Args> auto set(Args &&...args) -> void {
+        auto const exec = []<typename F, typename Arg>(F &&f, Arg &&arg) {
+            if constexpr (std::is_void_v<std::invoke_result_t<F, Arg>>) {
+                std::invoke(std::forward<F>(f), std::forward<Arg>(arg));
+                return void_t{};
+            } else {
+                return std::invoke(std::forward<F>(f), std::forward<Arg>(arg));
+            }
+        };
+        auto results = stdx::transform(
+            exec, fs, stdx::tuple<Args...>{std::forward<Args>(args)...});
+        auto filtered_results =
+            stdx::filter<nonvoid_result_t>(std::move(results));
+
+        std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
+            Tag{}(static_cast<R &>(*this), std::forward<Ts>(ts)...);
+        });
+    }
+};
+
+template <typename R, typename F> struct base_receiver<R, F> : R {
+    [[no_unique_address]] stdx::tuple<F> fs;
 
     template <typename Tag, typename... Args> auto set(Args &&...args) -> void {
         if constexpr (std::is_void_v<std::invoke_result_t<F, Args...>>) {
-            std::invoke(f, std::forward<Args>(args)...);
+            std::invoke(get<0>(fs), std::forward<Args>(args)...);
             Tag{}(static_cast<R &>(*this));
         } else {
             Tag{}(static_cast<R &>(*this),
-                  std::invoke(f, std::forward<Args>(args)...));
+                  std::invoke(get<0>(fs), std::forward<Args>(args)...));
         }
     }
 };
@@ -51,16 +80,48 @@ template <typename R> struct tag_receiver<set_stopped_t, R> : R {
     auto set_stopped() -> void { this->template set<set_stopped_t>(); }
 };
 
-template <typename Tag, typename R, typename F>
-using receiver = tag_receiver<Tag, base_receiver<R, F>>;
+template <typename Tag, typename R, typename... Fs>
+using receiver = tag_receiver<Tag, base_receiver<R, Fs...>>;
 
-template <typename Tag, typename S, typename F> class sender {
+namespace detail {
+template <typename Tag> struct as_signature {
+    template <typename... As> using fn = Tag(As...);
+};
+
+template <typename Tag, typename... Fs> struct to_signature {
+    // clang has a bug here, we cannot just use an alias
+    template <typename... Ts> struct no_voids_t {
+        using type = boost::mp11::mp_apply_q<
+            as_signature<Tag>,
+            boost::mp11::mp_remove_if<
+                boost::mp11::mp_list<std::invoke_result_t<Fs, Ts>...>,
+                std::is_void>>;
+    };
+
+    template <typename... Ts>
+    using type = completion_signatures<typename no_voids_t<Ts...>::type>;
+};
+
+template <typename Tag, typename F> struct to_signature<Tag, F> {
+    template <typename... Ts>
+    using no_voids = boost::mp11::mp_apply_q<
+        as_signature<Tag>,
+        boost::mp11::mp_remove_if<
+            boost::mp11::mp_list<std::invoke_result_t<F, Ts...>>,
+            std::is_void>>;
+
+    template <typename... Ts>
+    using type = completion_signatures<no_voids<Ts...>>;
+};
+} // namespace detail
+
+template <typename Tag, typename S, typename... Fs> class sender {
     template <receiver_from<sender> R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
                                                    R &&r) {
         return connect(std::move(self).s,
-                       receiver<Tag, std::remove_cvref_t<R>, F>{
-                           {{std::forward<R>(r)}, std::move(self).f}});
+                       receiver<Tag, std::remove_cvref_t<R>, Fs...>{
+                           {{std::forward<R>(r)}, std::move(self).fs}});
     }
 
     template <typename Self, receiver_from<sender> R>
@@ -68,9 +129,10 @@ template <typename Tag, typename S, typename F> class sender {
                  multishot_sender<S, R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r) {
-        return connect(std::forward<Self>(self).s,
-                       receiver<Tag, std::remove_cvref_t<R>, F>{
-                           {{std::forward<R>(r)}, std::forward<Self>(self).f}});
+        return connect(
+            std::forward<Self>(self).s,
+            receiver<Tag, std::remove_cvref_t<R>, Fs...>{
+                {{std::forward<R>(r)}, std::forward<Self>(self).fs}});
     }
 
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
@@ -78,12 +140,9 @@ template <typename Tag, typename S, typename F> class sender {
         return forward_env_of(sndr.s);
     }
 
-    template <typename... As> using to_signature = Tag(As...);
     template <typename... Ts>
-    using as_signature =
-        detail::eat_void_t<std::invoke_result_t<F, Ts...>, to_signature>;
-    template <typename... As>
-    using signatures = completion_signatures<as_signature<As...>>;
+    using signatures =
+        typename detail::to_signature<Tag, Fs...>::template type<Ts...>;
 
     template <typename Env>
         requires std::same_as<Tag, set_value_t>
@@ -98,7 +157,7 @@ template <typename Tag, typename S, typename F> class sender {
     [[nodiscard]] friend constexpr auto
     tag_invoke(get_completion_signatures_t, sender const &, Env const &) {
         return make_completion_signatures<S, Env, completion_signatures<>,
-                                          detail::default_set_value,
+                                          ::async::detail::default_set_value,
                                           signatures>{};
     }
 
@@ -114,31 +173,31 @@ template <typename Tag, typename S, typename F> class sender {
     using is_sender = void;
 
     [[no_unique_address]] S s;
-    [[no_unique_address]] F f;
+    [[no_unique_address]] stdx::tuple<Fs...> fs;
 };
 
-template <typename Tag, typename F> struct pipeable {
-    F f;
+template <typename Tag, typename... Fs> struct pipeable {
+    stdx::tuple<Fs...> fs;
 
   private:
     template <async::sender S, typename Self>
         requires std::same_as<pipeable, std::remove_cvref_t<Self>>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Tag, std::remove_cvref_t<S>, F>{
-            std::forward<S>(s), std::forward<Self>(self).f};
+        return sender<Tag, std::remove_cvref_t<S>, Fs...>{
+            std::forward<S>(s), std::forward<Self>(self).fs};
     }
 };
 } // namespace _then
 
-template <stdx::callable F>
-[[nodiscard]] constexpr auto then(F &&f)
-    -> _then::pipeable<set_value_t, std::remove_cvref_t<F>> {
-    return {std::forward<F>(f)};
+template <stdx::callable... Fs>
+[[nodiscard]] constexpr auto then(Fs &&...fs)
+    -> _then::pipeable<set_value_t, std::remove_cvref_t<Fs>...> {
+    return {std::forward<Fs>(fs)...};
 }
 
-template <sender S, stdx::callable F>
-[[nodiscard]] constexpr auto then(S &&s, F &&f) -> sender auto {
-    return std::forward<S>(s) | then(std::forward<F>(f));
+template <sender S, stdx::callable... Fs>
+[[nodiscard]] constexpr auto then(S &&s, Fs &&...fs) -> sender auto {
+    return std::forward<S>(s) | then(std::forward<Fs>(fs)...);
 }
 
 template <stdx::callable F>

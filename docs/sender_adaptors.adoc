@@ -146,7 +146,6 @@ when called on a multishot sender.
 
 `then` takes a sender and a function, and returns a sender that will call the
 function with the values that the sender sends.
-
 [source,cpp]
 ----
 auto sndr = async::just(42);
@@ -159,6 +158,39 @@ auto then_sndr = async::then(sndr, [] (int i) { return std::to_string(i); });
 ====
 `then` is equivalent to `fmap`.
 ====
+
+`then` can also take a variadic pack of functions, for a use case when the
+sender sends multiple values. This provides an easy way to apply a different
+function to each value, and avoids having to return a tuple of values which
+would then require extra handling downstream.
+[source,cpp]
+----
+auto sndr = async::just(42, 17);
+auto then_sndr = async::then(sndr,
+    [] (int i) { return std::to_string(i); },
+    [] (int j) { return j + 1; });
+// when run, then_sndr will send "42" and 18
+----
+
+CAUTION: When using variadic `then`, the number of functions passed must equal
+the number of values sent by the upstream sender.
+
+In both the "normal" and variadic cases, functions passed to `then` may return
+`void`. In the "normal" case, the resulting `then` sender completes by calling
+`set_value` with no arguments. In the variadic case, `set_value` will be called
+with the `void`-returns filtered out.
+[source,cpp]
+----
+auto s1 = async::just(42);
+auto normal_then = async::then(s1, [] (int) {});
+// when run, this will call set_value() on the downstream receiver
+
+auto s2 = async::just(42, 17);
+auto variadic_then = async::then(s2,
+    [] (int i) { return std::to_string(i); },
+    [] (int) {});
+// when run, this will call set_value("42") on the downstream receiver
+----
 
 === `transfer`
 
