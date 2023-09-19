@@ -136,3 +136,46 @@ TEST_CASE("then propagates forwarding queries to its child environment",
     auto t = async::then(s, [] {});
     CHECK(get_fwd(async::get_env(t)) == 42);
 }
+
+TEST_CASE("then advertises what it sends (variadic)", "[then]") {
+    auto s = async::just(true, false) |
+             async::then([](auto) { return 42; }, [](auto) { return 17; });
+    static_assert(async::sender_of<decltype(s), async::set_value_t(int, int)>);
+}
+
+TEST_CASE("then (variadic)", "[then]") {
+    int x{};
+    int y{};
+    auto s = async::just(2, 3) | async::then([](auto i) { return i * 2; },
+                                             [](auto i) { return i * 3; });
+    auto op = async::connect(s, receiver{[&](auto i, auto j) {
+                                 x = i;
+                                 y = j;
+                             }});
+    op.start();
+    CHECK(x == 4);
+    CHECK(y == 9);
+}
+
+TEST_CASE("variadic then can have void-returning functions", "[then]") {
+    int x{};
+    int y{42};
+    auto s = async::just(2, 3) |
+             async::then([](auto i) { return i * 2; }, [](auto) {});
+    static_assert(async::sender_of<decltype(s), async::set_value_t(int)>);
+    auto op = async::connect(s, receiver{[&](auto i) { x = i; }});
+    op.start();
+    CHECK(x == 4);
+    CHECK(y == 42);
+}
+
+TEST_CASE("move-only value (variadic)", "[then]") {
+    int x{};
+    auto s = async::just(2, 3) |
+             async::then([](auto i) { return move_only{i}; }, [](auto) {});
+    static_assert(
+        async::sender_of<decltype(s), async::set_value_t(move_only<int>)>);
+    auto op = async::connect(s, receiver{[&](auto i) { x = i.value; }});
+    op.start();
+    CHECK(x == 2);
+}
