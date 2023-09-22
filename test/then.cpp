@@ -19,6 +19,16 @@ TEST_CASE("then", "[then]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("then propagates a value", "[then]") {
+    int value{};
+
+    auto s = async::just(42);
+    auto n = async::then(s, [](auto i) { return i * 2; });
+    auto op = async::connect(n, receiver{[&](auto i) { value = i; }});
+    op.start();
+    CHECK(value == 84);
+}
+
 TEST_CASE("then advertises what it sends", "[then]") {
     auto sched = async::inline_scheduler{};
     auto s = sched.schedule();
@@ -169,7 +179,7 @@ TEST_CASE("variadic then can have void-returning functions", "[then]") {
     CHECK(y == 42);
 }
 
-TEST_CASE("move-only value (variadic)", "[then]") {
+TEST_CASE("move-only value (from then) (variadic)", "[then]") {
     int x{};
     auto s = async::just(2, 3) |
              async::then([](auto i) { return move_only{i}; }, [](auto) {});
@@ -178,4 +188,44 @@ TEST_CASE("move-only value (variadic)", "[then]") {
     auto op = async::connect(s, receiver{[&](auto i) { x = i.value; }});
     op.start();
     CHECK(x == 2);
+}
+
+TEST_CASE("move-only value (to then) (variadic)", "[then]") {
+    int x{};
+    auto s = async::just(move_only{2}, move_only{3}) |
+             async::then([](auto i) { return i.value; }, [](auto) {});
+    static_assert(async::sender_of<decltype(s), async::set_value_t(int)>);
+    auto op = async::connect(std::move(s), receiver{[&](auto i) { x = i; }});
+    op.start();
+    CHECK(x == 2);
+}
+
+TEST_CASE("variadic then can take heteroadic functions", "[then]") {
+    int x{};
+    int y{42};
+    bool z{};
+    auto s = async::just(2, 3, 4) |
+             async::then([](auto i, auto j) { return i + j; },
+                         [](auto k) { return k; }, [] { return true; });
+    static_assert(
+        async::sender_of<decltype(s), async::set_value_t(int, int, bool)>);
+    auto op = async::connect(s, receiver{[&](auto i, auto j, auto k) {
+                                 x = i;
+                                 y = j;
+                                 z = k;
+                             }});
+    op.start();
+    CHECK(x == 5);
+    CHECK(y == 4);
+    CHECK(z);
+}
+
+TEST_CASE("then can handle a reference", "[then]") {
+    int value{};
+    auto s = async::just() | async::then([&]() -> int & { return value; });
+    auto op =
+        async::connect(s, receiver{[&](auto &i) {
+                           CHECK(std::addressof(value) == std::addressof(i));
+                       }});
+    op.start();
 }
