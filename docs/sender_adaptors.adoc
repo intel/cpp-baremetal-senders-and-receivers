@@ -172,9 +172,6 @@ auto then_sndr = async::then(sndr,
 // when run, then_sndr will send "42" and 18
 ----
 
-CAUTION: When using variadic `then`, the number of functions passed must equal
-the number of values sent by the upstream sender.
-
 In both the "normal" and variadic cases, functions passed to `then` may return
 `void`. In the "normal" case, the resulting `then` sender completes by calling
 `set_value` with no arguments. In the variadic case, `set_value` will be called
@@ -190,6 +187,19 @@ auto variadic_then = async::then(s2,
     [] (int i) { return std::to_string(i); },
     [] (int) {});
 // when run, this will call set_value("42") on the downstream receiver
+----
+
+In the variadic case, `then` can distribute the values sent from upstream to the
+functions by arity:
+
+[source,cpp]
+----
+auto s = async::just(42, 17, false, "Hello"sv);
+auto t = async::then(s,
+    [] (int i, int j) { return i + j; },
+    [] (auto b, std::string_view s) -> std::string_view { if (b) return s; else return "no"; },
+    [] { return 1.0f; });
+// when run, this will call set_value(59, "no", 1.0f) on the downstream receiver
 ----
 
 === `transfer`

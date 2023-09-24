@@ -22,44 +22,100 @@
 namespace async {
 namespace _then {
 
+namespace detail {
+template <typename... Ts> struct args {
+    using tuple_t = stdx::tuple<Ts...>;
+
+    template <typename F, std::size_t Offset, std::size_t... Is>
+    constexpr static auto try_invoke_impl(std::index_sequence<Is...>)
+        -> std::invoke_result_t<
+            F, decltype(std::declval<tuple_t>()[stdx::index<Offset + Is>])...>;
+
+    template <typename F, typename Offset, typename N>
+    using try_invoke = decltype(try_invoke_impl<F, Offset::value>(
+        std::make_index_sequence<N::value>{}));
+
+    template <typename F, typename Offset, typename N>
+    using has_arg_count = boost::mp11::mp_valid<try_invoke, F, Offset, N>;
+
+    template <typename F, typename Offset, typename N> struct arity;
+
+    template <typename F, typename Offset, typename N>
+    using arity_t = typename arity<F, Offset, N>::type;
+
+    template <typename F, typename Offset, typename N> struct arity {
+        using type = boost::mp11::mp_eval_if<
+            has_arg_count<F, Offset, N>, N, arity_t, F, Offset,
+            std::integral_constant<std::size_t, N::value + 1u>>;
+    };
+
+    template <typename T> constexpr static auto compute_arities(T const &t) {
+        auto const init =
+            std::pair{stdx::tuple{}, std::integral_constant<std::size_t, 0>{}};
+        auto const binop = []<typename Acc, typename F>(Acc, F) {
+            using Offset = typename Acc::second_type;
+            using A =
+                arity_t<F, Offset, std::integral_constant<std::size_t, 0>>;
+            return std::pair{
+                boost::mp11::mp_push_back<typename Acc::first_type, A>{},
+                boost::mp11::mp_plus<Offset, A>{}};
+        };
+        return t.fold_left(init, binop).first;
+    }
+
+    template <typename... Fs>
+    using arities_t =
+        decltype(compute_arities(std::declval<stdx::tuple<Fs...>>()));
+};
+
+template <typename Arities, typename... Fs>
+using offsets_t = boost::mp11::mp_pop_back<boost::mp11::mp_partial_sum<
+    boost::mp11::mp_push_front<Arities, boost::mp11::mp_int<0>>,
+    boost::mp11::mp_int<0>, boost::mp11::mp_plus>>;
+
+struct void_t {};
+template <typename T>
+using nonvoid_result_t = std::bool_constant<not std::is_same_v<void_t, T>>;
+
+template <std::size_t Offset>
+constexpr auto invoke =
+    []<typename F, typename T, std::size_t... Is>(
+        F &&f, T &&t, std::index_sequence<Is...>) -> decltype(auto) {
+    if constexpr (std::is_void_v<std::invoke_result_t<
+                      F, decltype(std::forward<T>(
+                             t)[stdx::index<Offset + Is>])...>>) {
+        std::invoke(std::forward<F>(f),
+                    std::forward<T>(t)[stdx::index<Offset + Is>]...);
+        return void_t{};
+    } else {
+        return std::invoke(std::forward<F>(f),
+                           std::forward<T>(t)[stdx::index<Offset + Is>]...);
+    }
+};
+} // namespace detail
+
 template <typename R, typename... Fs> struct base_receiver : R {
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
-    struct void_t {};
-    template <typename T>
-    using nonvoid_result_t = std::bool_constant<not std::is_same_v<void_t, T>>;
-
     template <typename Tag, typename... Args> auto set(Args &&...args) -> void {
-        auto const exec = []<typename F, typename Arg>(F &&f, Arg &&arg) {
-            if constexpr (std::is_void_v<std::invoke_result_t<F, Arg>>) {
-                std::invoke(std::forward<F>(f), std::forward<Arg>(arg));
-                return void_t{};
-            } else {
-                return std::invoke(std::forward<F>(f), std::forward<Arg>(arg));
-            }
+        using arities =
+            typename detail::args<Args &&...>::template arities_t<Fs...>;
+        using offsets = typename detail::offsets_t<arities, Fs...>;
+
+        auto arg_tuple = stdx::tuple<Args &&...>{std::forward<Args>(args)...};
+        auto const invoke = [&]<typename F, typename Offset, typename Arity>(
+                                F &&func, Offset, Arity) -> decltype(auto) {
+            return detail::invoke<Offset::value>(
+                std::forward<F>(func), std::move(arg_tuple),
+                std::make_index_sequence<Arity::value>{});
         };
-        auto results = stdx::transform(
-            exec, fs, stdx::tuple<Args...>{std::forward<Args>(args)...});
+        auto results = stdx::transform(invoke, fs, offsets{}, arities{});
         auto filtered_results =
-            stdx::filter<nonvoid_result_t>(std::move(results));
+            stdx::filter<detail::nonvoid_result_t>(std::move(results));
 
         std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
             Tag{}(static_cast<R &>(*this), std::forward<Ts>(ts)...);
         });
-    }
-};
-
-template <typename R, typename F> struct base_receiver<R, F> : R {
-    [[no_unique_address]] stdx::tuple<F> fs;
-
-    template <typename Tag, typename... Args> auto set(Args &&...args) -> void {
-        if constexpr (std::is_void_v<std::invoke_result_t<F, Args...>>) {
-            std::invoke(get<0>(fs), std::forward<Args>(args)...);
-            Tag{}(static_cast<R &>(*this));
-        } else {
-            Tag{}(static_cast<R &>(*this),
-                  std::invoke(get<0>(fs), std::forward<Args>(args)...));
-        }
     }
 };
 
@@ -76,6 +132,7 @@ template <typename R> struct tag_receiver<set_error_t, R> : R {
         this->template set<set_error_t>(std::forward<Args>(args)...);
     }
 };
+
 template <typename R> struct tag_receiver<set_stopped_t, R> : R {
     auto set_stopped() -> void { this->template set<set_stopped_t>(); }
 };
@@ -89,29 +146,34 @@ template <typename Tag> struct as_signature {
 };
 
 template <typename Tag, typename... Fs> struct to_signature {
+    template <typename... Ts> struct invoke {
+        template <typename F, std::size_t Offset, std::size_t... Is>
+        constexpr static auto invoke_result(std::index_sequence<Is...>)
+            -> std::invoke_result_t<
+                F, decltype(std::declval<stdx::tuple<Ts...>>()
+                                [stdx::index<Offset + Is>])...>;
+
+        template <typename F, typename Offset, typename Arity>
+        using fn = decltype(invoke_result<F, Offset::value>(
+            std::make_index_sequence<Arity::value>{}));
+    };
+
     // clang has a bug here, we cannot just use an alias
     template <typename... Ts> struct no_voids_t {
+        using arities = typename detail::args<Ts...>::template arities_t<Fs...>;
+        using offsets = typename detail::offsets_t<arities, Fs...>;
+
         using type = boost::mp11::mp_apply_q<
             as_signature<Tag>,
             boost::mp11::mp_remove_if<
-                boost::mp11::mp_list<std::invoke_result_t<Fs, Ts>...>,
+                boost::mp11::mp_transform_q<invoke<Ts...>,
+                                            boost::mp11::mp_list<Fs...>,
+                                            offsets, arities>,
                 std::is_void>>;
     };
 
     template <typename... Ts>
     using type = completion_signatures<typename no_voids_t<Ts...>::type>;
-};
-
-template <typename Tag, typename F> struct to_signature<Tag, F> {
-    template <typename... Ts>
-    using no_voids = boost::mp11::mp_apply_q<
-        as_signature<Tag>,
-        boost::mp11::mp_remove_if<
-            boost::mp11::mp_list<std::invoke_result_t<F, Ts...>>,
-            std::is_void>>;
-
-    template <typename... Ts>
-    using type = completion_signatures<no_voids<Ts...>>;
 };
 } // namespace detail
 

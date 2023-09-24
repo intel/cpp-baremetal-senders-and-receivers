@@ -11,7 +11,7 @@ project(
 include(cmake/get_cpm.cmake)
 cpmaddpackage("gh:intel/cicd-repo-infrastructure#main")
 
-add_versioned_package("gh:intel/cpp-std-extensions#9cf1f58")
+add_versioned_package("gh:intel/cpp-std-extensions#0540d81")
 add_versioned_package("gh:intel/cpp-baremetal-concurrency#8d49b6d")
 add_versioned_package("gh:boostorg/mp11#boost-1.83.0")
 
