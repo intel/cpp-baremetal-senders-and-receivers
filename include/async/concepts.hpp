@@ -39,10 +39,9 @@ concept receiver = enable_receiver<std::remove_cvref_t<R>> and
 namespace detail {
 template <typename Signature, typename R>
 concept valid_completion_for = requires(Signature *sig) {
-    []<typename Tag, typename... Args>(Tag(*)(Args...))
+    []<typename Tag, typename... Args>(Tag (*)(Args...))
         requires std::invocable<Tag, std::remove_cvref_t<R>, Args...>
-    {}
-    (sig);
+    {}(sig);
 };
 } // namespace detail
 

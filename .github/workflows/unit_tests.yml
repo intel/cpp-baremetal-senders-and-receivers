@@ -12,7 +12,7 @@ env:
   DEBIAN_FRONTEND: noninteractive
   CMAKE_GENERATOR: Ninja
   DEFAULT_CXX_STANDARD: 20
-  DEFAULT_LLVM_VERSION: 16
+  DEFAULT_LLVM_VERSION: 17
   DEFAULT_GCC_VERSION: 12
 
 concurrency:
@@ -21,12 +21,12 @@ concurrency:
 
 jobs:
   build_and_test:
-    runs-on: intel-ubuntu-22.04
+    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         compiler: [clang, gcc]
-        version: [12, 13, 14, 15, 16]
+        version: [12, 13, 14, 15, 16, 17]
         cxx_standard: [20]
         stdlib: [libstdc++, libc++]
         build_type: [Debug]
@@ -35,6 +35,15 @@ jobs:
             cc: "clang"
             cxx: "clang++"
             cxx_flags: "-stdlib=libstdc++"
+          - version: 17
+            compiler: clang
+            install: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 17
+            toolchain_root: "/usr/lib/llvm-17"
+          - version: 17
+            compiler: clang
+            stdlib: libc++
+            install: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 17 && sudo apt install -y libc++-17-dev libc++abi-17-dev
+            cxx_flags: "-stdlib=libc++"
           - version: 16
             compiler: clang
             install: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 16
@@ -78,6 +87,8 @@ jobs:
             cxx_flags: ""
         exclude:
           - compiler: gcc
+            version: 17
+          - compiler: gcc
             version: 16
           - compiler: gcc
             version: 15
@@ -112,7 +123,7 @@ jobs:
         run: ctest -j $(nproc) -C ${{matrix.build_type}}
 
   quality_checks_pass:
-    runs-on: intel-ubuntu-22.04
+    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -136,7 +147,7 @@ jobs:
         run: cmake --build ${{github.workspace}}/build -t quality
 
   sanitize:
-    runs-on: intel-ubuntu-22.04
+    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -161,7 +172,7 @@ jobs:
         run: cmake --build ${{github.workspace}}/build -t unit_tests
 
   valgrind:
-    runs-on: intel-ubuntu-22.04
+    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -211,7 +222,7 @@ jobs:
           test $FAILSIZE = "0"
 
   merge_ok:
-    runs-on: intel-ubuntu-22.04
+    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-22.04
     needs: [build_and_test, quality_checks_pass, sanitize, valgrind]
     if: ${{ always() }}
     steps:
