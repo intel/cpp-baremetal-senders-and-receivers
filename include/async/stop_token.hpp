@@ -16,7 +16,7 @@ using stop_callback_for_t = typename T::template callback_type<CB>;
 
 template <class T>
 concept stoppable_token =
-    std::copyable<T> and std::equality_comparable<T> and requires(const T t) {
+    std::copyable<T> and std::equality_comparable<T> and requires(T const t) {
         { T(t) } noexcept;
         { t.stop_requested() } noexcept -> std::same_as<bool>;
         { t.stop_possible() } noexcept -> std::same_as<bool>;

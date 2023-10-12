@@ -49,6 +49,7 @@ class inline_scheduler {
     class singleshot_sender : public sender_base {
         template <receiver_from<singleshot_sender> R>
         [[nodiscard]] friend constexpr auto
+        // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
         tag_invoke(connect_t, singleshot_sender &&, R &&r) -> op_state<R> {
             return {std::forward<R>(r)};
         }
