@@ -3,7 +3,7 @@
 #include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
-#include <async/inline_scheduler.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 

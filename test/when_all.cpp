@@ -3,9 +3,9 @@
 #include <async/concepts.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/sync_wait.hpp>
 #include <async/then.hpp>
-#include <async/thread_scheduler.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 

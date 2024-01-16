@@ -1,9 +1,9 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
-#include <async/inline_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/on.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
 #include <async/then.hpp>
 #include <async/transfer.hpp>
 

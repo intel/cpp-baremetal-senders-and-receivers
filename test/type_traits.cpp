@@ -1,7 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
-#include <async/inline_scheduler.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
 #include <async/type_traits.hpp>
 
 #include <catch2/catch_test_macros.hpp>

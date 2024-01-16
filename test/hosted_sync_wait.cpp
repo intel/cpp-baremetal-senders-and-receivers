@@ -1,11 +1,11 @@
 #include <async/concepts.hpp>
-#include <async/inline_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/on.hpp>
 #include <async/read.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/sync_wait.hpp>
 #include <async/then.hpp>
-#include <async/thread_scheduler.hpp>
 #include <async/variant_sender.hpp>
 
 #include <catch2/catch_test_macros.hpp>

@@ -2,9 +2,9 @@
 
 #include <async/concepts.hpp>
 #include <async/env.hpp>
-#include <async/inline_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/let_error.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 

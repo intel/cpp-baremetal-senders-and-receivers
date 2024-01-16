@@ -2,10 +2,10 @@
 
 #include <async/concepts.hpp>
 #include <async/env.hpp>
-#include <async/inline_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/on.hpp>
 #include <async/read.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
 #include <async/stop_token.hpp>
 #include <async/sync_wait.hpp>
 #include <async/tags.hpp>
