@@ -1,8 +1,8 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
-#include <async/inline_scheduler.hpp>
 #include <async/just.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
 #include <async/then.hpp>
 
 #include <catch2/catch_test_macros.hpp>

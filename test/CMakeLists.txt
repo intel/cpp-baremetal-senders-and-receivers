@@ -5,6 +5,8 @@ function(add_tests)
             CATCH2
             FILES
             "${name}.cpp"
+            INCLUDE_DIRECTORIES
+            ${PROJECT_SOURCE_DIR}/test
             LIBRARIES
             warnings
             async
@@ -18,7 +20,6 @@ add_tests(
     forwarding_query
     freestanding_sync_wait
     hosted_sync_wait
-    inline_scheduler
     just
     just_error
     just_error_result_of
@@ -31,11 +32,9 @@ add_tests(
     read
     repeat
     retry
-    runloop_scheduler
     split
     stop_token
     then
-    thread_scheduler
     transfer
     type_traits
     upon_error
@@ -43,3 +42,5 @@ add_tests(
     variant_sender
     when_all
     when_any)
+
+add_subdirectory(schedulers)

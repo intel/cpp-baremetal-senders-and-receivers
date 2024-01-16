@@ -1,10 +1,10 @@
 #include <async/concepts.hpp>
-#include <async/inline_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/on.hpp>
 #include <async/read.hpp>
+#include <async/schedulers/inline_scheduler.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/then.hpp>
-#include <async/thread_scheduler.hpp>
 #include <async/variant_sender.hpp>
 
 #define SIMULATE_FREESTANDING

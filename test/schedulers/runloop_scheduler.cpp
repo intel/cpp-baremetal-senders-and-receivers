@@ -3,7 +3,7 @@
 #include <async/completion_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/on.hpp>
-#include <async/runloop_scheduler.hpp>
+#include <async/schedulers/runloop_scheduler.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 

@@ -1,0 +1,1 @@
+add_tests(inline_scheduler runloop_scheduler thread_scheduler)
