@@ -5,10 +5,15 @@
 #include <async/on.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
+#include <async/start_detached.hpp>
+#include <async/then.hpp>
+#include <async/transfer.hpp>
 
 #include <stdx/concepts.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+
+#include <concepts>
 
 namespace {
 struct hal {
@@ -85,5 +90,35 @@ TEST_CASE("fixed_priority_scheduler is cancellable after start",
     r.request_stop();
     async::task_mgr::service_tasks<0>();
     CHECK(var == 17);
+    CHECK(async::task_mgr::is_idle());
+}
+
+TEST_CASE("request and response", "[priority_scheduler]") {
+    int var{};
+
+    using client_context = async::fixed_priority_scheduler<1>;
+    using server_context = async::fixed_priority_scheduler<2>;
+
+    auto s = client_context::schedule() //
+             | async::then([&] {
+                   ++var;
+                   return 42;
+               })                                //
+             | async::transfer(server_context{}) //
+             | async::then([&](auto i) {
+                   ++var;
+                   return i * 2;
+               })                                //
+             | async::transfer(client_context{}) //
+             | async::then([&](auto i) { var += i; });
+    CHECK(async::start_detached(s));
+
+    CHECK(var == 0);
+    async::task_mgr::service_tasks<1>();
+    CHECK(var == 1);
+    async::task_mgr::service_tasks<2>();
+    CHECK(var == 2);
+    async::task_mgr::service_tasks<1>();
+    CHECK(var == 86);
     CHECK(async::task_mgr::is_idle());
 }

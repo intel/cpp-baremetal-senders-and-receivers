@@ -15,6 +15,7 @@ function(add_tests)
 endfunction()
 
 add_tests(
+    allocator
     concepts
     env
     forwarding_query
@@ -33,6 +34,7 @@ add_tests(
     repeat
     retry
     split
+    start_detached
     stop_token
     then
     transfer
