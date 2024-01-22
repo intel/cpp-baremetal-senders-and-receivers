@@ -188,7 +188,7 @@ template <typename Tag, typename S, typename... Fs> class sender {
 
     template <typename Self, receiver_from<sender> R>
         requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 multishot_sender<S, R>
+                 multishot_sender<S>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r) {
         return connect(

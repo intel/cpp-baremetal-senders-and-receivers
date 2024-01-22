@@ -18,19 +18,15 @@ template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
         requires std::same_as<Rcvr, std::remove_cvref_t<R>>
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
 
-    auto start() -> void {
-        if (check_stopped()) {
-            std::move(rcvr).set_stopped();
-        } else {
-            detail::enqueue_task(*this, P);
+    auto run() -> void final {
+        if (not check_stopped()) {
+            std::move(rcvr).set_value();
         }
     }
 
-    auto run() -> void final {
-        if (check_stopped()) {
-            std::move(rcvr).set_stopped();
-        } else {
-            std::move(rcvr).set_value();
+    auto start() -> void {
+        if (not check_stopped()) {
+            detail::enqueue_task(*this, P);
         }
     }
 
@@ -39,7 +35,10 @@ template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
   private:
     auto check_stopped() -> bool {
         if constexpr (not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
-            return get_stop_token(get_env(rcvr)).stop_requested();
+            if (get_stop_token(get_env(rcvr)).stop_requested()) {
+                std::move(rcvr).set_stopped();
+                return true;
+            }
         }
         return false;
     }
@@ -47,7 +46,6 @@ template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
 } // namespace task_mgr
 
 template <priority_t P> class fixed_priority_scheduler {
-
     class env {
         [[nodiscard]] friend constexpr auto
         tag_invoke(get_completion_scheduler_t<set_value_t>, env) noexcept
