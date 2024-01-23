@@ -17,23 +17,28 @@ namespace _repeat {
 template <typename Ops, typename Rcvr> struct receiver {
     using is_receiver = void;
 
+    Ops *ops;
+
+  private:
     template <typename... Args>
-    constexpr auto set_value(Args &&...args) const -> void {
-        ops->repeat(std::forward<Args>(args)...);
+    friend constexpr auto tag_invoke(set_value_t, receiver const &r,
+                                     Args &&...args) -> void {
+        r.ops->repeat(std::forward<Args>(args)...);
     }
     template <typename... Args>
-    constexpr auto set_error(Args &&...args) const -> void {
-        ops->rcvr.set_error(std::forward<Args>(args)...);
+    friend constexpr auto tag_invoke(set_error_t, receiver const &r,
+                                     Args &&...args) -> void {
+        set_error(r.ops->rcvr, std::forward<Args>(args)...);
     }
-    constexpr auto set_stopped() const -> void { ops->rcvr.set_stopped(); }
+    friend constexpr auto tag_invoke(set_stopped_t, receiver const &r) -> void {
+        set_stopped(r.ops->rcvr);
+    }
 
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
                                                    receiver const &self)
         -> detail::forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(self.ops->rcvr);
     }
-
-    Ops *ops;
 };
 
 constexpr auto never_stop = [] { return false; };
@@ -60,7 +65,7 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
         if constexpr (not std::same_as<
                           Pred, std::remove_cvref_t<decltype(never_stop)>>) {
             if (pred()) {
-                rcvr.set_value(std::forward<Args>(args)...);
+                set_value(rcvr, std::forward<Args>(args)...);
                 return;
             }
         }

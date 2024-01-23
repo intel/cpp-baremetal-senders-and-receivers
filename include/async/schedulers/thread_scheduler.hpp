@@ -19,7 +19,7 @@ namespace async {
 class thread_scheduler {
     template <typename R> struct op_state {
         auto start() -> void {
-            std::thread{[&] { std::move(receiver).set_value(); }}.detach();
+            std::thread{[&] { set_value(std::move(receiver)); }}.detach();
         }
 
         [[no_unique_address]] R receiver;

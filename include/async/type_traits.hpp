@@ -14,31 +14,6 @@
 #include <utility>
 
 namespace async {
-struct set_value_t {
-    template <typename R, typename... Args>
-    constexpr auto operator()(R &&r, Args &&...args) const
-        -> decltype(std::forward<R>(r).set_value(std::forward<Args>(args)...)) {
-        return std::forward<R>(r).set_value(std::forward<Args>(args)...);
-    }
-};
-
-struct set_error_t {
-    template <typename R, typename... Args>
-    constexpr auto operator()(R &&r, Args &&...args) const
-        -> decltype(std::forward<R>(r).set_error(std::forward<Args>(args)...)) {
-        return std::forward<R>(r).set_error(std::forward<Args>(args)...);
-    }
-};
-
-struct set_stopped_t {
-    template <typename R, typename... Args>
-    constexpr auto operator()(R &&r, Args &&...args) const
-        -> decltype(std::forward<R>(r).set_stopped(
-            std::forward<Args>(args)...)) {
-        return std::forward<R>(r).set_stopped(std::forward<Args>(args)...);
-    }
-};
-
 template <typename...> struct completion_signatures {};
 
 constexpr inline struct get_completion_signatures_t {

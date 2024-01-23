@@ -20,7 +20,7 @@ template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
 
     auto run() -> void final {
         if (not check_stopped()) {
-            std::move(rcvr).set_value();
+            set_value(std::move(rcvr));
         }
     }
 
@@ -36,7 +36,7 @@ template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
     auto check_stopped() -> bool {
         if constexpr (not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
-                std::move(rcvr).set_stopped();
+                set_stopped(std::move(rcvr));
                 return true;
             }
         }

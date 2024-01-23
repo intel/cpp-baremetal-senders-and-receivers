@@ -14,14 +14,15 @@ namespace async {
 namespace _let_error {
 template <typename F, typename Ops, typename Rcvr>
 struct first_receiver : _let::second_receiver<Ops, Rcvr> {
-    template <typename... Args> auto set_error(Args &&...args) const & -> void {
-        this->ops->complete_first(f(std::forward<Args>(args)...));
-    }
-    template <typename... Args> auto set_error(Args &&...args) && -> void {
-        this->ops->complete_first(std::move(f)(std::forward<Args>(args)...));
-    }
-
     [[no_unique_address]] F f;
+
+  private:
+    template <typename Self, typename... Args>
+        requires std::same_as<first_receiver, std::remove_cvref_t<Self>>
+    friend auto tag_invoke(set_error_t, Self &&self, Args &&...args) -> void {
+        self.ops->complete_first(
+            std::forward<Self>(self).f(std::forward<Args>(args)...));
+    }
 };
 
 template <typename S, typename F>

@@ -13,13 +13,13 @@ namespace _start_detached {
 template <typename Ops> struct receiver {
     using is_receiver = void;
 
-    template <typename... Args> auto set_value(Args &&...) const -> void {
-        ops->die();
-    }
-    auto set_error(auto &&...) const -> void { ops->die(); }
-    auto set_stopped() const -> void { ops->die(); }
-
     Ops *ops;
+
+  private:
+    friend auto tag_invoke(channel_tag auto, receiver const &r, auto &&...)
+        -> void {
+        r.ops->die();
+    }
 };
 
 template <typename Uniq, typename Sndr>

@@ -25,29 +25,43 @@ namespace _transfer {
 template <typename Ops> struct first_receiver {
     using is_receiver = void;
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
-        ops->template complete_first<value_holder<Args...>>(
-            std::forward<Args>(args)...);
-    }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
-        ops->template complete_first<error_holder<Args...>>(
-            std::forward<Args>(args)...);
-    }
-    auto set_stopped() const -> void {
-        ops->template complete_first<stopped_holder<>>();
-    }
     Ops *ops;
+
+  private:
+    template <typename... Args>
+    friend auto tag_invoke(set_value_t, first_receiver const &r, Args &&...args)
+        -> void {
+        r.ops->template complete_first<value_holder<Args...>>(
+            std::forward<Args>(args)...);
+    }
+    template <typename... Args>
+    friend auto tag_invoke(set_error_t, first_receiver const &r, Args &&...args)
+        -> void {
+        r.ops->template complete_first<error_holder<Args...>>(
+            std::forward<Args>(args)...);
+    }
+    friend auto tag_invoke(set_stopped_t, first_receiver const &r) -> void {
+        r.ops->template complete_first<stopped_holder<>>();
+    }
 };
 
 template <typename Ops> struct second_receiver {
     using is_receiver = void;
 
-    auto set_value() const -> void { ops->complete_second(); }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
-        ops->rcvr.set_error(std::forward<Args>(args)...);
-    }
-    auto set_stopped() const -> void { ops->rcvr.set_stopped(); }
     Ops *ops;
+
+  private:
+    friend auto tag_invoke(set_value_t, second_receiver const &r) -> void {
+        r.ops->complete_second();
+    }
+    template <typename... Args>
+    friend auto tag_invoke(set_error_t, second_receiver const &r,
+                           Args &&...args) -> void {
+        r.ops->rcvr.set_error(std::forward<Args>(args)...);
+    }
+    friend auto tag_invoke(set_stopped_t, second_receiver const &r) -> void {
+        r.ops->rcvr.set_stopped();
+    }
 };
 
 template <typename Sched, typename Sndr, typename Rcvr>

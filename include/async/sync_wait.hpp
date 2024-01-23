@@ -27,23 +27,30 @@ template <typename Sched> struct env {
 template <typename V, typename RL> struct receiver {
     using is_receiver = void;
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
-        values.emplace(stdx::make_tuple(std::forward<Args>(args)...));
-        loop.finish();
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    V &values;
+    RL &loop;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
+
+  private:
+    template <typename... Args>
+    friend auto tag_invoke(set_value_t, receiver const &r, Args &&...args)
+        -> void {
+        r.values.emplace(stdx::make_tuple(std::forward<Args>(args)...));
+        r.loop.finish();
     }
-    auto set_error(auto &&...) -> void { loop.finish(); }
-    auto set_stopped() -> void { loop.finish(); }
+    friend auto tag_invoke(set_error_t, receiver const &r, auto &&...) -> void {
+        r.loop.finish();
+    }
+    friend auto tag_invoke(set_stopped_t, receiver const &r) -> void {
+        r.loop.finish();
+    }
 
     [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
                                                    receiver const &r) noexcept
         -> env<decltype(std::declval<RL>().get_scheduler())> {
         return {r.loop.get_scheduler()};
     }
-
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
-    V &values;
-    RL &loop;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 namespace detail {
