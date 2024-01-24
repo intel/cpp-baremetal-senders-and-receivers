@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/just.hpp>
+#include <async/tags.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -12,7 +13,7 @@ TEST_CASE("one value", "[just]") {
     auto s = async::just(42);
     auto r = receiver{[&](auto i) { value = i; }};
     auto op = async::connect(s, r);
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -21,7 +22,7 @@ TEST_CASE("multiple values", "[just]") {
     auto s = async::just(1, 2, 3);
     auto op = async::connect(
         s, receiver{[&](auto... is) { value = (0 + ... + is); }});
-    op.start();
+    async::start(op);
     CHECK(value == 6);
 }
 
@@ -36,7 +37,7 @@ TEST_CASE("move-only value", "[just]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(
         std::move(s), receiver{[&](move_only<int> mo) { value = mo.value; }});
-    op.start();
+    async::start(std::move(op));
     CHECK(value == 42);
 }
 
@@ -45,7 +46,7 @@ TEST_CASE("copy sender", "[just]") {
     auto const s = async::just(42);
     static_assert(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -55,7 +56,7 @@ TEST_CASE("move sender", "[just]") {
     static_assert(async::multishot_sender<decltype(s), universal_receiver>);
     auto op =
         async::connect(std::move(s), receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -63,6 +64,6 @@ TEST_CASE("void sender", "[just]") {
     bool rcvd{};
     auto s = async::just();
     auto op = async::connect(s, receiver{[&] { rcvd = true; }});
-    op.start();
+    async::start(op);
     CHECK(rcvd);
 }

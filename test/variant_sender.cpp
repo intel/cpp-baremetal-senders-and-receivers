@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/just.hpp>
+#include <async/tags.hpp>
 #include <async/variant_sender.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -133,7 +134,7 @@ TEST_CASE("make_variant_sender (general choice)"
 
     int value{};
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -151,6 +152,6 @@ TEST_CASE("make_variant_sender (simplified binary choice)"
 
     int value{};
     auto op = async::connect(s, receiver{[&](auto v) { value = v; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }

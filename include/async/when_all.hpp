@@ -6,6 +6,7 @@
 #include <async/tags.hpp>
 
 #include <stdx/type_traits.hpp>
+#include <stdx/utility.hpp>
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/function.hpp>
@@ -162,19 +163,6 @@ struct op_state
               s)}...,
           rcvr{std::forward<R>(r)} {}
 
-    auto start() -> void {
-        stop_cb.emplace(get_stop_token(get_env(rcvr)),
-                        stop_callback_fn{std::addressof(stop_source)});
-        if (stop_source.stop_requested()) {
-            set_stopped(rcvr);
-        } else {
-            count = sizeof...(Sndrs);
-            (static_cast<sub_op_state<op_state, Rcvr, Sndrs> &>(*this)
-                 .ops.start(),
-             ...);
-        }
-    }
-
     auto notify() -> void {
         if (--count == 0) {
             complete();
@@ -229,6 +217,23 @@ struct op_state
     in_place_stop_source stop_source{};
     std::optional<stop_callback_t> stop_cb{};
     std::atomic<bool> have_error{};
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        o.stop_cb.emplace(get_stop_token(get_env(o.rcvr)),
+                          stop_callback_fn{std::addressof(o.stop_source)});
+        if (o.stop_source.stop_requested()) {
+            set_stopped(std::forward<O>(o).rcvr);
+        } else {
+            o.count = sizeof...(Sndrs);
+            (start(static_cast<stdx::forward_like_t<
+                       O, sub_op_state<op_state, Rcvr, Sndrs>>>(o)
+                       .ops),
+             ...);
+        }
+    }
 };
 
 template <typename... Sndrs> struct sender : Sndrs... {
@@ -275,17 +280,22 @@ template <typename... Sndrs> struct sender : Sndrs... {
 };
 
 template <typename Rcvr> struct op_state<Rcvr> {
-    auto start() -> void {
+    [[no_unique_address]] Rcvr rcvr;
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
-            if (async::get_stop_token(async::get_env(rcvr)).stop_requested()) {
-                set_stopped(rcvr);
+            if (async::get_stop_token(async::get_env(o.rcvr))
+                    .stop_requested()) {
+                set_stopped(std::forward<O>(o).rcvr);
                 return;
             }
         }
-        set_value(rcvr);
+        set_value(std::forward<O>(o).rcvr);
     }
-    [[no_unique_address]] Rcvr rcvr;
 };
 
 template <> struct sender<> {

@@ -50,17 +50,16 @@ struct op_state {
                 }}} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto start() -> void { std::get<0>(state).start(); }
-
     template <typename S> auto complete_first(S &&s) -> void {
         using index =
             boost::mp11::mp_find<DependentSenders, std::remove_cvref_t<S>>;
         static_assert(index::value <
                       boost::mp11::mp_size<DependentSenders>::value);
-        state
-            .template emplace<index::value + 1>(stdx::with_result_of{
-                [&] { return connect(std::forward<S>(s), second_rcvr{this}); }})
-            .start();
+        auto &op =
+            state.template emplace<index::value + 1>(stdx::with_result_of{[&] {
+                return connect(std::forward<S>(s), second_rcvr{this});
+            }});
+        start(std::move(op));
     }
 
     template <typename S>
@@ -74,6 +73,13 @@ struct op_state {
 
     [[no_unique_address]] Rcvr rcvr;
     state_t state;
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        start(std::get<0>(std::forward<O>(o).state));
+    }
 };
 
 template <typename Sndr, typename S, typename F, typename Tag,

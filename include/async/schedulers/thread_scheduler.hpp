@@ -18,11 +18,16 @@
 namespace async {
 class thread_scheduler {
     template <typename R> struct op_state {
-        auto start() -> void {
-            std::thread{[&] { set_value(std::move(receiver)); }}.detach();
-        }
-
         [[no_unique_address]] R receiver;
+
+      private:
+        template <typename O>
+            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        friend auto tag_invoke(start_t, O &&o) -> void {
+            std::thread{[&] {
+                set_value(std::forward<O>(o).receiver);
+            }}.detach();
+        }
     };
 
     class env {

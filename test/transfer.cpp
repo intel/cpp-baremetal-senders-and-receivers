@@ -13,8 +13,14 @@
 namespace {
 template <auto> class test_scheduler {
     template <typename R> struct op_state {
-        auto start() -> void { async::set_value(receiver); }
         [[no_unique_address]] R receiver;
+
+      private:
+        template <typename O>
+            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
+            async::set_value(std::forward<O>(o).receiver);
+        }
     };
 
     class env {
@@ -72,7 +78,7 @@ TEST_CASE("transfer", "[transfer]") {
     auto t = async::transfer(n1, sched2);
     auto n2 = async::then(t, [](auto i) { return i + 17; });
     auto op = async::connect(n2, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 59);
 
     CHECK(test_scheduler<1>::schedule_calls == 1);
@@ -89,7 +95,7 @@ TEST_CASE("transfer error", "[transfer]") {
     auto t = async::transfer(n1, sched);
     auto n2 = async::upon_error(t, [](auto i) { return i + 17; });
     auto op = async::connect(n2, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 59);
 
     CHECK(test_scheduler<1>::schedule_calls == 1);
@@ -111,7 +117,7 @@ TEST_CASE("transfer handling a reference", "[transfer]") {
         async::connect(t, receiver{[&](auto &i) {
                            CHECK(std::addressof(value) == std::addressof(i));
                        }});
-    op.start();
+    async::start(op);
 
     CHECK(test_scheduler<1>::schedule_calls == 1);
     CHECK(test_scheduler<2>::schedule_calls == 1);
@@ -145,7 +151,7 @@ TEST_CASE("transfer is pipeable", "[transfer]") {
     auto n1 = async::then(s, [] { return 42; }) | async::transfer(sched2);
     auto n2 = async::then(n1, [](auto i) { return i + 17; });
     auto op = async::connect(n2, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 59);
 
     CHECK(test_scheduler<1>::schedule_calls == 1);
@@ -167,7 +173,7 @@ TEST_CASE("move-only value", "[transfer]") {
         async::then(trans, [](auto &&mo) { return move_only{mo.value + 17}; });
     auto op =
         async::connect(n2, receiver{[&](auto &&mo) { value = mo.value; }});
-    op.start();
+    async::start(op);
     CHECK(value == 59);
 
     CHECK(test_scheduler<1>::schedule_calls == 1);
@@ -193,7 +199,7 @@ TEST_CASE("transfer cancellation", "[transfer]") {
     auto s = async::on(sched1, async::just_stopped()) | async::transfer(sched2);
 
     auto op = async::connect(s, stopped_receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
     CHECK(test_scheduler<1>::schedule_calls == 1);
     CHECK(test_scheduler<2>::schedule_calls == 1);

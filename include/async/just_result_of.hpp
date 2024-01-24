@@ -5,6 +5,7 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/tuple.hpp>
+#include <stdx/utility.hpp>
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/list.hpp>
@@ -19,21 +20,25 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
     template <typename F>
     using has_void_result = std::is_void<std::invoke_result_t<F>>;
 
-    auto start() -> void {
+    [[no_unique_address]] R receiver;
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend auto tag_invoke(start_t, O &&o) -> void {
         using split_returns =
             boost::mp11::mp_partition<boost::mp11::mp_list<Fs...>,
                                       has_void_result>;
 
         [&]<typename... Ts>(boost::mp11::mp_list<Ts...>) {
-            (static_cast<Ts &>(*this)(), ...);
+            (static_cast<stdx::forward_like_t<O, Ts>>(o)(), ...);
         }(boost::mp11::mp_front<split_returns>{});
 
         [&]<typename... Ts>(boost::mp11::mp_list<Ts...>) {
-            Tag{}(receiver, static_cast<Ts &>(*this)()...);
+            Tag{}(std::forward<O>(o).receiver,
+                  static_cast<stdx::forward_like_t<O, Ts>>(o)()...);
         }(boost::mp11::mp_back<split_returns>{});
     }
-
-    [[no_unique_address]] R receiver;
 };
 
 template <typename Tag, std::invocable... Fs> class sender : public Fs... {

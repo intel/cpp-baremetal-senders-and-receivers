@@ -38,8 +38,6 @@ template <typename Uniq = decltype([] {})> class run_loop {
         op_state(run_loop *rl, R &&r) : loop{rl}, rcvr{std::forward<R>(r)} {}
         op_state(op_state &&) = delete;
 
-        auto start() -> void { loop->push_back(this); }
-
         auto execute() -> void override {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
                 set_stopped(std::move(rcvr));
@@ -50,6 +48,13 @@ template <typename Uniq = decltype([] {})> class run_loop {
 
         run_loop *loop{};
         [[no_unique_address]] Rcvr rcvr;
+
+      private:
+        template <typename O>
+            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+            std::forward<O>(o).loop->push_back(std::addressof(o));
+        }
     };
 
     struct scheduler {

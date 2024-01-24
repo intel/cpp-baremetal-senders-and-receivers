@@ -13,8 +13,14 @@
 namespace async {
 class inline_scheduler {
     template <typename R> struct op_state {
-        auto start() -> void { set_value(std::move(receiver)); }
         [[no_unique_address]] R receiver;
+
+      private:
+        template <typename O>
+            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+            set_value(std::forward<O>(o).receiver);
+        }
     };
 
     class env {

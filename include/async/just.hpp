@@ -13,14 +13,24 @@
 namespace async {
 namespace _just {
 template <typename Tag, typename R, typename... Vs> struct op_state {
-    auto start() -> void {
-        std::move(values).apply([&]<typename... Ts>(Ts &&...ts) {
-            Tag{}(receiver, std::forward<Ts>(ts)...);
+    [[no_unique_address]] R receiver;
+    [[no_unique_address]] stdx::tuple<Vs...> values;
+
+  private:
+    friend constexpr auto tag_invoke(start_t, op_state &&o) -> void {
+        std::move(o).values.apply([&]<typename... Ts>(Ts &&...ts) {
+            Tag{}(std::move(o).receiver, std::forward<Ts>(ts)...);
         });
     }
 
-    [[no_unique_address]] R receiver;
-    [[no_unique_address]] stdx::tuple<Vs...> values;
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>> and
+                 (... and std::copy_constructible<Vs>)
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        std::forward<O>(o).values.apply([&]<typename... Ts>(Ts &&...ts) {
+            Tag{}(std::forward<O>(o).receiver, std::forward<Ts>(ts)...);
+        });
+    }
 };
 
 template <typename Tag, typename... Vs> struct sender {

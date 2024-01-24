@@ -6,6 +6,7 @@
 #include <async/on.hpp>
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/tags.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 
@@ -51,7 +52,7 @@ TEST_CASE("repeat repeats", "[repeat]") {
                });
     auto s = sub | async::repeat();
     auto op = async::connect(s, error_receiver{[&](auto i) { var += i; }});
-    op.start();
+    async::start(op);
     CHECK(var == 44);
 }
 
@@ -79,7 +80,7 @@ TEST_CASE("repeat_n repeats n times", "[repeat]") {
                });
     auto s = sub | async::repeat_n(1);
     auto op = async::connect(s, receiver{[&](auto i) { var += i; }});
-    op.start();
+    async::start(op);
     CHECK(var == 44);
 }
 
@@ -92,7 +93,7 @@ TEST_CASE("repeat_until completes when true", "[repeat]") {
                });
     auto s = sub | async::repeat_until([&] { return var == 2; });
     auto op = async::connect(s, receiver{[&](auto i) { var += i; }});
-    op.start();
+    async::start(op);
     CHECK(var == 44);
 }
 
@@ -108,6 +109,6 @@ TEST_CASE("repeat can be cancelled", "[repeat]") {
                });
     auto s = async::when_all(sub) | async::repeat();
     auto op = async::connect(s, r);
-    op.start();
+    async::start(op);
     CHECK(var == 44);
 }

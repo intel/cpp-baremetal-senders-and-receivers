@@ -44,7 +44,8 @@ TEST_CASE("sync_wait stopped completion", "[freestanding_sync_wait]") {
     CHECK(not value.has_value());
 }
 
-TEST_CASE("sync_wait with read (inline scheduler", "[freestanding_sync_wait]") {
+TEST_CASE("sync_wait with read (inline scheduler)",
+          "[freestanding_sync_wait]") {
     auto s = async::get_scheduler() | async::let_value([&](auto sched) {
                  return async::on(sched, async::just(42));
              });

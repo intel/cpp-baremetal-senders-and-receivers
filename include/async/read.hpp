@@ -13,10 +13,15 @@
 namespace async {
 namespace _read {
 template <typename R, typename Tag> struct op_state {
-    auto start() -> void { set_value(receiver, Tag{}(get_env(receiver))); }
-
     [[no_unique_address]] R receiver;
     [[no_unique_address]] Tag t;
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        set_value(std::forward<O>(o).receiver, Tag{}(get_env(o.receiver)));
+    }
 };
 
 template <typename Tag> struct sender {

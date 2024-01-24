@@ -16,7 +16,7 @@ TEST_CASE("inline_scheduler start immediately completes",
     bool recvd{};
     auto s = async::inline_scheduler::schedule();
     auto op = async::connect(s, receiver{[&] { recvd = true; }});
-    op.start();
+    async::start(op);
     CHECK(recvd);
 }
 

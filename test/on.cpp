@@ -6,6 +6,7 @@
 #include <async/on.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/stop_token.hpp>
+#include <async/tags.hpp>
 #include <async/when_all.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -15,7 +16,7 @@ TEST_CASE("on", "[on]") {
 
     auto s = async::on(async::inline_scheduler{}, async::just(42));
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -24,7 +25,7 @@ TEST_CASE("on error", "[on]") {
 
     auto s = async::on(async::inline_scheduler{}, async::just_error(42));
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -47,7 +48,7 @@ TEST_CASE("move-only value", "[on]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              receiver{[&](auto mo) { value = mo.value; }});
-    op.start();
+    async::start(std::move(op));
     CHECK(value == 42);
 }
 
@@ -58,7 +59,7 @@ TEST_CASE("singleshot sender first", "[on]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op =
         async::connect(std::move(s), receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 

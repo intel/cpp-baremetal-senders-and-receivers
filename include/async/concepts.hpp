@@ -17,7 +17,9 @@ concept queryable = std::destructible<T>;
 
 template <typename O>
 concept operation_state =
-    queryable<O> and std::is_object_v<O> and requires(O &o) { o.start(); };
+    queryable<O> and std::is_object_v<O> and requires(O &&o) {
+        { start(std::move(o)) } -> std::same_as<void>;
+    };
 
 namespace detail {
 template <typename T>

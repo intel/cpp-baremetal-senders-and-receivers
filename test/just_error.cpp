@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/just.hpp>
+#include <async/tags.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -11,7 +12,7 @@ TEST_CASE("one value", "[just_error]") {
     int value{};
     auto s = async::just_error(42);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -27,7 +28,7 @@ TEST_CASE("move-only value", "[just_error]") {
     auto op = async::connect(
         std::move(s),
         error_receiver{[&](move_only<int> mo) { value = mo.value; }});
-    op.start();
+    async::start(std::move(op));
     CHECK(value == 42);
 }
 
@@ -36,7 +37,7 @@ TEST_CASE("copy sender", "[just_error]") {
     auto const s = async::just_error(42);
     static_assert(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -46,6 +47,6 @@ TEST_CASE("move sender", "[just_error]") {
     static_assert(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }

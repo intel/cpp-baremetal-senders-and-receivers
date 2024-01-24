@@ -119,25 +119,6 @@ struct op_state : op_state_base<S, Uniq> {
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto start() -> void {
-        if (op_state_t::values.index() != 0) {
-            complete();
-            return;
-        }
-
-        stop_cb.emplace(get_stop_token(get_env(rcvr)),
-                        stop_callback_fn{std::addressof(this->stop_source)});
-        if (this->stop_source.stop_requested()) {
-            set_stopped(rcvr);
-            return;
-        }
-
-        if (next_ops = std::exchange(op_state_t::linked_ops, this);
-            not next_ops) {
-            op_state_t::single_ops->start();
-        }
-    }
-
     auto notify() -> void final {
         complete();
         if (next_ops) {
@@ -155,6 +136,29 @@ struct op_state : op_state_base<S, Uniq> {
                 }
             },
             op_state_t::values);
+    }
+
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        if (op_state_t::values.index() != 0) {
+            std::forward<O>(o).complete();
+            return;
+        }
+
+        std::forward<O>(o).stop_cb.emplace(
+            get_stop_token(get_env(o.rcvr)),
+            stop_callback_fn{std::addressof(o.stop_source)});
+        if (o.stop_source.stop_requested()) {
+            set_stopped(std::forward<O>(o).rcvr);
+            return;
+        }
+
+        if (o.next_ops =
+                std::exchange(op_state_t::linked_ops, std::addressof(o));
+            not o.next_ops) {
+            start(std::move(*op_state_t::single_ops));
+        }
     }
 
     using stop_callback_t =

@@ -8,6 +8,7 @@
 #include <stdx/function_traits.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
+#include <stdx/utility.hpp>
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/list.hpp>
@@ -147,12 +148,15 @@ template <typename... Args> constexpr auto make_variant(Args &&...args) {
 
 namespace _variant {
 template <typename... Ops> struct op_state {
-    auto start() -> void {
-        std::visit([](auto &&ops) { ops.start(); }, v);
-    }
-
     using variant_t = boost::mp11::mp_unique<std::variant<Ops...>>;
     variant_t v;
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        std::visit([](auto &&ops) { start(FWD(ops)); }, std::forward<O>(o).v);
+    }
 };
 
 template <typename... Sndrs> struct sender : std::variant<Sndrs...> {

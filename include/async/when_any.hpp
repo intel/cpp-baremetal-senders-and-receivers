@@ -191,19 +191,6 @@ struct op_state
           rcvr{std::forward<R>(r)} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto start() -> void {
-        stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
-                        stop_callback_fn{std::addressof(stop_source)});
-        if (stop_source.stop_requested()) {
-            set_stopped(rcvr);
-        } else {
-            count = sizeof...(Sndrs);
-            (static_cast<sub_op_state<op_state, Rcvr, Sndrs> &>(*this)
-                 .ops.start(),
-             ...);
-        }
-    }
-
     template <typename Tag> struct prepend {
         template <typename L> using fn = boost::mp11::mp_push_front<L, Tag>;
     };
@@ -262,6 +249,23 @@ struct op_state
     std::atomic<std::size_t> count{};
     in_place_stop_source stop_source{};
     std::optional<stop_callback_t> stop_cb{};
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        o.stop_cb.emplace(get_stop_token(get_env(o.rcvr)),
+                          stop_callback_fn{std::addressof(o.stop_source)});
+        if (o.stop_source.stop_requested()) {
+            set_stopped(std::forward<O>(o).rcvr);
+        } else {
+            o.count = sizeof...(Sndrs);
+            (start(static_cast<stdx::forward_like_t<
+                       O, sub_op_state<op_state, Rcvr, Sndrs>>>(o)
+                       .ops),
+             ...);
+        }
+    }
 }; // namespace async
 
 template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
@@ -309,13 +313,16 @@ struct op_state<StopPolicy, Rcvr> {
     using stop_callback_t =
         stop_callback_for_t<stop_token_of_t<env_of_t<Rcvr>>, stop_callback_fn>;
 
-    auto start() -> void {
-        stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
-                        stop_callback_fn{this});
-    }
-
     [[no_unique_address]] Rcvr rcvr;
     std::optional<stop_callback_t> stop_cb{};
+
+  private:
+    template <typename O>
+        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        o.stop_cb.emplace(async::get_stop_token(get_env(o.rcvr)),
+                          stop_callback_fn{std::addressof(o)});
+    }
 };
 
 template <typename StopPolicy> struct sender<StopPolicy> {

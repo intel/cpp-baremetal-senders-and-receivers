@@ -71,7 +71,7 @@ template <typename Uniq, sender S> auto wait(S &&s) {
     auto r = receiver<V, decltype(rl)>{values, rl};
 
     auto op_state = connect(std::forward<S>(s), r);
-    op_state.start();
+    start(op_state);
     rl.run();
     return values;
 }

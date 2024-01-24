@@ -4,6 +4,7 @@
 #include <async/just.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/sync_wait.hpp>
+#include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/type_traits.hpp>
 #include <async/when_any.hpp>
@@ -59,7 +60,7 @@ TEST_CASE("complete with first success", "[when_any]") {
                                  CHECK(value == 0);
                                  value = i;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -73,7 +74,7 @@ TEST_CASE("complete with first error", "[when_any]") {
                                  CHECK(value == 0);
                                  value = i;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -87,7 +88,7 @@ TEST_CASE("complete with all stopped", "[when_any]") {
                                  CHECK(value == 0);
                                  value = 42;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -101,7 +102,7 @@ TEST_CASE("complete with first success (void)", "[when_any]") {
                                  CHECK(value == 0);
                                  value = 42;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -112,7 +113,7 @@ TEST_CASE("move-only value", "[when_any]") {
     static_assert(async::singleshot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(
         std::move(w), receiver{[&](move_only<int> mo) { value = mo.value; }});
-    op.start();
+    async::start(std::move(op));
     CHECK(value == 42);
 }
 
@@ -122,7 +123,7 @@ TEST_CASE("copy sender", "[when_any]") {
     auto w = async::when_any(s);
     static_assert(async::multishot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(w, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -133,7 +134,7 @@ TEST_CASE("move sender", "[when_any]") {
     static_assert(async::multishot_sender<decltype(w), universal_receiver>);
     auto op =
         async::connect(std::move(w), receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -166,7 +167,7 @@ TEST_CASE("first_successful policy", "[when_any]") {
                                  CHECK(value == 0);
                                  value = i;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 17);
 }
 
@@ -180,7 +181,7 @@ TEST_CASE("first_complete policy", "[when_any]") {
                                  CHECK(value == 0);
                                  value = 42;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -198,7 +199,7 @@ TEST_CASE("when_any cancellation (before start)", "[when_any]") {
     auto op = async::connect(w, r);
 
     r.request_stop();
-    op.start();
+    async::start(op);
 
     ctrl.wait_for(1);
     CHECK(success);
@@ -217,7 +218,7 @@ TEST_CASE("when_any cancellation (during operation)", "[when_any]") {
     auto r = stoppable_receiver{[&] { ctrl.advance(); }};
     auto op = async::connect(w, r);
 
-    op.start();
+    async::start(op);
     ctrl.wait_for(1);
     r.request_stop();
 
@@ -232,7 +233,7 @@ TEST_CASE("stop_when is pipeable", "[when_any]") {
                                  CHECK(value == 0);
                                  value = i;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -243,7 +244,7 @@ TEST_CASE("when_any with zero args never completes", "[when_any]") {
                                async::completion_signatures<>>);
 
     auto op = async::connect(w, receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 0);
 }
 
@@ -259,7 +260,7 @@ TEST_CASE("when_any with zero args can be stopped (before start)",
 
     auto op = async::connect(w, r);
     r.request_stop();
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -274,7 +275,7 @@ TEST_CASE("when_any with zero args can be stopped (after start)",
                      async::completion_signatures<async::set_stopped_t()>>);
 
     auto op = async::connect(w, r);
-    op.start();
+    async::start(op);
     CHECK(value == 0);
 
     r.request_stop();
