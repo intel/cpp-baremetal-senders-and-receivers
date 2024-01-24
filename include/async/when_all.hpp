@@ -27,13 +27,22 @@ template <typename S, std::size_t> struct sub_sender : S {
 template <typename SubOps> struct sub_receiver {
     using is_receiver = void;
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
-        ops->emplace_value(std::forward<Args>(args)...);
+    SubOps *ops;
+
+  private:
+    template <typename... Args>
+    friend auto tag_invoke(set_value_t, sub_receiver const &r, Args &&...args)
+        -> void {
+        r.ops->emplace_value(std::forward<Args>(args)...);
     }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
-        ops->emplace_error(std::forward<Args>(args)...);
+    template <typename... Args>
+    friend auto tag_invoke(set_error_t, sub_receiver const &r, Args &&...args)
+        -> void {
+        r.ops->emplace_error(std::forward<Args>(args)...);
     }
-    auto set_stopped() const -> void { ops->emplace_stopped(); }
+    friend auto tag_invoke(set_stopped_t, sub_receiver const &r) -> void {
+        r.ops->emplace_stopped();
+    }
 
     [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
                                                    sub_receiver const &self)
@@ -42,8 +51,6 @@ template <typename SubOps> struct sub_receiver {
         return override_env_with<get_stop_token_t>(self.ops->get_stop_token(),
                                                    self.ops->get_receiver());
     }
-
-    SubOps *ops;
 };
 
 template <typename S, typename Tag, typename E>
@@ -120,7 +127,7 @@ struct error_op_state<E, boost::mp11::mp_list<Sndrs...>> {
         e.emplace(std::forward<Args>(args)...);
     }
     template <typename R> auto release_error(R &&r) -> void {
-        std::forward<R>(r).set_error(std::move(*e));
+        set_error(std::forward<R>(r), std::move(*e));
     }
 
     // All senders should send the same error type
@@ -159,7 +166,7 @@ struct op_state
         stop_cb.emplace(get_stop_token(get_env(rcvr)),
                         stop_callback_fn{std::addressof(stop_source)});
         if (stop_source.stop_requested()) {
-            rcvr.set_stopped();
+            set_stopped(rcvr);
         } else {
             count = sizeof...(Sndrs);
             (static_cast<sub_op_state<op_state, Rcvr, Sndrs> &>(*this)
@@ -200,13 +207,14 @@ struct op_state
         if (have_error) {
             this->release_error(rcvr);
         } else if (stop_source.stop_requested()) {
-            rcvr.set_stopped();
+            set_stopped(rcvr);
         } else {
             using value_senders =
                 boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
                                         single_value_sender_t>;
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
-                rcvr.set_value(
+                set_value(
+                    rcvr,
                     static_cast<sub_op_state<op_state, Rcvr, Ss> &&>(*this)
                         .v.value()...);
             }(value_senders{});
@@ -271,11 +279,11 @@ template <typename Rcvr> struct op_state<Rcvr> {
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
             if (async::get_stop_token(async::get_env(rcvr)).stop_requested()) {
-                rcvr.set_stopped();
+                set_stopped(rcvr);
                 return;
             }
         }
-        rcvr.set_value();
+        set_value(rcvr);
     }
     [[no_unique_address]] Rcvr rcvr;
 };

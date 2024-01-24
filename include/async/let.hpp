@@ -18,21 +18,20 @@
 namespace async::_let {
 template <typename Ops, typename Rcvr> struct second_receiver {
     using is_receiver = void;
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
-        ops->rcvr.set_value(std::forward<Args>(args)...);
+    Ops *ops;
+
+  private:
+    template <channel_tag Tag, typename... Args>
+    friend auto tag_invoke(Tag, second_receiver const &self, Args &&...args)
+        -> void {
+        Tag{}(self.ops->rcvr, std::forward<Args>(args)...);
     }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
-        ops->rcvr.set_error(std::forward<Args>(args)...);
-    }
-    auto set_stopped() const -> void { ops->rcvr.set_stopped(); }
 
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
                                                    second_receiver const &r)
         -> detail::forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(r.ops->rcvr);
     }
-
-    Ops *ops;
 };
 
 template <typename Sndr, typename Rcvr, typename Func,

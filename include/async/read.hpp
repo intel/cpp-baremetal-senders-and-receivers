@@ -13,7 +13,7 @@
 namespace async {
 namespace _read {
 template <typename R, typename Tag> struct op_state {
-    auto start() -> void { receiver.set_value(Tag{}(get_env(receiver))); }
+    auto start() -> void { set_value(receiver, Tag{}(get_env(receiver))); }
 
     [[no_unique_address]] R receiver;
     [[no_unique_address]] Tag t;

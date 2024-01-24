@@ -27,13 +27,13 @@ template <typename S, std::size_t> struct sub_sender : S {
 template <typename SubOps> struct sub_receiver {
     using is_receiver = void;
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
-        ops->template emplace<set_value_t>(std::forward<Args>(args)...);
+    SubOps *ops;
+
+  private:
+    template <channel_tag Tag, typename... Args>
+    friend auto tag_invoke(Tag, sub_receiver const &r, Args &&...args) -> void {
+        r.ops->template emplace<Tag>(std::forward<Args>(args)...);
     }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
-        ops->template emplace<set_error_t>(std::forward<Args>(args)...);
-    }
-    auto set_stopped() const -> void { ops->template emplace<set_stopped_t>(); }
 
     [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
                                                    sub_receiver const &self)
@@ -42,8 +42,6 @@ template <typename SubOps> struct sub_receiver {
         return override_env_with<get_stop_token_t>(self.ops->get_stop_token(),
                                                    self.ops->get_receiver());
     }
-
-    SubOps *ops;
 };
 
 template <typename Ops, typename R, typename S>
@@ -197,7 +195,7 @@ struct op_state
         stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
                         stop_callback_fn{std::addressof(stop_source)});
         if (stop_source.stop_requested()) {
-            rcvr.set_stopped();
+            set_stopped(rcvr);
         } else {
             count = sizeof...(Sndrs);
             (static_cast<sub_op_state<op_state, Rcvr, Sndrs> &>(*this)
@@ -241,7 +239,7 @@ struct op_state
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
             if (async::get_stop_token(async::get_env(rcvr)).stop_requested()) {
-                rcvr.set_stopped();
+                set_stopped(rcvr);
                 return;
             }
         }
@@ -303,7 +301,7 @@ template <typename StopPolicy, typename Rcvr>
 struct op_state<StopPolicy, Rcvr> {
     struct stop_callback_fn {
         auto operator()() -> void {
-            ops->rcvr.set_stopped();
+            set_stopped(ops->rcvr);
             ops->stop_cb.reset();
         }
         op_state *ops;

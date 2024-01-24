@@ -28,7 +28,7 @@ template <typename S, typename Uniq> struct single_receiver {
     using op_state_t = op_state_base<S, Uniq>;
 
     template <typename Tuple, typename... Args>
-    auto store_values(Args &&...args) const -> void {
+    static auto store_values(Args &&...args) -> void {
         using index =
             boost::mp11::mp_find<typename op_state_t::completions_t, Tuple>;
         static_assert(
@@ -38,7 +38,10 @@ template <typename S, typename Uniq> struct single_receiver {
             std::forward<Args>(args)...);
     }
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
+  private:
+    template <typename... Args>
+    friend auto tag_invoke(set_value_t, single_receiver const &, Args &&...args)
+        -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = value_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -46,7 +49,9 @@ template <typename S, typename Uniq> struct single_receiver {
         }
     }
 
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
+    template <typename... Args>
+    friend auto tag_invoke(set_error_t, single_receiver const &, Args &&...args)
+        -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = error_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -54,7 +59,8 @@ template <typename S, typename Uniq> struct single_receiver {
         }
     }
 
-    auto set_stopped() const -> void {
+    template <typename... Args>
+    friend auto tag_invoke(set_stopped_t, single_receiver const &) -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = stopped_holder<>;
             store_values<tuple_t>();
@@ -122,7 +128,7 @@ struct op_state : op_state_base<S, Uniq> {
         stop_cb.emplace(get_stop_token(get_env(rcvr)),
                         stop_callback_fn{std::addressof(this->stop_source)});
         if (this->stop_source.stop_requested()) {
-            rcvr.set_stopped();
+            set_stopped(rcvr);
             return;
         }
 

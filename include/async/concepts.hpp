@@ -115,11 +115,14 @@ concept sender_of =
 
 namespace detail {
 template <typename E = empty_env> struct universal_receiver : receiver_base {
-    auto set_value(auto &&...) const -> void;
-    auto set_error(auto &&...) const -> void;
-    auto set_stopped() const -> void;
-
-    constexpr auto tag_invoke(get_env_t, universal_receiver const &self) -> E;
+  private:
+    friend constexpr auto tag_invoke(channel_tag auto,
+                                     universal_receiver const &, auto &&...)
+        -> void {}
+    friend constexpr auto tag_invoke(get_env_t, universal_receiver const &)
+        -> E {
+        return {};
+    }
 };
 
 template <typename S, typename R>

@@ -10,7 +10,8 @@
 TEST_CASE("one value", "[just]") {
     int value{};
     auto s = async::just(42);
-    auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
+    auto r = receiver{[&](auto i) { value = i; }};
+    auto op = async::connect(s, r);
     op.start();
     CHECK(value == 42);
 }

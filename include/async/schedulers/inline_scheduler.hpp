@@ -13,7 +13,7 @@
 namespace async {
 class inline_scheduler {
     template <typename R> struct op_state {
-        auto start() -> void { std::move(receiver).set_value(); }
+        auto start() -> void { set_value(std::move(receiver)); }
         [[no_unique_address]] R receiver;
     };
 

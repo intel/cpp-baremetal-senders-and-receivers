@@ -10,6 +10,7 @@
 #include <stdx/tuple.hpp>
 #include <stdx/tuple_algorithms.hpp>
 #include <stdx/type_traits.hpp>
+#include <stdx/utility.hpp>
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/list.hpp>
@@ -94,10 +95,15 @@ constexpr auto invoke =
 };
 } // namespace detail
 
-template <typename R, typename... Fs> struct base_receiver : R {
+template <typename Tag, typename R, typename... Fs> struct receiver {
+    using is_receiver = void;
+    [[no_unique_address]] R r;
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
-    template <typename Tag, typename... Args> auto set(Args &&...args) -> void {
+  private:
+    template <typename Self, typename... Args>
+        requires std::same_as<receiver, std::remove_cvref_t<Self>>
+    friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
         using arities =
             typename detail::args<Args &&...>::template arities_t<Fs...>;
         using offsets = typename detail::offsets_t<arities, Fs...>;
@@ -109,36 +115,24 @@ template <typename R, typename... Fs> struct base_receiver : R {
                 std::forward<F>(func), std::move(arg_tuple),
                 std::make_index_sequence<Arity::value>{});
         };
-        auto results = stdx::transform(invoke, fs, offsets{}, arities{});
+        auto results = stdx::transform(invoke, std::forward<Self>(self).fs,
+                                       offsets{}, arities{});
         auto filtered_results =
             stdx::filter<detail::nonvoid_result_t>(std::move(results));
 
         std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
-            Tag{}(static_cast<R &>(*this), std::forward<Ts>(ts)...);
+            Tag{}(std::forward<Self>(self).r, std::forward<Ts>(ts)...);
         });
     }
-};
 
-template <typename Tag, typename R> struct tag_receiver;
-
-template <typename R> struct tag_receiver<set_value_t, R> : R {
-    template <typename... Args> auto set_value(Args &&...args) -> void {
-        this->template set<set_value_t>(std::forward<Args>(args)...);
+    template <typename T, typename Self, typename... Args>
+        requires std::same_as<receiver, std::remove_cvref_t<Self>>
+    friend auto tag_invoke(T, Self &&self, Args &&...args)
+        -> decltype(T{}(std::forward<Self>(self).r,
+                        std::forward<Args>(args)...)) {
+        return T{}(std::forward<Self>(self).r, std::forward<Args>(args)...);
     }
 };
-
-template <typename R> struct tag_receiver<set_error_t, R> : R {
-    template <typename... Args> auto set_error(Args &&...args) -> void {
-        this->template set<set_error_t>(std::forward<Args>(args)...);
-    }
-};
-
-template <typename R> struct tag_receiver<set_stopped_t, R> : R {
-    auto set_stopped() -> void { this->template set<set_stopped_t>(); }
-};
-
-template <typename Tag, typename R, typename... Fs>
-using receiver = tag_receiver<Tag, base_receiver<R, Fs...>>;
 
 namespace detail {
 template <typename Tag> struct as_signature {
@@ -183,7 +177,7 @@ template <typename Tag, typename S, typename... Fs> class sender {
                                                    R &&r) {
         return connect(std::move(self).s,
                        receiver<Tag, std::remove_cvref_t<R>, Fs...>{
-                           {{std::forward<R>(r)}, std::move(self).fs}});
+                           std::forward<R>(r), std::move(self).fs});
     }
 
     template <typename Self, receiver_from<sender> R>
@@ -191,10 +185,9 @@ template <typename Tag, typename S, typename... Fs> class sender {
                  multishot_sender<S>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r) {
-        return connect(
-            std::forward<Self>(self).s,
-            receiver<Tag, std::remove_cvref_t<R>, Fs...>{
-                {{std::forward<R>(r)}, std::forward<Self>(self).fs}});
+        return connect(std::forward<Self>(self).s,
+                       receiver<Tag, std::remove_cvref_t<R>, Fs...>{
+                           std::forward<R>(r), std::forward<Self>(self).fs});
     }
 
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,

@@ -42,9 +42,9 @@ template <typename Uniq = decltype([] {})> class run_loop {
 
         auto execute() -> void override {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
-                std::move(rcvr).set_stopped();
+                set_stopped(std::move(rcvr));
             } else {
-                std::move(rcvr).set_value();
+                set_value(std::move(rcvr));
             }
         }
 

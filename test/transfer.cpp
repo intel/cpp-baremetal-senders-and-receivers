@@ -4,6 +4,7 @@
 #include <async/just.hpp>
 #include <async/on.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/transfer.hpp>
 
@@ -12,7 +13,7 @@
 namespace {
 template <auto> class test_scheduler {
     template <typename R> struct op_state {
-        auto start() -> void { receiver.set_value(); }
+        auto start() -> void { async::set_value(receiver); }
         [[no_unique_address]] R receiver;
     };
 
