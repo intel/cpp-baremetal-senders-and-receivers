@@ -6,6 +6,7 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
 
 #include <boost/mp11/algorithm.hpp>
@@ -75,8 +76,7 @@ struct op_state {
     state_t state;
 
   private:
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         start(std::get<0>(std::forward<O>(o).state));
     }
@@ -114,9 +114,8 @@ struct sender {
         using fn = std::bool_constant<multishot_sender<T, R>>;
     };
 
-    template <typename Self, receiver_from<S> R>
-        requires std::same_as<Sndr, std::remove_cvref_t<Self>> and
-                 multishot_sender<S, R> and
+    template <stdx::same_as_unqualified<Sndr> Self, receiver_from<S> R>
+        requires multishot_sender<S, R> and
                  boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
                                           is_multishot_sender<R>>::value
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
@@ -127,8 +126,7 @@ struct sender {
                 std::forward<Self>(self).f};
     }
 
-    template <typename Self>
-        requires std::same_as<Sndr, std::remove_cvref_t<Self>>
+    template <stdx::same_as_unqualified<Sndr> Self>
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
                                                    Self &&self) {
         return forward_env_of(self.s);
@@ -139,8 +137,7 @@ template <typename F, template <typename...> typename Sndr> struct pipeable {
     [[no_unique_address]] F f;
 
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
         return Sndr<std::remove_cvref_t<S>, F>{
             {}, std::forward<S>(s), std::forward<Self>(self).f};

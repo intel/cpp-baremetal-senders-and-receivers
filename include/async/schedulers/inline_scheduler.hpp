@@ -6,6 +6,8 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <concepts>
 #include <type_traits>
 #include <utility>
@@ -16,8 +18,7 @@ class inline_scheduler {
         [[no_unique_address]] R receiver;
 
       private:
-        template <typename O>
-            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        template <stdx::same_as_unqualified<op_state> O>
         friend constexpr auto tag_invoke(start_t, O &&o) -> void {
             set_value(std::forward<O>(o).receiver);
         }
@@ -44,8 +45,8 @@ class inline_scheduler {
     };
 
     class multishot_sender : public sender_base {
-        template <typename S, receiver_from<multishot_sender> R>
-            requires std::same_as<multishot_sender, std::remove_cvref_t<S>>
+        template <stdx::same_as_unqualified<multishot_sender> S,
+                  receiver_from<multishot_sender> R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r)
             -> op_state<R> {
             return {std::forward<R>(r)};

@@ -4,6 +4,8 @@
 #include <async/concepts.hpp>
 #include <async/tags.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <concepts>
 #include <type_traits>
 #include <utility>
@@ -40,8 +42,7 @@ struct op_state {
     Ops ops;
 
   private:
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         start(std::forward<O>(o).ops);
     }
@@ -59,8 +60,7 @@ template <typename Uniq, sender S> [[nodiscard]] auto start(S &&s) -> bool {
 
 template <typename Uniq> struct pipeable {
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend auto operator|(S &&s, Self &&) {
         return start<Uniq>(std::forward<S>(s));
     }

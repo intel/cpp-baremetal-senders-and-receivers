@@ -7,6 +7,8 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <concepts>
 #include <type_traits>
 #include <utility>
@@ -14,8 +16,7 @@
 namespace async {
 namespace task_mgr {
 template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
-    template <typename R>
-        requires std::same_as<Rcvr, std::remove_cvref_t<R>>
+    template <stdx::same_as_unqualified<Rcvr> R>
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
 
     auto run() -> void final {
@@ -37,8 +38,7 @@ template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
         return false;
     }
 
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         if (not std::forward<O>(o).check_stopped()) {
             detail::enqueue_task(o, P);
@@ -60,8 +60,7 @@ template <priority_t P> class fixed_priority_scheduler {
         using is_sender = void;
 
       private:
-        template <typename S, receiver_from<sender> R>
-            requires std::same_as<sender, std::remove_cvref_t<S>>
+        template <stdx::same_as_unqualified<sender> S, receiver_from<sender> R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r) {
             return task_mgr::op_state<P, std::remove_cvref_t<R>>{
                 std::forward<R>(r)};
@@ -95,5 +94,4 @@ template <priority_t P> class fixed_priority_scheduler {
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender { return {}; }
 };
-
 } // namespace async

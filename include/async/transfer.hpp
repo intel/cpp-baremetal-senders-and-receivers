@@ -4,6 +4,7 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/utility.hpp>
@@ -129,8 +130,7 @@ struct op_state {
     std::variant<first_ops, second_ops> state;
 
   private:
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         start(std::get<0>(std::forward<O>(o).state));
     }
@@ -144,9 +144,8 @@ template <typename Sched, typename S> class sender {
         return {std::move(self).sched, std::move(self).s, std::forward<R>(r)};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 multishot_sender<S, R>
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires multishot_sender<S, R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<Sched, S, std::remove_cvref_t<R>> {
@@ -174,8 +173,7 @@ template <typename Sched> struct pipeable {
     Sched sched;
 
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
         return sender<Sched, std::remove_cvref_t<S>>{
             std::forward<Self>(self).sched, std::forward<S>(s)};

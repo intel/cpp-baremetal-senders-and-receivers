@@ -14,6 +14,7 @@
 #include <async/type_traits.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/intrusive_list.hpp>
 
 #include <atomic>
@@ -50,8 +51,7 @@ template <typename Uniq = decltype([] {})> class run_loop {
         [[no_unique_address]] Rcvr rcvr;
 
       private:
-        template <typename O>
-            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        template <stdx::same_as_unqualified<op_state> O>
         friend constexpr auto tag_invoke(start_t, O &&o) -> void {
             std::forward<O>(o).loop->push_back(std::addressof(o));
         }
@@ -78,8 +78,8 @@ template <typename Uniq = decltype([] {})> class run_loop {
                 return {s.loop};
             }
 
-            template <typename S, receiver_from<sender> R>
-                requires std::same_as<sender, std::remove_cvref_t<S>>
+            template <stdx::same_as_unqualified<sender> S,
+                      receiver_from<sender> R>
             [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&s,
                                                            R &&r)
                 -> op_state<R> {

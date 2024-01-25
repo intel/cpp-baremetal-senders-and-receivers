@@ -45,10 +45,9 @@ constexpr auto never_stop = [] { return false; };
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
-    template <typename S, typename R, typename P>
-        requires(std::same_as<Sndr, std::remove_cvref_t<S>> and
-                 std::same_as<Rcvr, std::remove_cvref_t<R>> and
-                 std::same_as<Pred, std::remove_cvref_t<P>>)
+    template <stdx::same_as_unqualified<Sndr> S,
+              stdx::same_as_unqualified<Rcvr> R,
+              stdx::same_as_unqualified<Pred> P>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr op_state(S &&s, R &&r, P &&p)
         : sndr{std::forward<S>(s)}, rcvr{std::forward<R>(r)},
@@ -80,8 +79,7 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
     std::optional<state_t> state{};
 
   private:
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         std::forward<O>(o).restart();
     }
@@ -112,9 +110,8 @@ template <typename Sndr, typename Pred> struct sender {
         return forward_env_of(self.sndr);
     }
 
-    template <typename Self, receiver_from<Sndr> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 multishot_sender<Sndr, R>
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<Sndr> R>
+        requires multishot_sender<Sndr, R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<Sndr, std::remove_cvref_t<R>, Pred> {
@@ -127,8 +124,7 @@ template <stdx::predicate Pred> struct pipeable {
     Pred p;
 
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
         return sender<std::remove_cvref_t<S>, Pred>{std::forward<S>(s),
                                                     std::forward<Self>(self).p};

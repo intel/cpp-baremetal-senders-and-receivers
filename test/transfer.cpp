@@ -8,6 +8,8 @@
 #include <async/then.hpp>
 #include <async/transfer.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 namespace {
@@ -16,8 +18,7 @@ template <auto> class test_scheduler {
         [[no_unique_address]] R receiver;
 
       private:
-        template <typename O>
-            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        template <stdx::same_as_unqualified<op_state> O>
         friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
             async::set_value(std::forward<O>(o).receiver);
         }
@@ -43,8 +44,8 @@ template <auto> class test_scheduler {
             return {};
         }
 
-        template <typename S, async::receiver_from<sender> R>
-            requires std::same_as<sender, std::remove_cvref_t<S>>
+        template <stdx::same_as_unqualified<sender> S,
+                  async::receiver_from<sender> R>
         [[nodiscard]] friend constexpr auto tag_invoke(async::connect_t, S &&,
                                                        R &&r) -> op_state<R> {
             return {std::forward<R>(r)};

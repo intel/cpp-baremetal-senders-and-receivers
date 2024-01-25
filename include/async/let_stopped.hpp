@@ -17,8 +17,7 @@ struct first_receiver : _let::second_receiver<Ops, Rcvr> {
     [[no_unique_address]] F f;
 
   private:
-    template <typename Self>
-        requires std::same_as<first_receiver, std::remove_cvref_t<Self>>
+    template <stdx::same_as_unqualified<first_receiver> Self, typename... Args>
     friend auto tag_invoke(set_stopped_t, Self &&self) -> void {
         self.ops->complete_first(std::forward<Self>(self).f());
     }

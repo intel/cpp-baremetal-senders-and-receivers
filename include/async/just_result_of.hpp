@@ -4,6 +4,7 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/utility.hpp>
 
@@ -23,8 +24,7 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
     [[no_unique_address]] R receiver;
 
   private:
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend auto tag_invoke(start_t, O &&o) -> void {
         using split_returns =
             boost::mp11::mp_partition<boost::mp11::mp_list<Fs...>,
@@ -49,9 +49,8 @@ template <typename Tag, std::invocable... Fs> class sender : public Fs... {
         return {{static_cast<Fs>(std::move(self))}..., std::forward<R>(r)};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires(std::same_as<sender, std::remove_cvref_t<Self>> and ... and
-                 std::copy_constructible<Fs>)
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires(... and std::copy_constructible<Fs>)
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {

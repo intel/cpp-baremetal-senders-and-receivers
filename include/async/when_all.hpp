@@ -5,6 +5,7 @@
 #include <async/stop_token.hpp>
 #include <async/tags.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/type_traits.hpp>
 #include <stdx/utility.hpp>
 
@@ -219,8 +220,7 @@ struct op_state
     std::atomic<bool> have_error{};
 
   private:
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         o.stop_cb.emplace(get_stop_token(get_env(o.rcvr)),
                           stop_callback_fn{std::addressof(o.stop_source)});
@@ -247,13 +247,13 @@ template <typename... Sndrs> struct sender : Sndrs... {
         return {std::move(self), std::forward<R>(r)};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 (... and multishot_sender<
-                              typename Sndrs::sender_t,
-                              detail::universal_receiver<detail::overriding_env<
-                                  get_stop_token_t, in_place_stop_token,
-                                  std::remove_cvref_t<R>>>>)
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires(
+            ... and
+            multishot_sender<typename Sndrs::sender_t,
+                             detail::universal_receiver<detail::overriding_env<
+                                 get_stop_token_t, in_place_stop_token,
+                                 std::remove_cvref_t<R>>>>)
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<std::remove_cvref_t<R>, Sndrs...> {
@@ -283,8 +283,7 @@ template <typename Rcvr> struct op_state<Rcvr> {
     [[no_unique_address]] Rcvr rcvr;
 
   private:
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {

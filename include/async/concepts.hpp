@@ -147,7 +147,7 @@ concept scheduler = queryable<S> and
                         {
                             get_completion_scheduler<set_value_t>(
                                 get_env(std::forward<S>(s).schedule()))
-                        } -> std::same_as<std::remove_cvref_t<S>>;
+                        } -> stdx::same_as_unqualified<S>;
                     } and std::equality_comparable<std::remove_cvref_t<S>> and
                     std::copy_constructible<std::remove_cvref_t<S>>;
 } // namespace async

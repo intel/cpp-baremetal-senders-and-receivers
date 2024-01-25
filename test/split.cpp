@@ -8,6 +8,8 @@
 #include <async/tags.hpp>
 #include <async/then.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <concepts>
@@ -155,8 +157,7 @@ struct test_sender {
         R r;
 
       private:
-        template <typename O>
-            requires std::same_as<op_state, std::remove_cvref_t<O>>
+        template <stdx::same_as_unqualified<op_state> O>
         friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
             async::set_value(std::forward<O>(o).r);
         }

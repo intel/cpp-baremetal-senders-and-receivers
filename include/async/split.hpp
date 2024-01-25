@@ -6,6 +6,7 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/utility.hpp>
 
@@ -113,8 +114,7 @@ struct op_state : op_state_base<S, Uniq> {
         in_place_stop_source *stop_source;
     };
 
-    template <typename R>
-        requires std::same_as<Rcvr, std::remove_cvref_t<R>>
+    template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
     constexpr op_state(op_state &&) = delete;
@@ -138,8 +138,7 @@ struct op_state : op_state_base<S, Uniq> {
             op_state_t::values);
     }
 
-    template <typename O>
-        requires std::same_as<op_state, std::remove_cvref_t<O>>
+    template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         if (op_state_t::values.index() != 0) {
             std::forward<O>(o).complete();
@@ -197,8 +196,7 @@ template <typename Sndr, typename Uniq> struct sender {
         return {};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>>
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
