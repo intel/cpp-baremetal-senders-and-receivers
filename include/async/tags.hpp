@@ -7,6 +7,8 @@
 #include <utility>
 
 namespace async {
+template <typename...> struct failure_t {};
+
 constexpr inline struct set_value_t {
     template <typename... Ts>
     constexpr auto operator()(Ts &&...ts) const
@@ -53,16 +55,36 @@ constexpr inline struct connect_t {
     }
 
     template <typename... Ts>
-    constexpr auto operator()(Ts &&...) const -> void {
+    constexpr auto operator()(Ts &&...) const -> failure_t<Ts...> {
         static_assert(stdx::always_false_v<Ts...>,
                       "No function call for connect: are the arguments a "
                       "sender and receiver?");
+        return {};
     }
 } connect{};
 
 template <typename S, typename R>
 using connect_result_t =
     decltype(connect(std::declval<S>(), std::declval<R>()));
+
+constexpr inline struct start_t {
+    template <typename... Ts>
+        requires true
+    constexpr auto operator()(Ts &&...ts) const
+        noexcept(noexcept(tag_invoke(std::declval<start_t>(),
+                                     std::forward<Ts>(ts)...)))
+            -> decltype(tag_invoke(*this, std::forward<Ts>(ts)...)) {
+        return tag_invoke(*this, std::forward<Ts>(ts)...);
+    }
+
+    template <typename... Ts>
+    constexpr auto operator()(Ts &&...) const -> failure_t<Ts...> {
+        static_assert(stdx::always_false_v<Ts...>,
+                      "No function call for start: does the argument "
+                      "provide a tag_invoke(start_t)?");
+        return {};
+    }
+} start{};
 
 struct get_scheduler_t : forwarding_query_t {
     template <typename T>
@@ -74,10 +96,12 @@ struct get_scheduler_t : forwarding_query_t {
         return tag_invoke(*this, std::forward<T>(t));
     }
 
-    template <typename T> constexpr auto operator()(T &&) const -> void {
+    template <typename T>
+    constexpr auto operator()(T &&) const -> failure_t<T> {
         static_assert(stdx::always_false_v<T>,
                       "No function call for get_scheduler: does the argument "
                       "provide a tag_invoke(get_scheduler_t)?");
+        return {};
     }
 };
 

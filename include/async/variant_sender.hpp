@@ -8,6 +8,7 @@
 #include <stdx/function_traits.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
+#include <stdx/utility.hpp>
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/list.hpp>
@@ -44,8 +45,7 @@ template <typename P, typename F> match_option(P, F) -> match_option<P, F>;
 
 template <typename P> struct match : P {
   private:
-    template <typename M, typename F>
-        requires std::same_as<match, std::remove_cvref_t<M>>
+    template <stdx::same_as_unqualified<match> M, typename F>
     [[nodiscard]] friend constexpr auto operator>>(M &&m, F &&f)
         -> match_option<P, std::remove_cvref_t<F>> {
         return {std::forward<M>(m), std::forward<F>(f)};
@@ -147,12 +147,14 @@ template <typename... Args> constexpr auto make_variant(Args &&...args) {
 
 namespace _variant {
 template <typename... Ops> struct op_state {
-    auto start() -> void {
-        std::visit([](auto &&ops) { ops.start(); }, v);
-    }
-
     using variant_t = boost::mp11::mp_unique<std::variant<Ops...>>;
     variant_t v;
+
+  private:
+    template <stdx::same_as_unqualified<op_state> O>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        std::visit([](auto &&ops) { start(FWD(ops)); }, std::forward<O>(o).v);
+    }
 };
 
 template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
@@ -192,9 +194,8 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
         return connect_impl(std::move(self), std::forward<R>(r));
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 (... and multishot_sender<Sndrs, R>)
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires(... and multishot_sender<Sndrs, R>)
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r) {
         return connect_impl(std::forward<Self>(self), std::forward<R>(r));

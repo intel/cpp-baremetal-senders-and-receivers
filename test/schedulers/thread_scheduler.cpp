@@ -38,7 +38,7 @@ TEST_CASE("thread_scheduler sender completes on a separate thread",
                                  recvd = true;
                                  cv.notify_one();
                              }});
-    op.start();
+    async::start(op);
 
     std::unique_lock l{m};
     cv.wait(l, [&] { return recvd; });

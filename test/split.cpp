@@ -5,7 +5,10 @@
 #include <async/on.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/split.hpp>
+#include <async/tags.hpp>
 #include <async/then.hpp>
+
+#include <stdx/concepts.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -23,11 +26,11 @@ TEST_CASE("split", "[split]") {
 
     auto op1 = async::connect(spl, receiver{[&] { recvd1 = true; }});
     auto op2 = async::connect(spl, receiver{[&] { recvd2 = true; }});
-    op1.start();
+    async::start(op1);
     CHECK(recvd1);
 
     CHECK(not recvd2);
-    op2.start();
+    async::start(op2);
     CHECK(recvd2);
 }
 
@@ -43,11 +46,11 @@ TEST_CASE("split error", "[split]") {
         async::connect(spl, error_receiver{[&](auto &&) { recvd1 = true; }});
     auto op2 =
         async::connect(spl, error_receiver{[&](auto &&) { recvd2 = true; }});
-    op1.start();
+    async::start(op1);
     CHECK(recvd1);
 
     CHECK(not recvd2);
-    op2.start();
+    async::start(op2);
     CHECK(recvd2);
 }
 
@@ -77,7 +80,7 @@ auto test_split(int &value, int expected) {
                                  run = true;
                                  value = i;
                              }});
-    op.start();
+    async::start(op);
     CHECK(run);
 }
 } // namespace
@@ -116,10 +119,10 @@ TEST_CASE("split cancellation (stopped by source)", "[split]") {
     auto op1 = async::connect(spl, r1);
     auto op2 = async::connect(spl, r2);
     r1.request_stop();
-    op1.start();
+    async::start(op1);
     CHECK(stopped == 1);
 
-    op2.start();
+    async::start(op2);
     CHECK(stopped == 2);
 }
 
@@ -131,10 +134,10 @@ TEST_CASE("split cancellation (stopped by sender)", "[split]") {
 
     auto op1 = async::connect(spl, stopped_receiver{[&] { ++stopped; }});
     auto op2 = async::connect(spl, stopped_receiver{[&] { ++stopped; }});
-    op1.start();
+    async::start(op1);
     CHECK(stopped == 1);
 
-    op2.start();
+    async::start(op2);
     CHECK(stopped == 2);
 }
 
@@ -151,8 +154,13 @@ struct test_sender {
     }
 
     template <typename R> struct op_state {
-        auto start() -> void { r.set_value(); }
         R r;
+
+      private:
+        template <stdx::same_as_unqualified<op_state> O>
+        friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
+            async::set_value(std::forward<O>(o).r);
+        }
     };
 
     template <typename R>

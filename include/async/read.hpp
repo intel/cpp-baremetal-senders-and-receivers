@@ -6,6 +6,8 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <concepts>
 #include <type_traits>
 #include <utility>
@@ -13,10 +15,14 @@
 namespace async {
 namespace _read {
 template <typename R, typename Tag> struct op_state {
-    auto start() -> void { set_value(receiver, Tag{}(get_env(receiver))); }
-
     [[no_unique_address]] R receiver;
     [[no_unique_address]] Tag t;
+
+  private:
+    template <stdx::same_as_unqualified<op_state> O>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        set_value(std::forward<O>(o).receiver, Tag{}(get_env(o.receiver)));
+    }
 };
 
 template <typename Tag> struct sender {
@@ -40,9 +46,8 @@ template <typename Tag> struct sender {
         return {std::forward<R>(r), std::move(self).t};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 std::copy_constructible<Tag>
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires std::copy_constructible<Tag>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<std::remove_cvref_t<R>, Tag> {

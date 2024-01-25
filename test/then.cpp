@@ -4,6 +4,7 @@
 #include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/tags.hpp>
 #include <async/then.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -15,7 +16,7 @@ TEST_CASE("then", "[then]") {
     auto s = sched.schedule();
     auto n = async::then(s, [] { return 42; });
     auto op = async::connect(n, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -25,7 +26,7 @@ TEST_CASE("then propagates a value", "[then]") {
     auto s = async::just(42);
     auto n = async::then(s, [](auto i) { return i * 2; });
     auto op = async::connect(n, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 84);
 }
 
@@ -50,7 +51,7 @@ TEST_CASE("then is pipeable", "[then]") {
     auto sched = async::inline_scheduler{};
     auto n = sched.schedule() | async::then([] { return 42; });
     auto op = async::connect(n, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -64,7 +65,7 @@ TEST_CASE("then can send nothing", "[then]") {
     auto n2 = async::then(n1, [] {});
     static_assert(async::sender_of<decltype(n2), async::set_value_t()>);
     auto op = async::connect(n2, receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -75,7 +76,7 @@ TEST_CASE("move-only value", "[then]") {
     auto n = sched.schedule() | async::then([] { return move_only{42}; });
     auto op = async::connect(std::move(n),
                              receiver{[&](auto mo) { value = mo.value; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -95,7 +96,7 @@ TEST_CASE("then propagates error (order 1)", "[then]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_error_t(int)>>);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -108,7 +109,7 @@ TEST_CASE("then propagates error (order 2)", "[then]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_error_t(int)>>);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -121,7 +122,7 @@ TEST_CASE("then propagates stopped (order 1)", "[then]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_stopped_t()>>);
     auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -134,7 +135,7 @@ TEST_CASE("then propagates stopped (order 2)", "[then]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_stopped_t()>>);
     auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -162,7 +163,7 @@ TEST_CASE("then (variadic)", "[then]") {
                                  x = i;
                                  y = j;
                              }});
-    op.start();
+    async::start(op);
     CHECK(x == 4);
     CHECK(y == 9);
 }
@@ -174,7 +175,7 @@ TEST_CASE("variadic then can have void-returning functions", "[then]") {
              async::then([](auto i) { return i * 2; }, [](auto) {});
     static_assert(async::sender_of<decltype(s), async::set_value_t(int)>);
     auto op = async::connect(s, receiver{[&](auto i) { x = i; }});
-    op.start();
+    async::start(op);
     CHECK(x == 4);
     CHECK(y == 42);
 }
@@ -186,7 +187,7 @@ TEST_CASE("move-only value (from then) (variadic)", "[then]") {
     static_assert(
         async::sender_of<decltype(s), async::set_value_t(move_only<int>)>);
     auto op = async::connect(s, receiver{[&](auto i) { x = i.value; }});
-    op.start();
+    async::start(op);
     CHECK(x == 2);
 }
 
@@ -196,7 +197,7 @@ TEST_CASE("move-only value (to then) (variadic)", "[then]") {
              async::then([](auto i) { return i.value; }, [](auto) {});
     static_assert(async::sender_of<decltype(s), async::set_value_t(int)>);
     auto op = async::connect(std::move(s), receiver{[&](auto i) { x = i; }});
-    op.start();
+    async::start(std::move(op));
     CHECK(x == 2);
 }
 
@@ -214,7 +215,7 @@ TEST_CASE("variadic then can take heteroadic functions", "[then]") {
                                  y = j;
                                  z = k;
                              }});
-    op.start();
+    async::start(op);
     CHECK(x == 5);
     CHECK(y == 4);
     CHECK(z);
@@ -227,5 +228,5 @@ TEST_CASE("then can handle a reference", "[then]") {
         async::connect(s, receiver{[&](auto &i) {
                            CHECK(std::addressof(value) == std::addressof(i));
                        }});
-    op.start();
+    async::start(op);
 }

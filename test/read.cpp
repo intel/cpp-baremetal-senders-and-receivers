@@ -35,7 +35,7 @@ TEST_CASE("read sends a value", "[read]") {
     auto s = async::get_stop_token() |
              async::then([&](async::in_place_stop_token) { value = 42; });
     auto op = async::connect(s, r);
-    op.start();
+    async::start(op);
     CHECK(value == 43);
 }
 

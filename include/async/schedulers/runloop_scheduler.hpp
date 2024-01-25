@@ -14,6 +14,7 @@
 #include <async/type_traits.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/intrusive_list.hpp>
 
 #include <atomic>
@@ -38,8 +39,6 @@ template <typename Uniq = decltype([] {})> class run_loop {
         op_state(run_loop *rl, R &&r) : loop{rl}, rcvr{std::forward<R>(r)} {}
         op_state(op_state &&) = delete;
 
-        auto start() -> void { loop->push_back(this); }
-
         auto execute() -> void override {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
                 set_stopped(std::move(rcvr));
@@ -50,6 +49,12 @@ template <typename Uniq = decltype([] {})> class run_loop {
 
         run_loop *loop{};
         [[no_unique_address]] Rcvr rcvr;
+
+      private:
+        template <stdx::same_as_unqualified<op_state> O>
+        friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+            std::forward<O>(o).loop->push_back(std::addressof(o));
+        }
     };
 
     struct scheduler {
@@ -73,8 +78,8 @@ template <typename Uniq = decltype([] {})> class run_loop {
                 return {s.loop};
             }
 
-            template <typename S, receiver_from<sender> R>
-                requires std::same_as<sender, std::remove_cvref_t<S>>
+            template <stdx::same_as_unqualified<sender> S,
+                      receiver_from<sender> R>
             [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&s,
                                                            R &&r)
                 -> op_state<R> {

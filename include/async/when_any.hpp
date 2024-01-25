@@ -6,6 +6,7 @@
 #include <async/type_traits.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/utility.hpp>
@@ -191,19 +192,6 @@ struct op_state
           rcvr{std::forward<R>(r)} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto start() -> void {
-        stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
-                        stop_callback_fn{std::addressof(stop_source)});
-        if (stop_source.stop_requested()) {
-            set_stopped(rcvr);
-        } else {
-            count = sizeof...(Sndrs);
-            (static_cast<sub_op_state<op_state, Rcvr, Sndrs> &>(*this)
-                 .ops.start(),
-             ...);
-        }
-    }
-
     template <typename Tag> struct prepend {
         template <typename L> using fn = boost::mp11::mp_push_front<L, Tag>;
     };
@@ -262,6 +250,22 @@ struct op_state
     std::atomic<std::size_t> count{};
     in_place_stop_source stop_source{};
     std::optional<stop_callback_t> stop_cb{};
+
+  private:
+    template <stdx::same_as_unqualified<op_state> O>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        o.stop_cb.emplace(get_stop_token(get_env(o.rcvr)),
+                          stop_callback_fn{std::addressof(o.stop_source)});
+        if (o.stop_source.stop_requested()) {
+            set_stopped(std::forward<O>(o).rcvr);
+        } else {
+            o.count = sizeof...(Sndrs);
+            (start(static_cast<stdx::forward_like_t<
+                       O, sub_op_state<op_state, Rcvr, Sndrs>>>(o)
+                       .ops),
+             ...);
+        }
+    }
 }; // namespace async
 
 template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
@@ -283,13 +287,13 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
         return {std::move(self), std::forward<R>(r)};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 (... and multishot_sender<
-                              typename Sndrs::sender_t,
-                              detail::universal_receiver<detail::overriding_env<
-                                  get_stop_token_t, in_place_stop_token,
-                                  std::remove_cvref_t<R>>>>)
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires(
+            ... and
+            multishot_sender<typename Sndrs::sender_t,
+                             detail::universal_receiver<detail::overriding_env<
+                                 get_stop_token_t, in_place_stop_token,
+                                 std::remove_cvref_t<R>>>>)
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
@@ -309,13 +313,15 @@ struct op_state<StopPolicy, Rcvr> {
     using stop_callback_t =
         stop_callback_for_t<stop_token_of_t<env_of_t<Rcvr>>, stop_callback_fn>;
 
-    auto start() -> void {
-        stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
-                        stop_callback_fn{this});
-    }
-
     [[no_unique_address]] Rcvr rcvr;
     std::optional<stop_callback_t> stop_cb{};
+
+  private:
+    template <stdx::same_as_unqualified<op_state> O>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        o.stop_cb.emplace(async::get_stop_token(get_env(o.rcvr)),
+                          stop_callback_fn{std::addressof(o)});
+    }
 };
 
 template <typename StopPolicy> struct sender<StopPolicy> {
@@ -349,8 +355,7 @@ template <typename Sndr> struct pipeable {
     Sndr sndr;
 
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
         return sender<first_complete, sub_sender<std::remove_cvref_t<S>, 0>,
                       sub_sender<Sndr, 1>>{std::forward<S>(s),

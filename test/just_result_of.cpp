@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/just_result_of.hpp>
+#include <async/tags.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -11,7 +12,7 @@ TEST_CASE("one function", "[just_result_of]") {
     int value{};
     auto s = async::just_result_of([] { return 42; });
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -19,7 +20,7 @@ TEST_CASE("one function can return void", "[just_result_of]") {
     int value{};
     auto s = async::just_result_of([] {});
     auto op = async::connect(s, receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -29,7 +30,7 @@ TEST_CASE("multiple functions", "[just_result_of]") {
                                    [] { return 3; });
     auto op = async::connect(
         s, receiver{[&](auto... is) { value = (0 + ... + is); }});
-    op.start();
+    async::start(op);
     CHECK(value == 6);
 }
 
@@ -38,7 +39,7 @@ TEST_CASE("multiple functions, some returning void", "[just_result_of]") {
     auto s = async::just_result_of([] { return 1; }, [] {}, [] { return 3; });
     auto op = async::connect(
         s, receiver{[&](auto... is) { value = (0 + ... + is); }});
-    op.start();
+    async::start(op);
     CHECK(value == 4);
 }
 
@@ -65,7 +66,7 @@ TEST_CASE("move-only value", "[just_result_of]") {
     static_assert(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              receiver{[&](auto &&mo) { value = mo.value; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -78,7 +79,7 @@ TEST_CASE("move-only lambda", "[just_result_of]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              receiver{[&](auto &&mo) { value = mo.value; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 

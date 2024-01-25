@@ -3,6 +3,7 @@
 #include <async/concepts.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/tags.hpp>
 #include <async/then.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -13,7 +14,7 @@ TEST_CASE("upon_stopped", "[upon_stopped]") {
     auto s = async::just_stopped();
     auto n = async::upon_stopped(s, [&] { value = 42; });
     auto op = async::connect(n, stopped_receiver{[] {}});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -29,7 +30,7 @@ TEST_CASE("upon_stopped is pipeable", "[upon_stopped]") {
     auto s = async::just_stopped();
     auto n = s | async::upon_stopped([&] { value = 42; });
     auto op = async::connect(n, stopped_receiver{[] {}});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -49,7 +50,7 @@ TEST_CASE("upon_stopped propagates success (order 1)", "[upon_stopped]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_value_t(int)>>);
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -62,7 +63,7 @@ TEST_CASE("upon_stopped propagates success (order 2)", "[upon_stopped]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_value_t(int)>>);
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -75,7 +76,7 @@ TEST_CASE("upon_stopped propagates errors (order 1)", "[upon_stopped]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_error_t(int)>>);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -88,6 +89,6 @@ TEST_CASE("upon_stopped propagates errors (order 2)", "[upon_stopped]") {
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_error_t(int)>>);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }

@@ -4,6 +4,7 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/utility.hpp>
@@ -31,17 +32,17 @@ template <typename Ops> struct first_receiver {
     template <typename... Args>
     friend auto tag_invoke(set_value_t, first_receiver const &r, Args &&...args)
         -> void {
-        r.ops->template complete_first<value_holder<Args...>>(
+        r.ops->template complete_first<set_value_t>(
             std::forward<Args>(args)...);
     }
     template <typename... Args>
     friend auto tag_invoke(set_error_t, first_receiver const &r, Args &&...args)
         -> void {
-        r.ops->template complete_first<error_holder<Args...>>(
+        r.ops->template complete_first<set_error_t>(
             std::forward<Args>(args)...);
     }
     friend auto tag_invoke(set_stopped_t, first_receiver const &r) -> void {
-        r.ops->template complete_first<stopped_holder<>>();
+        r.ops->template complete_first<set_stopped_t>();
     }
 };
 
@@ -79,30 +80,33 @@ struct op_state {
                 }}} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto start() -> void { std::get<0>(state).start(); }
-
     using values_t =
         value_types_of_t<Sndr, env_of_t<Rcvr>, value_holder, std::variant>;
     using errors_t =
         error_types_of_t<Sndr, env_of_t<Rcvr>, error_holder, std::variant>;
     using stoppeds_t =
         stopped_types_of_t<Sndr, env_of_t<Rcvr>, stopped_holder, std::variant>;
-    using completions_t = boost::mp11::mp_push_front<
-        boost::mp11::mp_unique<
-            boost::mp11::mp_append<values_t, errors_t, stoppeds_t>>,
-        std::monostate>;
+    using completions_t = boost::mp11::mp_unique<
+        boost::mp11::mp_append<values_t, errors_t, stoppeds_t>>;
 
-    template <typename Tuple, typename... Args>
+    template <typename Tag, typename... Args> struct matching_completion {
+        template <typename C>
+        using fn = boost::mp11::mp_and<std::is_same<typename C::tag_t, Tag>,
+                                       std::is_constructible<C, Args &&...>>;
+    };
+
+    template <typename Tag, typename... Args>
     auto complete_first(Args &&...args) -> void {
-        using index = boost::mp11::mp_find<completions_t, Tuple>;
+        using index =
+            boost::mp11::mp_find_if_q<completions_t,
+                                      matching_completion<Tag, Args...>>;
         static_assert(index::value <
                       boost::mp11::mp_size<completions_t>::value);
-        values.template emplace<index::value>(std::forward<Args>(args)...);
+        values.template emplace<index::value + 1>(std::forward<Args>(args)...);
 
-        state
-            .template emplace<1>(stdx::with_result_of{
-                [&] { return connect(sched.schedule(), second_rcvr{this}); }})
-            .start();
+        auto &op = state.template emplace<1>(stdx::with_result_of{
+            [&] { return connect(sched.schedule(), second_rcvr{this}); }});
+        start(std::move(op));
     }
 
     auto complete_second() -> void {
@@ -119,11 +123,17 @@ struct op_state {
     [[no_unique_address]] Sched sched;
     [[no_unique_address]] Rcvr rcvr;
 
-    completions_t values{};
+    boost::mp11::mp_push_front<completions_t, std::monostate> values{};
 
     using first_ops = connect_result_t<Sndr, first_rcvr>;
     using second_ops = connect_result_t<sched_sender, second_rcvr>;
     std::variant<first_ops, second_ops> state;
+
+  private:
+    template <stdx::same_as_unqualified<op_state> O>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        start(std::get<0>(std::forward<O>(o).state));
+    }
 };
 
 template <typename Sched, typename S> class sender {
@@ -134,9 +144,8 @@ template <typename Sched, typename S> class sender {
         return {std::move(self).sched, std::move(self).s, std::forward<R>(r)};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 multishot_sender<S, R>
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires multishot_sender<S, R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<Sched, S, std::remove_cvref_t<R>> {
@@ -164,8 +173,7 @@ template <typename Sched> struct pipeable {
     Sched sched;
 
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
         return sender<Sched, std::remove_cvref_t<S>>{
             std::forward<Self>(self).sched, std::forward<S>(s)};

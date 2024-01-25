@@ -101,8 +101,7 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
   private:
-    template <typename Self, typename... Args>
-        requires std::same_as<receiver, std::remove_cvref_t<Self>>
+    template <stdx::same_as_unqualified<receiver> Self, typename... Args>
     friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
         using arities =
             typename detail::args<Args &&...>::template arities_t<Fs...>;
@@ -125,8 +124,8 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
         });
     }
 
-    template <typename T, typename Self, typename... Args>
-        requires std::same_as<receiver, std::remove_cvref_t<Self>>
+    template <typename T, stdx::same_as_unqualified<receiver> Self,
+              typename... Args>
     friend auto tag_invoke(T, Self &&self, Args &&...args)
         -> decltype(T{}(std::forward<Self>(self).r,
                         std::forward<Args>(args)...)) {
@@ -180,9 +179,8 @@ template <typename Tag, typename S, typename... Fs> class sender {
                            std::forward<R>(r), std::move(self).fs});
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 multishot_sender<S>
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires multishot_sender<S>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r) {
         return connect(std::forward<Self>(self).s,
@@ -235,8 +233,7 @@ template <typename Tag, typename... Fs> struct pipeable {
     stdx::tuple<Fs...> fs;
 
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
         return sender<Tag, std::remove_cvref_t<S>, Fs...>{
             std::forward<S>(s), std::forward<Self>(self).fs};

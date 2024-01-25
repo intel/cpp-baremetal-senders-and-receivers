@@ -10,6 +10,8 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <concepts>
 #include <thread>
 #include <type_traits>
@@ -18,11 +20,15 @@
 namespace async {
 class thread_scheduler {
     template <typename R> struct op_state {
-        auto start() -> void {
-            std::thread{[&] { set_value(std::move(receiver)); }}.detach();
-        }
-
         [[no_unique_address]] R receiver;
+
+      private:
+        template <stdx::same_as_unqualified<op_state> O>
+        friend auto tag_invoke(start_t, O &&o) -> void {
+            std::thread{[&] {
+                set_value(std::forward<O>(o).receiver);
+            }}.detach();
+        }
     };
 
     class env {
@@ -44,8 +50,7 @@ class thread_scheduler {
             return {};
         }
 
-        template <typename S, receiver_from<sender> R>
-            requires std::same_as<sender, std::remove_cvref_t<S>>
+        template <stdx::same_as_unqualified<sender> S, receiver_from<sender> R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r)
             -> op_state<R> {
             return {std::forward<R>(r)};

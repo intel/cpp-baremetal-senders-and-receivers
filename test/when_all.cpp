@@ -5,6 +5,7 @@
 #include <async/let_value.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/sync_wait.hpp>
+#include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
@@ -63,7 +64,7 @@ TEST_CASE("basic operation", "[when_all]") {
                                  CHECK(j == 17);
                                  value = i + j;
                              }});
-    op.start();
+    async::start(op);
     CHECK(value == 59);
 }
 
@@ -94,7 +95,7 @@ TEST_CASE("move-only value", "[when_all]") {
     static_assert(async::singleshot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(
         std::move(w), receiver{[&](move_only<int> mo) { value = mo.value; }});
-    op.start();
+    async::start(std::move(op));
     CHECK(value == 42);
 }
 
@@ -104,7 +105,7 @@ TEST_CASE("copy sender", "[when_all]") {
     auto w = async::when_all(s);
     static_assert(async::multishot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(w, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -115,7 +116,7 @@ TEST_CASE("move sender", "[when_all]") {
     static_assert(async::multishot_sender<decltype(w), universal_receiver>);
     auto op =
         async::connect(std::move(w), receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -126,7 +127,7 @@ TEST_CASE("when_all propagates error (order 1)", "[when_all]") {
     auto w = async::when_all(s1, s2);
 
     auto op = async::connect(w, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 17);
 }
 
@@ -137,7 +138,7 @@ TEST_CASE("when_all propagates error (order 2)", "[when_all]") {
     auto w = async::when_all(s1, s2);
 
     auto op = async::connect(w, error_receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 17);
 }
 
@@ -148,7 +149,7 @@ TEST_CASE("when_all does not send values after error", "[when_all]") {
     auto w = async::when_all(s1, s2);
 
     auto op = async::connect(w, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 0);
 }
 
@@ -159,7 +160,7 @@ TEST_CASE("deal with void senders", "[when_all]") {
     auto w = async::when_all(s1, s2);
 
     auto op = async::connect(w, receiver{[&](auto i) { value = i; }});
-    op.start();
+    async::start(op);
     CHECK(value == 17);
 }
 
@@ -177,7 +178,7 @@ TEST_CASE("when_all cancellation (before start)", "[when_all]") {
     auto op = async::connect(w, r);
 
     r.request_stop();
-    op.start();
+    async::start(op);
 
     ctrl.wait_for(1);
     CHECK(success);
@@ -196,7 +197,7 @@ TEST_CASE("when_all cancellation (during operation)", "[when_all]") {
     auto r = stoppable_receiver{[&] { ctrl.advance(); }};
     auto op = async::connect(w, r);
 
-    op.start();
+    async::start(op);
     ctrl.wait_for(1);
     r.request_stop();
 
@@ -213,7 +214,7 @@ TEST_CASE("when_all with zero args completes immediately with set_value_t()",
                      async::completion_signatures<async::set_value_t()>>);
 
     auto op = async::connect(w, receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -230,7 +231,7 @@ TEST_CASE("when_all with zero args completes immediately when stopped",
 
     auto op = async::connect(w, r);
     r.request_stop();
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 

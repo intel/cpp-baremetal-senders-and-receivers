@@ -4,6 +4,8 @@
 #include <async/concepts.hpp>
 #include <async/tags.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <concepts>
 #include <type_traits>
 #include <utility>
@@ -32,21 +34,25 @@ struct op_state {
         : ops{connect(std::forward<S>(s), receiver<op_state>{this})} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto start() -> void { ops.start(); }
-
     auto die() {
         auto &alloc = get_allocator<Uniq, op_state>();
         alloc.destruct(this);
     }
 
     Ops ops;
+
+  private:
+    template <stdx::same_as_unqualified<op_state> O>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        start(std::forward<O>(o).ops);
+    }
 };
 
 template <typename Uniq, sender S> [[nodiscard]] auto start(S &&s) -> bool {
     using O = op_state<Uniq, std::remove_cvref_t<S>>;
     auto &alloc = get_allocator<Uniq, O>();
     if (auto op_state = alloc.construct(std::forward<S>(s)); op_state) {
-        op_state->start();
+        async::start(*op_state);
         return true;
     }
     return false;
@@ -54,8 +60,7 @@ template <typename Uniq, sender S> [[nodiscard]] auto start(S &&s) -> bool {
 
 template <typename Uniq> struct pipeable {
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend auto operator|(S &&s, Self &&) {
         return start<Uniq>(std::forward<S>(s));
     }

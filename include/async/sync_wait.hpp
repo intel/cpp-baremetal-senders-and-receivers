@@ -5,6 +5,7 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/tuple.hpp>
 
 #include <concepts>
@@ -71,15 +72,14 @@ template <typename Uniq, sender S> auto wait(S &&s) {
     auto r = receiver<V, decltype(rl)>{values, rl};
 
     auto op_state = connect(std::forward<S>(s), r);
-    op_state.start();
+    start(op_state);
     rl.run();
     return values;
 }
 
 template <typename Uniq> struct pipeable {
   private:
-    template <async::sender S, typename Self>
-        requires std::same_as<pipeable, std::remove_cvref_t<Self>>
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend auto operator|(S &&s, Self &&) {
         return wait<Uniq>(std::forward<S>(s));
     }

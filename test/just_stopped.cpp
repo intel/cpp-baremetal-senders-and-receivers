@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/just.hpp>
+#include <async/tags.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -11,7 +12,7 @@ TEST_CASE("one value", "[just_stopped]") {
     int value{};
     auto s = async::just_stopped();
     auto op = async::connect(s, stopped_receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -25,7 +26,7 @@ TEST_CASE("copy sender", "[just_stopped]") {
     auto const s = async::just_stopped();
     static_assert(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(s, stopped_receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -35,6 +36,6 @@ TEST_CASE("move sender", "[just_stopped]") {
     static_assert(async::multishot_sender<decltype(s), universal_receiver>);
     auto op =
         async::connect(std::move(s), stopped_receiver{[&] { value = 42; }});
-    op.start();
+    async::start(op);
     CHECK(value == 42);
 }

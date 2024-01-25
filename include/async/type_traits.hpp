@@ -158,6 +158,8 @@ template <typename Tag> struct channel_holder {
     template <typename... Ts> using base_tuple = stdx::tuple<Ts...>;
 
     template <typename... Ts> struct tuple : base_tuple<Ts...> {
+        using tag_t = Tag;
+
         template <typename... Args>
         constexpr explicit(true) tuple(Args &&...args)
             : base_tuple<Ts...>{std::forward<Args>(args)...} {}

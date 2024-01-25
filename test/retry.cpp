@@ -6,6 +6,7 @@
 #include <async/on.hpp>
 #include <async/retry.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/tags.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 
@@ -57,7 +58,7 @@ TEST_CASE("retry retries on error", "[retry]") {
                });
     auto s = sub | async::retry();
     auto op = async::connect(s, receiver{[&](auto i) { var += i; }});
-    op.start();
+    async::start(op);
     CHECK(var == 44);
 }
 
@@ -78,7 +79,7 @@ TEST_CASE("retry_until retries on error", "[retry]") {
                });
     auto s = sub | async::retry_until([&] { return var == 3; });
     auto op = async::connect(s, receiver{[] {}});
-    op.start();
+    async::start(op);
     CHECK(var == 3);
 }
 
@@ -94,6 +95,6 @@ TEST_CASE("retry can be cancelled", "[retry]") {
                });
     auto s = async::when_all(sub) | async::retry();
     auto op = async::connect(s, r);
-    op.start();
+    async::start(op);
     CHECK(var == 44);
 }

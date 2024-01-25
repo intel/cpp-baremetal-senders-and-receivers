@@ -6,6 +6,7 @@
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
 #include <async/start_detached.hpp>
+#include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/transfer.hpp>
 
@@ -55,7 +56,7 @@ TEST_CASE("fixed_priority_scheduler schedules tasks", "[priority_scheduler]") {
     async::task_mgr::service_tasks<0>();
     CHECK(var == 0);
 
-    op.start();
+    async::start(op);
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
     CHECK(async::task_mgr::is_idle());
@@ -71,7 +72,7 @@ TEST_CASE("fixed_priority_scheduler is cancellable before start",
     auto op = async::connect(sndr, r);
 
     r.request_stop();
-    op.start();
+    async::start(op);
     async::task_mgr::service_tasks<0>();
     CHECK(var == 17);
     CHECK(async::task_mgr::is_idle());
@@ -86,7 +87,7 @@ TEST_CASE("fixed_priority_scheduler is cancellable after start",
     auto r = stoppable_receiver{[&] { var = 17; }};
     auto op = async::connect(sndr, r);
 
-    op.start();
+    async::start(op);
     r.request_stop();
     async::task_mgr::service_tasks<0>();
     CHECK(var == 17);

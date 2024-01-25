@@ -1,6 +1,8 @@
 #include <async/concepts.hpp>
 #include <async/tags.hpp>
 
+#include <stdx/concepts.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("queryable", "[concepts]") {
@@ -10,7 +12,9 @@ TEST_CASE("queryable", "[concepts]") {
 
 namespace {
 struct op_state {
-    auto start() noexcept -> void;
+  private:
+    [[maybe_unused]] friend auto tag_invoke(async::start_t,
+                                            op_state const &) noexcept {}
 };
 struct not_op_state {};
 } // namespace
@@ -120,8 +124,7 @@ struct sender : async::sender_base {
         async::completion_signatures<async::set_value_t(Ts...),
                                      async::set_error_t(E)>;
 
-    template <typename S, async::receiver_from<S> R>
-        requires std::same_as<sender, std::remove_cvref_t<S>>
+    template <stdx::same_as_unqualified<sender> S, async::receiver_from<S> R>
     friend auto tag_invoke(async::connect_t, S &&, R &&) -> op_state {
         return {};
     }

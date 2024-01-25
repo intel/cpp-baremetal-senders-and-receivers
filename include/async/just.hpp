@@ -4,6 +4,7 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/concepts.hpp>
 #include <stdx/tuple.hpp>
 
 #include <concepts>
@@ -13,14 +14,23 @@
 namespace async {
 namespace _just {
 template <typename Tag, typename R, typename... Vs> struct op_state {
-    auto start() -> void {
-        std::move(values).apply([&]<typename... Ts>(Ts &&...ts) {
-            Tag{}(receiver, std::forward<Ts>(ts)...);
+    [[no_unique_address]] R receiver;
+    [[no_unique_address]] stdx::tuple<Vs...> values;
+
+  private:
+    friend constexpr auto tag_invoke(start_t, op_state &&o) -> void {
+        std::move(o).values.apply([&]<typename... Ts>(Ts &&...ts) {
+            Tag{}(std::move(o).receiver, std::forward<Ts>(ts)...);
         });
     }
 
-    [[no_unique_address]] R receiver;
-    [[no_unique_address]] stdx::tuple<Vs...> values;
+    template <stdx::same_as_unqualified<op_state> O>
+        requires(... and std::copy_constructible<Vs>)
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        std::forward<O>(o).values.apply([&]<typename... Ts>(Ts &&...ts) {
+            Tag{}(std::forward<O>(o).receiver, std::forward<Ts>(ts)...);
+        });
+    }
 };
 
 template <typename Tag, typename... Vs> struct sender {
@@ -36,9 +46,8 @@ template <typename Tag, typename... Vs> struct sender {
         return {std::forward<R>(r), std::move(self).values};
     }
 
-    template <typename Self, receiver_from<sender> R>
-        requires std::same_as<sender, std::remove_cvref_t<Self>> and
-                 std::copy_constructible<decltype(values)>
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires std::copy_constructible<decltype(values)>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<Tag, std::remove_cvref_t<R>, Vs...> {
