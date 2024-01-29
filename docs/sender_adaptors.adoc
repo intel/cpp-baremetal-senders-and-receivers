@@ -95,6 +95,10 @@ auto s = some_sender | async::repeat();
 // and some_sender runs again.
 ----
 
+CAUTION: `repeat` can cause stack overflows if used with a scheduler that
+doesn't break the callstack, like
+xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`].
+
 === `repeat_n`
 
 `repeat_n` works the same way as `repeat`, but repeats a given number of times.
@@ -124,6 +128,10 @@ auto s = some_sender | async::retry();
 // if some_sender sends an error, it will be reconnected and restarted
 // s completes when some_sender completes with set_value or set_stopped
 ----
+
+CAUTION: `retry` can cause stack overflows if used with a scheduler that
+doesn't break the callstack, like
+xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`].
 
 === `retry_until`
 
