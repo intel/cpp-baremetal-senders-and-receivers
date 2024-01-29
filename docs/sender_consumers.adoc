@@ -1,6 +1,59 @@
 
 == Sender consumers
 
+=== `start_detached`
+
+`start_detached` takes a sender, connects and starts it, and returns, leaving
+the work running detached. The return value is a `bool` indicating whether or
+not the sender was started.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto started = async::start_detached(sndr);
+// in this case, starting the sender also completes it
+----
+
+If a sender starts detached, its operation state has to be allocated somewhere.
+That is achieved through an allocator. Given a class T, an allocator supports two
+operations:
+
+[source,cpp]
+----
+template <typename T>
+struct allocator {
+  // allocate space for a T and construct it with Args
+  template <typename... Args> auto construct(Args &&...) -> T *;
+  // destroy and deallocate
+  auto destruct(T const *) -> void;
+};
+----
+
+The variable templates `async::alloc` and `async::allocation_limit` can be
+specialized to control how detached operation states are handled:
+
+[source,cpp]
+----
+template <typename Name>
+constexpr inline auto allocation_limit = std::size_t{1};
+
+template <typename Name, typename T, std::size_t N>
+inline auto alloc = static_allocator<T, N>{};
+----
+
+To hook into these allocation strategies, a template argument (representing the
+name of the allocation domain) can be given to `start_detached`.
+
+[source,cpp]
+----
+async::start_detached<struct Name>(s);
+----
+
+The default template argument results in a different `static_allocator` for each
+call site, with an allocation limit of 1. `start_detached` returns `false` when
+the allocator's `construct` method returns a `nullptr` (presumably because the
+allocation limit has been reached).
+
 === `sync_wait`
 
 `sync_wait` takes a sender and:

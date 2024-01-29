@@ -43,10 +43,10 @@ template <typename T, std::size_t N> struct static_allocator {
 
 template <typename Name>
 constexpr inline auto allocation_limit = std::size_t{1};
-template <typename T, std::size_t N>
-static inline static_allocator<T, N> alloc{};
+template <typename, typename T, std::size_t N>
+inline auto alloc = static_allocator<T, N>{};
 
 template <typename Name, typename T> constexpr auto get_allocator() -> auto & {
-    return alloc<T, allocation_limit<Name>>;
+    return alloc<Name, T, allocation_limit<Name>>;
 }
 } // namespace async
