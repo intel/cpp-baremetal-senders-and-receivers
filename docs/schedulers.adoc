@@ -1,0 +1,110 @@
+
+== Schedulers
+
+=== `fixed_priority_scheduler`
+
+A `fixed_priority_scheduler` represents work that will be run at a certain priority.
+
+[source,cpp]
+----
+using S = async::fixed_fixed_priority_scheduler<0>; // highest priority
+----
+
+NOTE: The intended use case for `fixed_priority_scheduler` is to schedule tasks
+to be executed on prioritized interrupts.
+
+The `fixed_priority_scheduler` works hand in glove with a `task_manager` that
+manages tasks in priority order. A `priority_task_manager` is provided and may
+be used by providing a HAL, and by specializing the `injected_task_manager`
+variable template.
+
+[source,cpp]
+----
+namespace {
+// A HAL provides one function to enable the priority interrupt
+struct hal {
+    static auto schedule(async::priority_t) {}
+};
+
+// a priority task manager with 8 priority levels
+using task_manager_t = async::priority_task_manager<hal, 8>;
+} // namespace
+
+// fixed_priority_scheduler will use this task_manager
+template <> inline auto async::injected_task_manager<> = task_manager_t{};
+
+// when a priority interrupt fires, the ISR executes the tasks
+template <async::priority_t P>
+auto interrupt_service_routine() {
+  async::task_mgr::service_tasks<P>();
+}
+----
+
+The result of using a `fixed_priority_scheduler` is that work is scheduled to be
+run when priority interrupts fire.
+
+[source,cpp]
+----
+int x{};
+async::on(async::fixed_fixed_priority_scheduler<0>{},
+          async::just_result_of([&] { x = 42; }))
+| async::start_detached();
+
+// when the interrupt fires...
+async::task_mgr::service_tasks<0>();
+// x is now 42
+----
+
+=== `inline_scheduler`
+
+The most basic scheduler is the `inline_scheduler`. It runs work with a regular
+function call in the current execution context. It's the degenerate case as far
+as concurrency goes; starting the work also completes it.
+
+[source,cpp]
+----
+int x{};
+auto s = async::on(async::inline_scheduler{},
+                   async::just(42)
+                 | async::then([] (auto i) { x = i; });
+async::start_detached(s);
+// i is now 42
+----
+
+CAUTION: The `inline_scheduler` may cause stack overflows when used with certain
+adaptors like xref:sender_adaptors.adoc#_repeat[`repeat`] or
+xref:sender_adaptors.adoc#_retry[`retry`].
+
+=== `runloop_scheduler`
+
+The `runloop_scheduler` adds any work to a queue that is executed in order. It
+is used as a completion scheduler inside
+xref:sender_consumers.adoc#_sync_wait[`sync_wait`].
+
+[source,cpp]
+----
+auto value = async::get_scheduler()
+           | async::let_value([&](auto sched) {
+                 return async::on(sched, async::just(42));
+             })
+           | async::sync_wait();
+----
+
+This code uses xref:sender_factories.adoc#_read[`get_scheduler`] to read the
+scheduler provided by `sync_wait`. That `runloop_scheduler` is then used to
+schedule work.
+
+=== `thread_scheduler`
+
+The `thread_scheduler` is a basic scheduler that runs work on a newly-created
+thread that is detached.
+
+[source,cpp]
+----
+int x{};
+auto s = async::on(async::thread_scheduler{},
+                   async::just(42) | async::then([] (auto i) { x = i; });
+async::start_detached(s);
+// without some other sync mechanism, this is risky:
+// there is now a detached thread running that will update x at some point
+----
