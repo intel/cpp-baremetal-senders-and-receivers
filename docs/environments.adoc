@@ -15,9 +15,9 @@ that supports cancellation:
 [source,cpp]
 ----
 struct custom_receiver {
-  auto set_value(auto&&...) { ... }
-  auto set_error(auto&&) { ... }
-  auto set_stopped() { ... }
+  friend auto tag_invoke(async::set_value_t, auto&&...) { ... }
+  friend auto tag_invoke(async::set_error_t, auto&&) { ... }
+  friend auto tag_invoke(async::set_stopped_t) { ... }
 
   struct env {
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_stop_token_t,
