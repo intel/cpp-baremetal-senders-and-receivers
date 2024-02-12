@@ -1,6 +1,8 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/tags.hpp>
 
@@ -49,4 +51,11 @@ TEST_CASE("move sender", "[just_error]") {
                              error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
+}
+
+TEST_CASE("just_error has a stack allocator", "[just_error]") {
+    static_assert(
+        std::is_same_v<async::allocator_of_t<
+                           async::env_of_t<decltype(async::just_error(42))>>,
+                       async::stack_allocator>);
 }

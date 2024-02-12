@@ -1,9 +1,11 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
 #include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/stack_allocator.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -54,4 +56,11 @@ TEST_CASE("sender has the inline_scheduler as its completion scheduler",
     auto cs2 =
         async::get_completion_scheduler<async::set_value_t>(async::get_env(s2));
     static_assert(std::same_as<decltype(cs2), async::inline_scheduler>);
+}
+
+TEST_CASE("sender has a stack allocator", "[inline_scheduler]") {
+    static_assert(
+        std::is_same_v<async::allocator_of_t<async::env_of_t<
+                           decltype(async::inline_scheduler::schedule())>>,
+                       async::stack_allocator>);
 }

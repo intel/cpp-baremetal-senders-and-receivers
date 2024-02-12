@@ -1,6 +1,8 @@
 #pragma once
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/stack_allocator.hpp>
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
@@ -42,6 +44,14 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
 };
 
 template <typename Tag, std::invocable... Fs> class sender : public Fs... {
+    class env {
+        [[nodiscard]] friend constexpr auto tag_invoke(get_allocator_t,
+                                                       env) noexcept
+            -> stack_allocator {
+            return {};
+        }
+    };
+
     template <receiver_from<sender> R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
                                                    R &&r)
@@ -56,6 +66,12 @@ template <typename Tag, std::invocable... Fs> class sender : public Fs... {
         -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {
         return {{static_cast<Fs>(std::forward<Self>(self))}...,
                 std::forward<R>(r)};
+    }
+
+    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
+                                                   sender const &) noexcept
+        -> env {
+        return {};
     }
 
     template <typename... Ts>

@@ -1,6 +1,8 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/tags.hpp>
 
@@ -66,4 +68,11 @@ TEST_CASE("void sender", "[just]") {
     auto op = async::connect(s, receiver{[&] { rcvd = true; }});
     async::start(op);
     CHECK(rcvd);
+}
+
+TEST_CASE("just has a stack allocator", "[just]") {
+    static_assert(
+        std::is_same_v<
+            async::allocator_of_t<async::env_of_t<decltype(async::just(42))>>,
+            async::stack_allocator>);
 }

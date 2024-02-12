@@ -1,6 +1,8 @@
 #pragma once
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/stack_allocator.hpp>
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
@@ -39,6 +41,14 @@ template <typename Tag, typename... Vs> struct sender {
     [[no_unique_address]] stdx::tuple<Vs...> values;
 
   private:
+    class env {
+        [[nodiscard]] friend constexpr auto tag_invoke(get_allocator_t,
+                                                       env) noexcept
+            -> stack_allocator {
+            return {};
+        }
+    };
+
     template <receiver_from<sender> R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
                                                    R &&r)
@@ -52,6 +62,12 @@ template <typename Tag, typename... Vs> struct sender {
                                                    R &&r)
         -> op_state<Tag, std::remove_cvref_t<R>, Vs...> {
         return {std::forward<R>(r), std::forward<Self>(self).values};
+    }
+
+    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
+                                                   sender const &) noexcept
+        -> env {
+        return {};
     }
 };
 } // namespace _just

@@ -1,7 +1,10 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/env.hpp>
 #include <async/just_result_of.hpp>
+#include <async/stack_allocator.hpp>
 #include <async/tags.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -87,4 +90,11 @@ TEST_CASE("copyable lambda", "[just_result_of]") {
     static_assert(async::multishot_sender<decltype(async::just_result_of(
                                               [] { return 42; })),
                                           universal_receiver>);
+}
+
+TEST_CASE("just_result_of has a stack allocator", "[just_result_of]") {
+    static_assert(
+        std::is_same_v<async::allocator_of_t<async::env_of_t<
+                           decltype(async::just_result_of([] { return 42; }))>>,
+                       async::stack_allocator>);
 }
