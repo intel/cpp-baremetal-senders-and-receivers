@@ -1,52 +1,44 @@
 #pragma once
 
-#include <stdx/bit.hpp>
-#include <stdx/bitset.hpp>
+#include <async/forwarding_query.hpp>
+#include <async/static_allocator.hpp>
 
-#include <array>
-#include <cstddef>
-#include <iterator>
-#include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace async {
-template <typename T, std::size_t N> struct static_allocator {
-    constexpr static inline auto alignment = alignof(T);
-    constexpr static inline auto size = sizeof(T);
-    constexpr static inline auto aligned_size =
-        size % alignment == 0 ? size : size + alignment - (size % alignment);
-
-    using storage_t = std::array<std::byte, aligned_size * N>;
-
-    alignas(alignment) storage_t data{};
-    stdx::bitset<N> used{};
-
-    template <typename... Args> auto construct(Args &&...args) -> T * {
-        auto const idx = used.lowest_unset();
-        if (idx == N) {
-            return nullptr;
-        }
-        auto const ptr = std::data(data) + idx * aligned_size;
-        used.set(idx);
-        return std::construct_at(stdx::bit_cast<T *>(ptr),
-                                 std::forward<Args>(args)...);
-    }
-
-    auto destruct(T const *t) -> void {
-        std::destroy_at(t);
-        auto const ptr = stdx::bit_cast<std::byte *>(t);
-        auto const idx =
-            static_cast<std::size_t>(ptr - std::data(data)) / aligned_size;
-        used.reset(idx);
-    }
+namespace detail {
+struct prototype_constructible {
+    constexpr explicit prototype_constructible(int) {}
 };
+struct prototype_domain;
+} // namespace detail
 
-template <typename Name>
-constexpr inline auto allocation_limit = std::size_t{1};
-template <typename, typename T, std::size_t N>
-inline auto alloc = static_allocator<T, N>{};
+template <typename T>
+concept allocator =
+    std::is_empty_v<T> and requires(T &, detail::prototype_constructible *p) {
+        {
+            T::template construct<detail::prototype_domain,
+                                  detail::prototype_constructible>(
+                [](detail::prototype_constructible) {}, 0)
+        } -> std::same_as<bool>;
+        {
+            T::template destruct<detail::prototype_domain>(p)
+        } -> std::same_as<void>;
+    };
 
-template <typename Name, typename T> constexpr auto get_allocator() -> auto & {
-    return alloc<Name, T, allocation_limit<Name>>;
-}
+constexpr inline struct get_allocator_t : forwarding_query_t {
+    template <typename T>
+        requires true // more constrained
+    constexpr auto operator()(T &&t) const
+        -> decltype(tag_invoke(std::declval<get_allocator_t>(),
+                               std::forward<T>(t))) {
+        return tag_invoke(*this, std::forward<T>(t));
+    }
+
+    constexpr auto operator()(auto &&) const -> static_allocator { return {}; }
+} get_allocator;
+
+template <typename T>
+using allocator_of_t = decltype(get_allocator(std::declval<T>()));
 } // namespace async

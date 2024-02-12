@@ -2,6 +2,7 @@
 
 #include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/env.hpp>
 #include <async/tags.hpp>
 
 #include <stdx/concepts.hpp>
@@ -24,7 +25,7 @@ template <typename Ops> struct receiver {
     }
 };
 
-template <typename Uniq, typename Sndr>
+template <typename Uniq, typename Sndr, typename Alloc>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using Ops = connect_result_t<Sndr, receiver<op_state>>;
@@ -34,10 +35,7 @@ struct op_state {
         : ops{connect(std::forward<S>(s), receiver<op_state>{this})} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto die() {
-        auto &alloc = get_allocator<Uniq, op_state>();
-        alloc.destruct(this);
-    }
+    auto die() { Alloc::template destruct<Uniq>(this); }
 
     Ops ops;
 
@@ -49,13 +47,10 @@ struct op_state {
 };
 
 template <typename Uniq, sender S> [[nodiscard]] auto start(S &&s) -> bool {
-    using O = op_state<Uniq, std::remove_cvref_t<S>>;
-    auto &alloc = get_allocator<Uniq, O>();
-    if (auto op_state = alloc.construct(std::forward<S>(s)); op_state) {
-        async::start(*op_state);
-        return true;
-    }
-    return false;
+    using Sndr = std::remove_cvref_t<S>;
+    using A = allocator_of_t<env_of_t<Sndr>>;
+    using O = op_state<Uniq, Sndr, A>;
+    return A::template construct<Uniq, O>(async::start, std::forward<S>(s));
 }
 
 template <typename Uniq> struct pipeable {

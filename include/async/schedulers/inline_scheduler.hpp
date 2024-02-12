@@ -1,8 +1,10 @@
 #pragma once
 
+#include <async/allocator.hpp>
 #include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
+#include <async/stack_allocator.hpp>
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
@@ -25,6 +27,12 @@ class inline_scheduler {
     };
 
     class env {
+        [[nodiscard]] friend constexpr auto tag_invoke(get_allocator_t,
+                                                       env) noexcept
+            -> stack_allocator {
+            return {};
+        }
+
         [[nodiscard]] friend constexpr auto
         tag_invoke(get_completion_scheduler_t<set_value_t>, env) noexcept
             -> inline_scheduler {

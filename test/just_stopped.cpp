@@ -1,6 +1,8 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/tags.hpp>
 
@@ -38,4 +40,11 @@ TEST_CASE("move sender", "[just_stopped]") {
         async::connect(std::move(s), stopped_receiver{[&] { value = 42; }});
     async::start(op);
     CHECK(value == 42);
+}
+
+TEST_CASE("just_stopped has a stack allocator", "[just_stopped]") {
+    static_assert(
+        std::is_same_v<async::allocator_of_t<
+                           async::env_of_t<decltype(async::just_stopped())>>,
+                       async::stack_allocator>);
 }
