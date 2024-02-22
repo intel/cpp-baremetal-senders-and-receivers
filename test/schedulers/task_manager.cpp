@@ -132,7 +132,7 @@ TEST_CASE("manager is not idle during a running task", "[task_manager]") {
     CHECK(m.is_idle());
 }
 
-TEST_CASE("task can requeue itself", "[task_manager]") {
+TEST_CASE("task can requeue itself (immediate execution)", "[task_manager]") {
     auto m = task_manager_t{};
     int var{};
 
@@ -143,9 +143,24 @@ TEST_CASE("task can requeue itself", "[task_manager]") {
             }
         });
     CHECK(m.enqueue_task(task.bind_front(&m, &task), 0));
-    m.service_tasks<0>();
+    m.service_tasks<0, async::requeue_policy::immediate>();
     CHECK(var == 2);
     CHECK(m.is_idle());
+}
+
+TEST_CASE("task can requeue itself (deferred execution)", "[task_manager]") {
+    auto m = task_manager_t{};
+    int var{};
+
+    auto task = async::create_priority_task(
+        [&](task_manager_t *mgr, async::single_linked_task *t) {
+            ++var;
+            CHECK(mgr->enqueue_task(*t, 0));
+        });
+    CHECK(m.enqueue_task(task.bind_front(&m, &task), 0));
+    m.service_tasks<0, async::requeue_policy::deferred>();
+    CHECK(var == 1);
+    CHECK(not m.is_idle());
 }
 
 TEST_CASE("don't run a queued task of a different priority", "[task_manager]") {
@@ -159,7 +174,8 @@ TEST_CASE("don't run a queued task of a different priority", "[task_manager]") {
     CHECK(var == 0);
 }
 
-TEST_CASE("queue a task on interrupt during servicing", "[task_manager]") {
+TEST_CASE("queue a task on interrupt during servicing (immediate execution)",
+          "[task_manager]") {
     auto m = task_manager_t{};
     int var{};
     auto task = async::create_priority_task([&] { ++var; });
@@ -170,7 +186,7 @@ TEST_CASE("queue a task on interrupt during servicing", "[task_manager]") {
         m.enqueue_task(task, 1);
     };
 
-    m.service_tasks<1>();
+    m.service_tasks<1, async::requeue_policy::immediate>();
     CHECK(var == 2);
     CHECK(m.is_idle());
 }

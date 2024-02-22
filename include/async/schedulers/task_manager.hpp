@@ -22,6 +22,22 @@ template <typename F> [[nodiscard]] constexpr auto create_priority_task(F &&f) {
     return task<func_t, args_t, single_linked_task>{std::forward<F>(f)};
 }
 
+namespace requeue_policy {
+struct immediate {
+    template <priority_t P>
+    [[nodiscard]] constexpr static auto get_queue(auto &queues) -> auto & {
+        return queues[P];
+    }
+};
+
+struct deferred {
+    template <priority_t P>
+    [[nodiscard]] constexpr static auto get_queue(auto &queues) {
+        return std::exchange(queues[P], {});
+    }
+};
+} // namespace requeue_policy
+
 namespace detail {
 template <typename T>
 concept scheduler_hal = requires {
@@ -49,11 +65,11 @@ class priority_task_manager {
         });
     }
 
-    template <priority_t P>
+    template <priority_t P, typename RQP = requeue_policy::deferred>
     auto service_tasks() -> void
         requires(P < NumPriorities)
     {
-        auto &q = task_queues[P];
+        decltype(auto) q = RQP::template get_queue<P>(task_queues);
         while (not std::empty(q)) {
             auto &task = q.front();
             conc::call_in_critical_section<mutex>([&]() {
