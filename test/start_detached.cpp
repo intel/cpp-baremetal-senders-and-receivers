@@ -72,3 +72,33 @@ TEST_CASE("start_detached is actually detached", "[start_detached]") {
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
 }
+
+TEST_CASE("start_detached can be cancelled", "[start_detached]") {
+    int var{};
+    using S = async::fixed_priority_scheduler<0>;
+    auto s = S::schedule()                    //
+             | async::then([&] { var = 42; }) //
+             | async::upon_stopped([&] { var = 17; });
+    auto stop_src = async::start_detached(s);
+    REQUIRE(stop_src.has_value());
+    stop_src.value()->request_stop();
+    async::task_mgr::service_tasks<0>();
+    CHECK(var == 17);
+}
+
+TEST_CASE("start_detached_unstoppable has no cancellation",
+          "[start_detached]") {
+    int var{};
+    using S = async::fixed_priority_scheduler<0>;
+    auto s = S::schedule()                    //
+             | async::then([&] { var = 42; }) //
+             | async::upon_stopped([&] { var = 17; });
+    auto stop_src = async::start_detached_unstoppable(s);
+    REQUIRE(stop_src.has_value());
+    static_assert(
+        std::is_same_v<async::never_stop_source *,
+                       std::remove_cvref_t<decltype(stop_src.value())>>);
+    stop_src.value()->request_stop();
+    async::task_mgr::service_tasks<0>();
+    CHECK(var == 42);
+}

@@ -12,7 +12,7 @@
 
 namespace async {
 namespace detail {
-template <typename T, std::size_t N> struct static_allocator_t {
+template <typename Name, typename T, std::size_t N> struct static_allocator_t {
     constexpr static inline auto alignment = alignof(T);
     constexpr static inline auto size = sizeof(T);
     constexpr static inline auto aligned_size =
@@ -42,8 +42,8 @@ template <typename T, std::size_t N> struct static_allocator_t {
         used.reset(idx);
     }
 };
-template <typename T, std::size_t N>
-inline auto static_allocator_v = static_allocator_t<T, N>{};
+template <typename Name, typename T, std::size_t N>
+inline auto static_allocator_v = static_allocator_t<Name, T, N>{};
 } // namespace detail
 
 template <typename Name>
@@ -53,9 +53,10 @@ struct static_allocator {
     template <typename Name, typename T, typename F, typename... Args>
         requires std::is_constructible_v<T, Args...>
     static auto construct(F &&f, Args &&...args) -> bool {
-        auto &a = detail::static_allocator_v<T, static_allocation_limit<Name>>;
+        auto &a =
+            detail::static_allocator_v<Name, T, static_allocation_limit<Name>>;
         if (auto t = a.construct(std::forward<Args>(args)...); t != nullptr) {
-            std::forward<F>(f)(*t);
+            std::forward<F>(f)(std::move(*t));
             return true;
         }
         return false;
@@ -63,7 +64,8 @@ struct static_allocator {
 
     template <typename Name, typename T>
     static auto destruct(T const *t) -> void {
-        auto &a = detail::static_allocator_v<T, static_allocation_limit<Name>>;
+        auto &a =
+            detail::static_allocator_v<Name, T, static_allocation_limit<Name>>;
         a.destruct(t);
     }
 };

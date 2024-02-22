@@ -8,6 +8,8 @@ NOTE: Don't blame me for the name: it's in https://wg21.link/p2300[P2300].
 Receivers have environments. Senders have attributes. Both are obtained by
 calling `get_env`.
 
+== completion_scheduler
+
 A sender's attributes often include its _completion scheduler_. In particular, a
 sender obtained from calling `schedule` on a scheduler will always have that
 scheduler as its completion scheduler. Perhaps that's clearer in code:
@@ -16,10 +18,65 @@ scheduler as its completion scheduler. Perhaps that's clearer in code:
 ----
 auto orig_sched = /* some scheduler */;
 auto sndr = orig_sched.schedule();
-auto sched = async::get_completion_scheduler(sndr);
+auto sched = async::get_completion_scheduler(async::get_env(sndr));
 
 assert(sched == orig_sched);
 ----
 
 `get_completion_scheduler` uses `tag_invoke(get_completion_scheduler_t, S)` to
 find the completion scheduler for a sender type `S`.
+
+== allocator
+
+A sender's attributes also include an allocator, that is used when
+`start_detached` is called.
+
+[source,cpp]
+----
+auto sched = /* some scheduler */;
+auto sndr = orig_sched.schedule();
+auto alloc = async::get_allocator(async::get_env(sndr));
+----
+Given a class `T`, an `allocator` supports two operations:
+
+[source,cpp]
+----
+template <typename T>
+struct allocator {
+  // allocate space for a T and construct it with Args...
+  // then, call F with the (rvalue) T
+  // return false if unable to allocate T, otherwise true
+  template <typename F, typename... Args> auto construct(F&&, Args &&...) -> bool;
+
+  // destroy and deallocate a T
+  auto destruct(T const *) -> void;
+};
+----
+
+NOTE: `construct` is a little different from what you might expect: it doesn't
+return a pointer-to-T, it calls a given function with the constructed T. This
+allows easier support for stack allocators with non-movable objects (like
+operation states).
+
+The default allocator, if a sender doesn't otherwise specify one, is a
+`static_allocator`. A `static_allocator` is parameterized with a tag
+representing the allocation domain for a particular call site. This tag can be
+passed to `start_detached` and used to specialize the variable template
+`async::allocation_limit` in order to control static allocation.
+
+[source,cpp]
+----
+// a tag type to indicate the allocation domain
+struct my_alloc_domain;
+
+// specialize the limit for the domain (if left unspecialized, the default is 1)
+template <>
+constexpr inline auto async::allocation_limit<my_alloc_domain> = std::size_t{8};
+
+// when I call start_detached, the static allocator for the domain will be used
+auto result = async::start_detached<my_alloc_domain>(sndr);
+----
+
+NOTE: The default allocation strategy for a sender is static allocation, but
+some senders are synchronous by nature: for example `just` or the sender
+produced by an `inline_scheduler`. These senders use stack allocators.

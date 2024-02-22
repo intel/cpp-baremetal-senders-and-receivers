@@ -4,8 +4,11 @@
 === `start_detached`
 
 `start_detached` takes a sender, connects and starts it, and returns, leaving
-the work running detached. The return value is a `bool` indicating whether or
-not the sender was started.
+the work running detached. The return value is a
+https://intel.github.io/cpp-std-extensions/#_optional_hpp[`stdx::optional`]. If
+the optional is empty, the sender was not started. Otherwise, it contains a
+pointer to an xref:cancellation.adoc#_cancellation[`in_place_stop_source`] that
+can be used to cancel the operation.
 
 [source,cpp]
 ----
@@ -15,44 +18,37 @@ auto started = async::start_detached(sndr);
 ----
 
 If a sender starts detached, its operation state has to be allocated somewhere.
-That is achieved through an allocator. Given a class T, an allocator supports two
-operations:
+That is achieved through an xref:attributes.adoc#_allocator[allocator]
+determined from the sender's attributes.
+
+To hook into the static xref:attributes.adoc#_allocator[allocation strategy], a
+template argument (representing the name of the allocation domain) can be given
+to `start_detached`.
 
 [source,cpp]
 ----
-template <typename T>
-struct allocator {
-  // allocate space for a T and construct it with Args
-  template <typename... Args> auto construct(Args &&...) -> T *;
-  // destroy and deallocate
-  auto destruct(T const *) -> void;
-};
-----
-
-The variable templates `async::alloc` and `async::allocation_limit` can be
-specialized to control how detached operation states are handled:
-
-[source,cpp]
-----
-template <typename Name>
-constexpr inline auto allocation_limit = std::size_t{1};
-
-template <typename Name, typename T, std::size_t N>
-inline auto alloc = static_allocator<T, N>{};
-----
-
-To hook into these allocation strategies, a template argument (representing the
-name of the allocation domain) can be given to `start_detached`.
-
-[source,cpp]
-----
-async::start_detached<struct Name>(s);
+auto result = async::start_detached<struct Name>(s);
 ----
 
 The default template argument results in a different `static_allocator` for each
-call site, with an allocation limit of 1. `start_detached` returns `false` when
-the allocator's `construct` method returns a `nullptr` (presumably because the
-allocation limit has been reached).
+call site, with a default allocation limit of 1. If the allocator's `construct` method
+returns `false` (presumably because the allocation limit has been reached),
+the result of `start_detached` is an empty optional.
+
+=== `start_detached_unstoppable`
+
+`start_detached_unstoppable` behaves identically to `start_detached`, except
+that the returned optional value contains a pointer to a `never_stop_source`,
+which has the same interface as an
+xref:cancellation.adoc#_cancellation[`in_place_stop_source`] but never actually
+cancels the operation. So `start_detached_unstoppable` is slightly more
+efficient than `start_detached` for the cases where cancellation is not
+required.
+
+[source,cpp]
+----
+auto result = async::start_detached_unstoppable<struct Name>(s);
+----
 
 === `sync_wait`
 

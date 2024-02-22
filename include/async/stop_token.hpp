@@ -138,6 +138,26 @@ struct never_stop_token {
         -> bool = default;
 };
 
+struct never_stop_source {
+    [[nodiscard]] constexpr static auto stop_requested() noexcept -> bool {
+        return false;
+    }
+    [[nodiscard]] constexpr static auto stop_possible() noexcept -> bool {
+        return false;
+    }
+
+    [[nodiscard]] constexpr static auto get_token() noexcept
+        -> never_stop_token {
+        return {};
+    }
+
+    constexpr static auto request_stop() -> bool { return false; }
+    constexpr static auto register_callback(stop_callback_base *) -> bool {
+        return false;
+    }
+    constexpr static auto unregister_callback(stop_callback_base *) -> void {}
+};
+
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 template <typename F> struct in_place_stop_callback final : stop_callback_base {
     in_place_stop_callback(never_stop_token, F const &f) : callback(f) {}

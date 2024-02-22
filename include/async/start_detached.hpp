@@ -3,9 +3,11 @@
 #include <async/allocator.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
+#include <async/stop_token.hpp>
 #include <async/tags.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/optional.hpp>
 
 #include <concepts>
 #include <type_traits>
@@ -23,12 +25,22 @@ template <typename Ops> struct receiver {
         -> void {
         r.ops->die();
     }
+
+    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
+                                                   receiver const &self)
+        -> detail::singleton_env<
+            get_stop_token_t,
+            decltype(std::declval<typename Ops::stop_source_t>().get_token())> {
+        return singleton_env<get_stop_token_t>(self.ops->stop_src.get_token());
+    }
 };
 
-template <typename Uniq, typename Sndr, typename Alloc>
+template <typename Uniq, typename Sndr, typename Alloc, typename StopSource>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
-    using Ops = connect_result_t<Sndr, receiver<op_state>>;
+    using receiver_t = receiver<op_state>;
+    using stop_source_t = StopSource;
+    using Ops = connect_result_t<Sndr, receiver_t>;
 
     template <typename S>
     constexpr explicit(true) op_state(S &&s)
@@ -37,6 +49,7 @@ struct op_state {
 
     auto die() { Alloc::template destruct<Uniq>(this); }
 
+    [[no_unique_address]] stop_source_t stop_src;
     Ops ops;
 
   private:
@@ -46,30 +59,49 @@ struct op_state {
     }
 };
 
-template <typename Uniq, sender S> [[nodiscard]] auto start(S &&s) -> bool {
+template <typename Uniq, typename StopSource, sender S>
+[[nodiscard]] auto start(S &&s) -> stdx::optional<StopSource *> {
     using Sndr = std::remove_cvref_t<S>;
     using A = allocator_of_t<env_of_t<Sndr>>;
-    using O = op_state<Uniq, Sndr, A>;
-    return A::template construct<Uniq, O>(async::start, std::forward<S>(s));
+    using O = op_state<Uniq, Sndr, A, StopSource>;
+    stdx::optional<StopSource *> stop_src{};
+    A::template construct<Uniq, O>(
+        [&](O &&ops) {
+            stop_src = std::addressof(ops.stop_src);
+            async::start(std::move(ops));
+        },
+        std::forward<S>(s));
+    return stop_src;
 }
 
-template <typename Uniq> struct pipeable {
+template <typename Uniq, typename StopSource> struct pipeable {
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
-    friend auto operator|(S &&s, Self &&) {
-        return start<Uniq>(std::forward<S>(s));
+    [[nodiscard]] friend auto operator|(S &&s, Self &&) {
+        return start<Uniq, StopSource>(std::forward<S>(s));
     }
 };
 } // namespace _start_detached
 
+template <typename Uniq = decltype([] {})>
+[[nodiscard]] constexpr auto start_detached()
+    -> _start_detached::pipeable<Uniq, in_place_stop_source> {
+    return {};
+}
+
 template <typename Uniq = decltype([] {}), sender S>
 [[nodiscard]] auto start_detached(S &&s) {
-    return _start_detached::start<Uniq>(std::forward<S>(s));
+    return std::forward<S>(s) | start_detached<Uniq>();
 }
 
 template <typename Uniq = decltype([] {})>
-[[nodiscard]] constexpr auto start_detached()
-    -> _start_detached::pipeable<Uniq> {
+[[nodiscard]] constexpr auto start_detached_unstoppable()
+    -> _start_detached::pipeable<Uniq, never_stop_source> {
     return {};
+}
+
+template <typename Uniq = decltype([] {}), sender S>
+[[nodiscard]] auto start_detached_unstoppable(S &&s) {
+    return std::forward<S>(s) | start_detached_unstoppable<Uniq>();
 }
 } // namespace async
