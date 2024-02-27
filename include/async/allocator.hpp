@@ -7,25 +7,23 @@
 #include <utility>
 
 namespace async {
-namespace detail {
-struct prototype_constructible {
-    constexpr explicit prototype_constructible(int) {}
+namespace archetypes {
+struct constructible {
+    constexpr explicit constructible(int) {}
 };
-struct prototype_domain;
-} // namespace detail
+struct domain;
+} // namespace archetypes
 
 template <typename T>
-concept allocator =
-    std::is_empty_v<T> and requires(T &, detail::prototype_constructible *p) {
-        {
-            T::template construct<detail::prototype_domain,
-                                  detail::prototype_constructible>(
-                [](detail::prototype_constructible) {}, 0)
-        } -> std::same_as<bool>;
-        {
-            T::template destruct<detail::prototype_domain>(p)
-        } -> std::same_as<void>;
-    };
+concept allocator = std::is_empty_v<T> and requires(
+                                               T &,
+                                               archetypes::constructible *p) {
+    {
+        T::template construct<archetypes::domain, archetypes::constructible>(
+            [](archetypes::constructible) {}, 0)
+    } -> std::same_as<bool>;
+    { T::template destruct<archetypes::domain>(p) } -> std::same_as<void>;
+};
 
 constexpr inline struct get_allocator_t : forwarding_query_t {
     template <typename T>

@@ -2,6 +2,7 @@
 
 #include <async/schedulers/task.hpp>
 
+#include <stdx/intrusive_forward_list.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <concepts>
@@ -9,15 +10,39 @@
 #include <utility>
 
 namespace async {
+using priority_t = std::uint8_t;
+
 template <typename T>
-concept task_manager = requires(T &t, single_linked_task &task) {
-    { t.enqueue_task(task, priority_t{}) } -> std::convertible_to<bool>;
-    { t.template service_tasks<priority_t{}>() } -> std::same_as<void>;
-    { t.is_idle() } -> std::convertible_to<bool>;
-};
+concept prioritizable_task = stdx::single_linkable<T> and
+                             std::equality_comparable<T> and requires(T *t) {
+                                 { t->run() } -> std::same_as<void>;
+                                 { t->pending } -> std::same_as<bool &>;
+                             };
+
+template <typename T>
+concept task_manager = prioritizable_task<typename T::task_t> and
+                       requires(T &t, typename T::task_t &task) {
+                           {
+                               t.enqueue_task(task, priority_t{})
+                           } -> std::convertible_to<bool>;
+                           {
+                               t.template service_tasks<priority_t{}>()
+                           } -> std::same_as<void>;
+                           { t.is_idle() } -> std::convertible_to<bool>;
+                       };
 
 namespace detail {
 struct undefined_task_manager {
+    struct task_t {
+        task_t *next{};
+        bool pending{};
+        auto run() -> void {}
+
+      private:
+        friend constexpr auto operator==(task_t const &, task_t const &)
+            -> bool = default;
+    };
+
     template <typename... Args> static auto enqueue_task(Args &&...) -> bool {
         static_assert(stdx::always_false_v<Args...>,
                       "Inject a task manager by specializing "
@@ -67,4 +92,6 @@ auto is_idle() -> bool {
     return injected_task_manager<DummyArgs...>.is_idle();
 }
 } // namespace task_mgr
+
+using priority_task = single_linked_task<task_base>;
 } // namespace async
