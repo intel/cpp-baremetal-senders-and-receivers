@@ -15,7 +15,7 @@
 
 namespace async {
 namespace task_mgr {
-template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
+template <priority_t P, typename Rcvr, typename Task> struct op_state : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
 
@@ -47,7 +47,8 @@ template <priority_t P, typename Rcvr> struct op_state : single_linked_task {
 };
 } // namespace task_mgr
 
-template <priority_t P> class fixed_priority_scheduler {
+template <priority_t P, typename Task = priority_task>
+class fixed_priority_scheduler {
     class env {
         [[nodiscard]] friend constexpr auto
         tag_invoke(get_completion_scheduler_t<set_value_t>, env) noexcept
@@ -62,7 +63,7 @@ template <priority_t P> class fixed_priority_scheduler {
       private:
         template <stdx::same_as_unqualified<sender> S, receiver_from<sender> R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r) {
-            return task_mgr::op_state<P, std::remove_cvref_t<R>>{
+            return task_mgr::op_state<P, std::remove_cvref_t<R>, Task>{
                 std::forward<R>(r)};
         }
 
