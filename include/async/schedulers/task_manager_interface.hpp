@@ -26,6 +26,9 @@ concept task_manager = prioritizable_task<typename T::task_t> and
                                t.enqueue_task(task, priority_t{})
                            } -> std::convertible_to<bool>;
                            {
+                               t.template valid_priority<priority_t{}>()
+                           } -> std::convertible_to<bool>;
+                           {
                                t.template service_tasks<priority_t{}>()
                            } -> std::same_as<void>;
                            { t.is_idle() } -> std::convertible_to<bool>;
@@ -43,21 +46,31 @@ struct undefined_task_manager {
             -> bool = default;
     };
 
-    template <typename... Args> static auto enqueue_task(Args &&...) -> bool {
+    template <typename... Args>
+    constexpr static auto enqueue_task(Args &&...) -> bool {
         static_assert(stdx::always_false_v<Args...>,
                       "Inject a task manager by specializing "
                       "async::injected_task_manager.");
         return false;
     }
 
-    template <priority_t P> static auto service_tasks() -> void {
+    template <priority_t P> constexpr static auto valid_priority() -> bool {
+        static_assert(
+            stdx::always_false_v<std::integral_constant<priority_t, P>>,
+            "Inject a task manager by specializing "
+            "async::injected_task_manager.");
+        return false;
+    }
+
+    template <priority_t P> constexpr static auto service_tasks() -> void {
         static_assert(
             stdx::always_false_v<std::integral_constant<priority_t, P>>,
             "Inject a task manager by specializing "
             "async::injected_task_manager.");
     }
 
-    template <typename... Args> static auto is_idle(Args &&...) -> bool {
+    template <typename... Args>
+    constexpr static auto is_idle(Args &&...) -> bool {
         static_assert(stdx::always_false_v<Args...>,
                       "Inject a task manager by specializing "
                       "async::injected_task_manager.");
@@ -77,6 +90,12 @@ template <typename... DummyArgs, typename... Args>
 auto enqueue_task(Args &&...args) -> bool {
     return injected_task_manager<DummyArgs...>.enqueue_task(
         std::forward<Args>(args)...);
+}
+
+template <priority_t P, typename... DummyArgs>
+    requires(sizeof...(DummyArgs) == 0)
+constexpr auto valid_priority() -> bool {
+    return injected_task_manager<DummyArgs...>.template valid_priority<P>();
 }
 } // namespace detail
 
