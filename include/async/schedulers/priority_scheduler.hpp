@@ -93,6 +93,11 @@ class fixed_priority_scheduler {
         -> bool = default;
 
   public:
-    [[nodiscard]] constexpr static auto schedule() -> sender { return {}; }
+    [[nodiscard]] constexpr static auto schedule() -> sender {
+        static_assert(task_mgr::detail::valid_priority<P>(),
+                      "fixed_priority_scheduler has invalid priority for the "
+                      "injected task manager");
+        return {};
+    }
 };
 } // namespace async

@@ -72,9 +72,13 @@ struct priority_task_manager {
         });
     }
 
+    template <priority_t P> constexpr static auto valid_priority() -> bool {
+        return P < NumPriorities;
+    }
+
     template <priority_t P, typename RQP = requeue_policy::deferred>
     auto service_tasks() -> void
-        requires(P < NumPriorities)
+        requires(valid_priority<P>())
     {
         decltype(auto) q = RQP::template get_queue<P>(task_queues);
         while (not std::empty(q)) {
