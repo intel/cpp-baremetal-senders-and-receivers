@@ -17,37 +17,44 @@
 #include <variant>
 
 namespace async::_let {
-template <typename Ops, typename Rcvr> struct second_receiver {
+template <typename F, channel_tag Tag, typename Ops, typename Rcvr>
+struct receiver {
     using is_receiver = void;
+    [[no_unique_address]] F f;
     Ops *ops;
 
   private:
-    template <channel_tag Tag, typename... Args>
-    friend auto tag_invoke(Tag, second_receiver const &self, Args &&...args)
+    template <channel_tag OtherTag, typename... Args>
+    friend auto tag_invoke(OtherTag, receiver const &self, Args &&...args)
         -> void {
-        Tag{}(self.ops->rcvr, std::forward<Args>(args)...);
+        OtherTag{}(self.ops->rcvr, std::forward<Args>(args)...);
+    }
+
+    template <stdx::same_as_unqualified<receiver> Self, typename... Args>
+    friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
+        self.ops->complete_first(
+            std::forward<Self>(self).f(std::forward<Args>(args)...));
     }
 
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   second_receiver const &r)
+                                                   receiver const &r)
         -> detail::forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(r.ops->rcvr);
     }
 };
 
-template <typename Sndr, typename Rcvr, typename Func,
-          typename DependentSenders, template <typename...> typename FirstRcvr>
+template <typename Sndr, typename Rcvr, typename Func, channel_tag Tag,
+          typename DependentSenders>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
-    using first_rcvr = FirstRcvr<Func, op_state, Rcvr>;
-    using second_rcvr = second_receiver<op_state, Rcvr>;
+    using first_rcvr = receiver<Func, Tag, op_state, Rcvr>;
 
     template <typename S, typename R, typename F>
     constexpr op_state(S &&s, R &&r, F &&f)
         : rcvr{std::forward<R>(r)},
           state{std::in_place_index<0>, stdx::with_result_of{[&] {
                     return connect(std::forward<S>(s),
-                                   first_rcvr{{this}, std::forward<F>(f)});
+                                   first_rcvr{std::forward<F>(f), this});
                 }}} {}
     constexpr op_state(op_state &&) = delete;
 
@@ -57,14 +64,13 @@ struct op_state {
         static_assert(index::value <
                       boost::mp11::mp_size<DependentSenders>::value);
         auto &op =
-            state.template emplace<index::value + 1>(stdx::with_result_of{[&] {
-                return connect(std::forward<S>(s), second_rcvr{this});
-            }});
+            state.template emplace<index::value + 1>(stdx::with_result_of{
+                [&] { return connect(std::forward<S>(s), rcvr); }});
         start(std::move(op));
     }
 
     template <typename S>
-    using dependent_connect_result_t = connect_result_t<S, second_rcvr>;
+    using dependent_connect_result_t = connect_result_t<S, Rcvr>;
     using dependent_ops = boost::mp11::mp_apply<
         std::variant, boost::mp11::mp_transform<dependent_connect_result_t,
                                                 DependentSenders>>;
@@ -82,9 +88,7 @@ struct op_state {
     }
 };
 
-template <typename Sndr, typename S, typename F, typename Tag,
-          template <typename...> typename FirstRcvr>
-struct sender {
+template <typename Sndr, typename S, typename F, typename Tag> struct sender {
     using is_sender = void;
 
     template <typename... Ts>
@@ -104,8 +108,8 @@ struct sender {
 
     template <receiver_from<S> R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Sndr &&s, R &&r)
-        -> _let::op_state<S, std::remove_cvref_t<R>, F,
-                          dependent_senders<env_of_t<R>>, FirstRcvr> {
+        -> _let::op_state<S, std::remove_cvref_t<R>, F, Tag,
+                          dependent_senders<env_of_t<R>>> {
         return {std::move(s).s, std::forward<R>(r), std::move(s).f};
     }
 
@@ -120,8 +124,8 @@ struct sender {
                                           is_multishot_sender<R>>::value
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
-        -> _let::op_state<S, std::remove_cvref_t<R>, F,
-                          dependent_senders<env_of_t<R>>, FirstRcvr> {
+        -> _let::op_state<S, std::remove_cvref_t<R>, F, Tag,
+                          dependent_senders<env_of_t<R>>> {
         return {std::forward<Self>(self).s, std::forward<R>(r),
                 std::forward<Self>(self).f};
     }

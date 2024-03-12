@@ -12,22 +12,9 @@
 
 namespace async {
 namespace _let_value {
-template <typename F, typename Ops, typename Rcvr>
-struct first_receiver : _let::second_receiver<Ops, Rcvr> {
-    [[no_unique_address]] F f;
-
-  private:
-    template <stdx::same_as_unqualified<first_receiver> Self, typename... Args>
-    friend auto tag_invoke(set_value_t, Self &&self, Args &&...args) -> void {
-        self.ops->complete_first(
-            std::forward<Self>(self).f(std::forward<Args>(args)...));
-    }
-};
-
 template <typename S, typename F>
-class sender
-    : public _let::sender<sender<S, F>, S, F, set_value_t, first_receiver> {
-    using base = _let::sender<sender, S, F, set_value_t, first_receiver>;
+class sender : public _let::sender<sender<S, F>, S, F, set_value_t> {
+    using base = _let::sender<sender, S, F, set_value_t>;
 
     template <typename Env>
     [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
