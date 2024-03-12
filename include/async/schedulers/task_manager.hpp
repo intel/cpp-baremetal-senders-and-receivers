@@ -18,16 +18,17 @@
 namespace async {
 namespace requeue_policy {
 struct immediate {
-    template <priority_t P>
+    template <priority_t P, typename>
     [[nodiscard]] constexpr static auto get_queue(auto &queues) -> auto & {
         return queues[P];
     }
 };
 
 struct deferred {
-    template <priority_t P>
+    template <priority_t P, typename Mutex>
     [[nodiscard]] constexpr static auto get_queue(auto &queues) {
-        return std::exchange(queues[P], {});
+        return conc::call_in_critical_section<Mutex>(
+            [&]() { return std::exchange(queues[P], {}); });
     }
 };
 } // namespace requeue_policy
@@ -80,7 +81,7 @@ struct priority_task_manager {
     auto service_tasks() -> void
         requires(valid_priority<P>())
     {
-        decltype(auto) q = RQP::template get_queue<P>(task_queues);
+        decltype(auto) q = RQP::template get_queue<P, mutex>(task_queues);
         while (not std::empty(q)) {
             auto &task = q.front();
             conc::call_in_critical_section<mutex>([&]() {

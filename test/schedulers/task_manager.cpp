@@ -1,8 +1,11 @@
 #include <async/schedulers/task_manager.hpp>
 
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <functional>
+#include <mutex>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -17,8 +20,12 @@ using task_manager_t = async::priority_task_manager<hal, 8>;
 std::function<void()> interrupt_fn{};
 
 struct test_concurrency_policy {
+    static inline std::mutex m{};
+
     struct interrupt {
+        interrupt() { m.lock(); }
         ~interrupt() {
+            m.unlock();
             if (interrupt_fn) {
                 interrupt_fn();
             }
@@ -187,4 +194,18 @@ TEST_CASE("queue a task on interrupt during servicing (immediate execution)",
     m.service_tasks<1, async::requeue_policy::immediate>();
     CHECK(var == 2);
     CHECK(m.is_idle());
+}
+
+TEMPLATE_TEST_CASE("thread safety for execution", "[task_manager]",
+                   async::requeue_policy::deferred,
+                   async::requeue_policy::immediate) {
+    auto m = task_manager_t{};
+    auto task1 = task_manager_t::create_task([] {});
+    auto task2 = task_manager_t::create_task([] {});
+    CHECK(m.enqueue_task(task1, 0));
+
+    auto t1 = std::thread{[&] { m.enqueue_task(task2, 0); }};
+    auto t2 = std::thread{[&] { m.service_tasks<0, TestType>(); }};
+    t1.join();
+    t2.join();
 }
