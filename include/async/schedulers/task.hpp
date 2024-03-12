@@ -11,10 +11,11 @@
 #include <utility>
 
 namespace async {
-// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
+// NOLINTNEXTLINE(*-special-member-functions)
 struct task_base {
     bool pending{};
     virtual auto run() -> void = 0;
+    virtual ~task_base() = default;
 
   private:
     [[nodiscard]] friend constexpr auto operator==(task_base const &lhs,
@@ -23,14 +24,14 @@ struct task_base {
     }
 };
 
-// NOLINTNEXTLINE(*-virtual-class-destructor,*-special-member-functions)
+// NOLINTNEXTLINE(*-special-member-functions)
 template <std::derived_from<task_base> Base> struct single_linked_task : Base {
     constexpr single_linked_task() = default;
     constexpr single_linked_task(single_linked_task &&) = delete;
     single_linked_task *next{};
 };
 
-// NOLINTNEXTLINE(*-virtual-class-destructor,*-special-member-functions)
+// NOLINTNEXTLINE(*-special-member-functions)
 template <std::derived_from<task_base> Base> struct double_linked_task : Base {
     constexpr double_linked_task() = default;
     constexpr double_linked_task(double_linked_task &&) = delete;

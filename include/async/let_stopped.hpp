@@ -12,21 +12,9 @@
 
 namespace async {
 namespace _let_stopped {
-template <typename F, typename Ops, typename Rcvr>
-struct first_receiver : _let::second_receiver<Ops, Rcvr> {
-    [[no_unique_address]] F f;
-
-  private:
-    template <stdx::same_as_unqualified<first_receiver> Self, typename... Args>
-    friend auto tag_invoke(set_stopped_t, Self &&self) -> void {
-        self.ops->complete_first(std::forward<Self>(self).f());
-    }
-};
-
 template <typename S, typename F>
-class sender
-    : public _let::sender<sender<S, F>, S, F, set_stopped_t, first_receiver> {
-    using base = _let::sender<sender, S, F, set_stopped_t, first_receiver>;
+class sender : public _let::sender<sender<S, F>, S, F, set_stopped_t> {
+    using base = _let::sender<sender, S, F, set_stopped_t>;
 
     template <typename Env>
     [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,

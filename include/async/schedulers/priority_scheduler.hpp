@@ -15,8 +15,10 @@
 
 namespace async {
 namespace task_mgr {
-template <priority_t P, typename Rcvr, typename Task> struct op_state : Task {
+template <priority_t P, typename Rcvr, typename Task>
+struct op_state final : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
+    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
 
     auto run() -> void final {
