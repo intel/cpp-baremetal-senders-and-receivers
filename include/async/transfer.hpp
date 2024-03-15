@@ -20,29 +20,16 @@
 
 namespace async {
 namespace _transfer {
-
-// TODO: rework this as specified by p2300 (schedule_from)
-
 template <typename Ops> struct first_receiver {
     using is_receiver = void;
 
     Ops *ops;
 
   private:
-    template <typename... Args>
-    friend auto tag_invoke(set_value_t, first_receiver const &r, Args &&...args)
+    template <channel_tag Tag, typename... Args>
+    friend auto tag_invoke(Tag, first_receiver const &r, Args &&...args)
         -> void {
-        r.ops->template complete_first<set_value_t>(
-            std::forward<Args>(args)...);
-    }
-    template <typename... Args>
-    friend auto tag_invoke(set_error_t, first_receiver const &r, Args &&...args)
-        -> void {
-        r.ops->template complete_first<set_error_t>(
-            std::forward<Args>(args)...);
-    }
-    friend auto tag_invoke(set_stopped_t, first_receiver const &r) -> void {
-        r.ops->template complete_first<set_stopped_t>();
+        r.ops->template complete_first<Tag>(std::forward<Args>(args)...);
     }
 };
 
@@ -52,16 +39,14 @@ template <typename Ops> struct second_receiver {
     Ops *ops;
 
   private:
+    template <channel_tag Tag, typename... Args>
+    friend auto tag_invoke(Tag, second_receiver const &r, Args &&...args)
+        -> void {
+        Tag{}(r.ops->rcvr, std::forward<Args>(args)...);
+    }
+
     friend auto tag_invoke(set_value_t, second_receiver const &r) -> void {
         r.ops->complete_second();
-    }
-    template <typename... Args>
-    friend auto tag_invoke(set_error_t, second_receiver const &r,
-                           Args &&...args) -> void {
-        r.ops->rcvr.set_error(std::forward<Args>(args)...);
-    }
-    friend auto tag_invoke(set_stopped_t, second_receiver const &r) -> void {
-        r.ops->rcvr.set_stopped();
     }
 };
 
@@ -95,7 +80,7 @@ struct op_state {
                                        std::is_constructible<C, Args &&...>>;
     };
 
-    template <typename Tag, typename... Args>
+    template <channel_tag Tag, typename... Args>
     auto complete_first(Args &&...args) -> void {
         using index =
             boost::mp11::mp_find_if_q<completions_t,
