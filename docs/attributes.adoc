@@ -8,7 +8,7 @@ NOTE: Don't blame me for the name: it's in https://wg21.link/p2300[P2300].
 Receivers have environments. Senders have attributes. Both are obtained by
 calling `get_env`.
 
-== completion_scheduler
+=== completion_scheduler
 
 A sender's attributes often include its _completion scheduler_. In particular, a
 sender obtained from calling `schedule` on a scheduler will always have that
@@ -26,7 +26,7 @@ assert(sched == orig_sched);
 `get_completion_scheduler` uses `tag_invoke(get_completion_scheduler_t, S)` to
 find the completion scheduler for a sender type `S`.
 
-== allocator
+=== allocator
 
 A sender's attributes also include an allocator, that is used when
 `start_detached` is called.
