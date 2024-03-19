@@ -7,7 +7,7 @@ A `fixed_priority_scheduler` represents work that will be run at a certain prior
 
 [source,cpp]
 ----
-using S = async::fixed_fixed_priority_scheduler<0>; // highest priority
+using S = async::fixed_priority_scheduler<0>; // highest priority
 ----
 
 NOTE: The intended use case for `fixed_priority_scheduler` is to schedule tasks
@@ -46,7 +46,7 @@ run when priority interrupts fire.
 [source,cpp]
 ----
 int x{};
-async::on(async::fixed_fixed_priority_scheduler<0>{},
+async::on(async::fixed_priority_scheduler<0>{},
           async::just_result_of([&] { x = 42; }))
 | async::start_detached();
 
@@ -107,4 +107,80 @@ auto s = async::on(async::thread_scheduler{},
 async::start_detached(s);
 // without some other sync mechanism, this is risky:
 // there is now a detached thread running that will update x at some point
+----
+
+=== `time_scheduler`
+
+A `time_scheduler` represents work that will be run after a certain duration has
+elapsed.
+
+[source,cpp]
+----
+using S = async::time_scheduler{10ms}; // after a duration of 10ms
+----
+
+NOTE: The intended use case for `time_scheduler` is to schedule tasks
+to be executed on timer interrupts.
+
+The `time_scheduler` works hand in glove with a `timer_manager` that
+manages timer tasks. A `generic_timer_manager` is provided and may
+be used by providing a HAL, and by specializing the `injected_timer_manager`
+variable template.
+
+[source,cpp]
+----
+namespace {
+// A HAL defines a time_point type and a task type,
+// and provides functions to control a timer interrupt
+struct hal {
+    using time_point_t = std::chrono::steady_clock::time_point;
+    using task_t = async::timer_task<time_point_t>;
+
+    static auto enable() -> void;
+    static auto disable() -> void;
+    static auto set_event_time(time_point_t tp) -> void;
+    static auto now() -> time_point_t;
+};
+
+// use the generic timer manager
+using timer_manager_t = async::generic_timer_manager<hal>;
+} // namespace
+
+// tell the library how to infer a time point type from a duration type by
+// specializing time_point_for
+namespace async::timer_mgr {
+template <typename Rep, typename Period>
+struct time_point_for<std::chrono::duration<Rep, Period>> {
+    using type = hal::time_point_t;
+};
+} // namespace async::timer_mgr
+
+// time_scheduler will use this timer_manager
+template <> inline auto async::injected_timer_manager<> = timer_manager_t{};
+
+// when a timer interrupt fires, the ISR executes the next task
+auto timer_interrupt_service_routine() {
+  async::timer_mgr::service_task();
+}
+----
+
+NOTE: `async::timer_task` is a generic provided task type that is parameterized
+with the time point type.
+
+NOTE: If `async::timer_mgr::time_point_for` is left unspecialized, the library
+will assume that a duration type and time_point type are the same.
+
+The result of using a `time_scheduler` is that work is scheduled to be
+run when a timer interrupt fires.
+
+[source,cpp]
+----
+int x{};
+async::on(async::time_scheduler{10ms},
+          async::just_result_of([&] { x = 42; }))
+| async::start_detached();
+
+// when the interrupt fires...
+async::timer_mgr::service_task();
+// x is now 42
 ----

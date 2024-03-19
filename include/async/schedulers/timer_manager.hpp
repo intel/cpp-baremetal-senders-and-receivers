@@ -17,22 +17,6 @@
 
 namespace async {
 namespace detail {
-// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
-template <typename T> struct timer_task : task_base {
-    T expiration_time{};
-
-  private:
-    [[nodiscard]] friend constexpr auto operator<(timer_task const &lhs,
-                                                  timer_task const &rhs) {
-        return lhs.expiration_time < rhs.expiration_time;
-    }
-};
-} // namespace detail
-
-template <typename TimePoint>
-using timer_task = double_linked_task<detail::timer_task<TimePoint>>;
-
-namespace detail {
 template <typename T>
 concept timer_hal =
     timeable_task<typename T::task_t> and
@@ -98,16 +82,24 @@ template <detail::timer_hal H> struct generic_timer_manager {
   public:
     constexpr static auto create_task = async::create_task<task_t>;
 
-    auto run_after(task_t &t, duration_t d) -> bool {
+    template <std::derived_from<task_t> T, std::convertible_to<duration_t> D>
+    auto run_after(T &t, D d) -> bool {
         return conc::call_in_critical_section<mutex>([&]() -> bool {
             if (auto const added = not std::exchange(t.pending, true); added) {
                 ++task_count;
-                t.expiration_time = H::now() + d;
+                t.expiration_time = H::now() + static_cast<duration_t>(d);
                 schedule(std::addressof(t));
                 return true;
             }
             return false;
         });
+    }
+
+    template <typename T, typename D> auto run_after(T const &, D) -> bool {
+        static_assert(stdx::always_false_v<D>,
+                      "Invalid duration type: did you forget to specialize "
+                      "async::timer_mgr::time_point_for?");
+        return false;
     }
 
     auto cancel(task_t &t) -> bool {
