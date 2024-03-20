@@ -34,17 +34,11 @@ concept task_manager = prioritizable_task<typename T::task_t> and
                            { t.is_idle() } -> std::convertible_to<bool>;
                        };
 
+using priority_task = single_linked_task<task_base>;
+
 namespace detail {
 struct undefined_task_manager {
-    struct task_t {
-        task_t *next{};
-        bool pending{};
-        auto run() -> void {}
-
-      private:
-        friend constexpr auto operator==(task_t const &, task_t const &)
-            -> bool = default;
-    };
+    using task_t = priority_task;
 
     template <typename... Args>
     constexpr static auto enqueue_task(Args &&...) -> bool {
@@ -111,6 +105,4 @@ auto is_idle() -> bool {
     return injected_task_manager<DummyArgs...>.is_idle();
 }
 } // namespace task_mgr
-
-using priority_task = single_linked_task<task_base>;
 } // namespace async

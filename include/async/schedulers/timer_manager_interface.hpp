@@ -25,24 +25,29 @@ concept timer_manager =
         { t.run_after(task, d) } -> std::convertible_to<bool>;
         { t.service_task() } -> std::same_as<void>;
         { t.is_idle() } -> std::convertible_to<bool>;
+        typename T::time_point_t;
     };
 
 namespace detail {
-struct undefined_timer_manager {
-    struct task_t {
-        task_t *next{};
-        task_t *prev{};
-        bool pending{};
-        int expiration_time{};
-        auto run() -> void {}
+template <typename T> struct default_timer_task : task_base {
+    T expiration_time{};
 
-      private:
-        [[nodiscard]] friend constexpr auto operator<(task_t const &lhs,
-                                                      task_t const &rhs) {
-            return lhs.expiration_time < rhs.expiration_time;
-        }
-    };
-    using duration_t = int;
+  private:
+    [[nodiscard]] friend constexpr auto
+    operator<(default_timer_task const &lhs, default_timer_task const &rhs) {
+        return lhs.expiration_time < rhs.expiration_time;
+    }
+};
+} // namespace detail
+
+template <typename T>
+using timer_task = double_linked_task<detail::default_timer_task<T>>;
+
+namespace detail {
+struct undefined_timer_manager {
+    using time_point_t = int;
+    using task_t = timer_task<time_point_t>;
+    using duration_t = decltype(time_point_t{} - time_point_t{});
 
     template <typename... Args> static auto run_after(Args &&...) -> bool {
         static_assert(stdx::always_false_v<Args...>,
@@ -78,12 +83,27 @@ auto run_after(Args &&...args) -> bool {
     return injected_timer_manager<DummyArgs...>.run_after(
         std::forward<Args>(args)...);
 }
+
+template <typename... DummyArgs, typename... Args>
+    requires(sizeof...(DummyArgs) == 0)
+auto cancel(Args &&...args) -> bool {
+    return injected_timer_manager<DummyArgs...>.cancel(
+        std::forward<Args>(args)...);
+}
+
+template <typename D, typename... DummyArgs>
+    requires(sizeof...(DummyArgs) == 0)
+constexpr auto valid_duration() -> bool {
+    return std::convertible_to<
+        D, typename std::remove_cvref_t<
+               decltype(injected_timer_manager<DummyArgs...>)>::duration_t>;
+}
 } // namespace detail
 
 template <typename... DummyArgs>
     requires(sizeof...(DummyArgs) == 0)
 auto service_task() -> void {
-    return injected_timer_manager<DummyArgs...>.template service_task();
+    return injected_timer_manager<DummyArgs...>.service_task();
 }
 
 template <typename... DummyArgs>
@@ -91,5 +111,10 @@ template <typename... DummyArgs>
 auto is_idle() -> bool {
     return injected_timer_manager<DummyArgs...>.is_idle();
 }
+
+template <typename D> struct time_point_for {
+    using type = D;
+};
+template <typename D> using time_point_for_t = typename time_point_for<D>::type;
 } // namespace timer_mgr
 } // namespace async
