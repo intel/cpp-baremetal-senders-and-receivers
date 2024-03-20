@@ -80,6 +80,20 @@ TEST_CASE("move-only value", "[then]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("move-only lambda", "[then]") {
+    int value{};
+    auto sched = async::inline_scheduler{};
+    auto n = sched.schedule() |
+             async::then([mo = move_only{42}]() -> move_only<int> const && {
+                 return std::move(mo);
+             });
+    static_assert(async::singleshot_sender<decltype(n), universal_receiver>);
+    auto op = async::connect(std::move(n),
+                             receiver{[&](auto &&mo) { value = mo.value; }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
 TEST_CASE("single-shot sender", "[then]") {
     [[maybe_unused]] auto n = async::inline_scheduler::schedule<
                                   async::inline_scheduler::singleshot>() |

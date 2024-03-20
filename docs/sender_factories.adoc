@@ -73,6 +73,16 @@ auto sndr2 = async::just_result_of([] { return 42; },
 NOTE: Do not rely on the order of evaluation of the functions given to
 `just_result_of`!
 
+`just_result_of` behaves the same way as `just` followed by `then`:
+
+[source,cpp]
+----
+auto s = async::just_result_of([] { return 42; });
+
+// as if:
+auto s = async::just() | async::then([] { return 42; });
+----
+
 === `read`
 
 `read` takes a _tag_ and returns a sender that sends the value denoted by that

@@ -53,10 +53,10 @@ template <typename... Ts> struct args {
     template <typename T> constexpr static auto compute_arities(T const &t) {
         auto const init =
             std::pair{stdx::tuple{}, std::integral_constant<std::size_t, 0>{}};
-        auto const binop = []<typename Acc, typename F>(Acc, F) {
+        auto const binop = []<typename Acc, typename F>(Acc, F &&) {
             using Offset = typename Acc::second_type;
-            using A =
-                arity_t<F, Offset, std::integral_constant<std::size_t, 0>>;
+            using A = arity_t<std::remove_cvref_t<F>, Offset,
+                              std::integral_constant<std::size_t, 0>>;
             return std::pair{
                 boost::mp11::mp_push_back<typename Acc::first_type, A>{},
                 boost::mp11::mp_plus<Offset, A>{}};
@@ -180,7 +180,7 @@ template <typename Tag, typename S, typename... Fs> class sender {
     }
 
     template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
-        requires multishot_sender<S>
+        requires multishot_sender<S> and (... and std::copy_constructible<Fs>)
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r) {
         return connect(std::forward<Self>(self).s,
