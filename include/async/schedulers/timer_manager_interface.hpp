@@ -76,40 +76,55 @@ template <typename...>
 inline auto injected_timer_manager = detail::undefined_timer_manager{};
 
 namespace timer_mgr {
+struct default_domain;
+
 namespace detail {
-template <typename... DummyArgs, typename... Args>
+template <typename Domain, typename... DummyArgs>
+    requires(sizeof...(DummyArgs) == 0)
+[[nodiscard]] constexpr auto get_injected_manager() -> auto & {
+    if constexpr (std::is_same_v<Domain, default_domain>) {
+        return injected_timer_manager<DummyArgs...>;
+    } else {
+        return injected_timer_manager<Domain, DummyArgs...>;
+    }
+}
+
+template <typename Domain = default_domain, typename... DummyArgs,
+          typename... Args>
     requires(sizeof...(DummyArgs) == 0)
 auto run_after(Args &&...args) -> bool {
-    return injected_timer_manager<DummyArgs...>.run_after(
+    return get_injected_manager<Domain, DummyArgs...>().run_after(
         std::forward<Args>(args)...);
 }
 
-template <typename... DummyArgs, typename... Args>
+template <typename Domain = default_domain, typename... DummyArgs,
+          typename... Args>
     requires(sizeof...(DummyArgs) == 0)
 auto cancel(Args &&...args) -> bool {
-    return injected_timer_manager<DummyArgs...>.cancel(
+    return get_injected_manager<Domain, DummyArgs...>().cancel(
         std::forward<Args>(args)...);
 }
 
-template <typename D, typename... DummyArgs>
+template <typename D, typename Domain = default_domain, typename... DummyArgs>
     requires(sizeof...(DummyArgs) == 0)
 constexpr auto valid_duration() -> bool {
     return std::convertible_to<
         D, typename std::remove_cvref_t<
-               decltype(injected_timer_manager<DummyArgs...>)>::duration_t>;
+               decltype(get_injected_manager<Domain, DummyArgs...>())>::
+               duration_t>;
 }
 } // namespace detail
 
-template <typename... DummyArgs>
+template <typename Domain = default_domain, typename... DummyArgs>
     requires(sizeof...(DummyArgs) == 0)
 auto service_task() -> void {
-    return injected_timer_manager<DummyArgs...>.service_task();
+    return detail::get_injected_manager<Domain, DummyArgs...>().service_task();
 }
 
-template <typename... DummyArgs>
+template <typename Domain = default_domain, typename... DummyArgs>
     requires(sizeof...(DummyArgs) == 0)
 auto is_idle() -> bool {
-    return injected_timer_manager<DummyArgs...>.is_idle();
+    return detail::get_injected_manager<Domain, DummyArgs...>().is_idle();
 }
 
 template <typename D> struct time_point_for {

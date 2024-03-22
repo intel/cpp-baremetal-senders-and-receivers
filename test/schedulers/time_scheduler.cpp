@@ -18,21 +18,27 @@
 using namespace std::chrono_literals;
 
 namespace {
-struct hal {
+struct default_domain;
+
+template <typename Domain, typename TP> inline auto current_time = TP{};
+template <typename Domain> inline auto enabled = false;
+template <typename Domain, typename TP> inline auto calls = std::vector<TP>{};
+
+template <typename Domain> struct hal {
     using time_point_t = std::chrono::steady_clock::time_point;
     using task_t = async::timer_task<time_point_t>;
 
-    static inline time_point_t current_time{};
-    static inline bool enabled{};
-    static inline std::vector<time_point_t> calls{};
-
-    static auto enable() -> void { enabled = true; }
-    static auto disable() -> void { enabled = false; }
-    static auto set_event_time(time_point_t tp) -> void { calls.push_back(tp); }
-    static auto now() -> time_point_t { return current_time; }
+    static auto enable() -> void { enabled<Domain> = true; }
+    static auto disable() -> void { enabled<Domain> = false; }
+    static auto set_event_time(time_point_t tp) -> void {
+        calls<Domain, time_point_t>.push_back(tp);
+    }
+    static auto now() -> time_point_t {
+        return current_time<Domain, time_point_t>;
+    }
 };
 
-using timer_manager_t = async::generic_timer_manager<hal>;
+using timer_manager_t = async::generic_timer_manager<hal<default_domain>>;
 
 std::function<void()> interrupt_fn{};
 
@@ -53,12 +59,10 @@ struct test_concurrency_policy {
 };
 } // namespace
 
-namespace async::timer_mgr {
 template <typename Rep, typename Period>
-struct time_point_for<std::chrono::duration<Rep, Period>> {
-    using type = hal::time_point_t;
+struct async::timer_mgr::time_point_for<std::chrono::duration<Rep, Period>> {
+    using type = std::chrono::steady_clock::time_point;
 };
-} // namespace async::timer_mgr
 
 template <>
 [[maybe_unused]] inline auto conc::injected_policy<> =
@@ -71,11 +75,14 @@ TEST_CASE("time_scheduler deduces duration type", "[time_scheduler]") {
     constexpr auto s = async::time_scheduler{10ms};
     static_assert(
         std::same_as<decltype(s),
-                     async::time_scheduler<std::chrono::milliseconds> const>);
+                     async::time_scheduler<async::timer_mgr::default_domain,
+                                           std::chrono::milliseconds> const>);
 }
 
 TEST_CASE("time_scheduler fulfils concept", "[time_scheduler]") {
-    static_assert(async::scheduler<async::time_scheduler<int>>);
+    static_assert(
+        async::scheduler<
+            async::time_scheduler<async::timer_mgr::default_domain, int>>);
 }
 
 TEST_CASE("time_scheduler sender advertises nothing", "[time_scheduler]") {
@@ -91,7 +98,8 @@ TEST_CASE("sender has the time_scheduler as its completion scheduler",
         async::get_completion_scheduler<async::set_value_t>(async::get_env(s));
     static_assert(
         std::same_as<decltype(cs),
-                     async::time_scheduler<std::chrono::milliseconds>>);
+                     async::time_scheduler<async::timer_mgr::default_domain,
+                                           std::chrono::milliseconds>>);
 }
 
 TEST_CASE("time_scheduler schedules tasks", "[time_scheduler]") {
@@ -105,11 +113,11 @@ TEST_CASE("time_scheduler schedules tasks", "[time_scheduler]") {
     CHECK(var == 0);
 
     async::start(op);
-    CHECK(hal::enabled);
+    CHECK(enabled<default_domain>);
     async::timer_mgr::service_task();
     CHECK(var == 42);
     CHECK(async::timer_mgr::is_idle());
-    CHECK(not hal::enabled);
+    CHECK(not enabled<default_domain>);
 }
 
 TEST_CASE("time_scheduler is cancellable before start", "[time_scheduler]") {
@@ -122,7 +130,7 @@ TEST_CASE("time_scheduler is cancellable before start", "[time_scheduler]") {
 
     r.request_stop();
     async::start(op);
-    CHECK(not hal::enabled);
+    CHECK(not enabled<default_domain>);
     CHECK(var == 17);
     CHECK(async::timer_mgr::is_idle());
 }
@@ -137,9 +145,41 @@ TEST_CASE("time_scheduler cancels via HAL after start", "[time_scheduler]") {
 
     async::start(op);
     CHECK(not async::timer_mgr::is_idle());
-    CHECK(hal::enabled);
+    CHECK(enabled<default_domain>);
     r.request_stop();
     CHECK(var == 17);
     CHECK(async::timer_mgr::is_idle());
-    CHECK(not hal::enabled);
+    CHECK(not enabled<default_domain>);
+}
+
+namespace {
+struct alt_domain;
+using alt_timer_manager_t = async::generic_timer_manager<hal<alt_domain>>;
+} // namespace
+template <>
+[[maybe_unused]] inline auto async::injected_timer_manager<alt_domain> =
+    alt_timer_manager_t{};
+
+TEST_CASE("time_scheduler can have different domain", "[time_scheduler]") {
+    enabled<default_domain> = false;
+
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<alt_domain>;
+    auto s = scheduler_factory(10ms);
+    int var{};
+    async::sender auto sndr =
+        async::on(s, async::just_result_of([&] { var = 42; }));
+    auto op = async::connect(sndr, universal_receiver{});
+
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(var == 0);
+
+    async::start(op);
+    CHECK(enabled<alt_domain>);
+    CHECK(not enabled<default_domain>);
+
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(var == 42);
+    CHECK(async::timer_mgr::is_idle<alt_domain>());
+    CHECK(not enabled<alt_domain>);
 }
