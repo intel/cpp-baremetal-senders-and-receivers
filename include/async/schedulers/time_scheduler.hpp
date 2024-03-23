@@ -25,11 +25,13 @@ template <typename Rcvr, typename Task> struct op_state_base : Task {
     [[no_unique_address]] Rcvr rcvr;
 };
 
-template <typename Duration, typename Rcvr, typename Task> struct op_state;
+template <typename Domain, typename Duration, typename Rcvr, typename Task>
+struct op_state;
 
-template <typename Duration, typename Rcvr, typename Task>
+template <typename Domain, typename Duration, typename Rcvr, typename Task>
     requires unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>
-struct op_state<Duration, Rcvr, Task> final : op_state_base<Rcvr, Task> {
+struct op_state<Domain, Duration, Rcvr, Task> final
+    : op_state_base<Rcvr, Task> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r, Duration dur)
@@ -40,13 +42,14 @@ struct op_state<Duration, Rcvr, Task> final : op_state_base<Rcvr, Task> {
   private:
     template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        detail::run_after(o, o.d);
+        detail::run_after<Domain>(o, o.d);
     }
 };
 
-template <typename Duration, typename Rcvr, typename Task>
+template <typename Domain, typename Duration, typename Rcvr, typename Task>
     requires(not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>)
-struct op_state<Duration, Rcvr, Task> final : op_state_base<Rcvr, Task> {
+struct op_state<Domain, Duration, Rcvr, Task> final
+    : op_state_base<Rcvr, Task> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r, Duration dur)
@@ -70,7 +73,7 @@ struct op_state<Duration, Rcvr, Task> final : op_state_base<Rcvr, Task> {
         if (token.stop_requested()) {
             set_stopped(std::forward<O>(o).rcvr);
         } else {
-            detail::run_after(o, o.d);
+            detail::run_after<Domain>(o, o.d);
             o.stop_cb.emplace(token, stop_callback_fn{std::addressof(o)});
         }
     }
@@ -81,7 +84,7 @@ struct op_state<Duration, Rcvr, Task> final : op_state_base<Rcvr, Task> {
 };
 } // namespace timer_mgr
 
-template <typename Duration,
+template <typename Domain, typename Duration,
           typename Task = timer_task<timer_mgr::time_point_for_t<Duration>>>
 class time_scheduler {
     struct env {
@@ -102,8 +105,8 @@ class time_scheduler {
         template <stdx::same_as_unqualified<sender> S, receiver_from<sender> R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&s,
                                                        R &&r) {
-            return timer_mgr::op_state<Duration, std::remove_cvref_t<R>, Task>{
-                std::forward<R>(r), s.d};
+            return timer_mgr::op_state<Domain, Duration, std::remove_cvref_t<R>,
+                                       Task>{std::forward<R>(r), s.d};
         }
 
         [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
@@ -134,7 +137,7 @@ class time_scheduler {
 
   public:
     [[nodiscard]] constexpr auto schedule() -> sender {
-        static_assert(timer_mgr::detail::valid_duration<Duration>(),
+        static_assert(timer_mgr::detail::valid_duration<Duration, Domain>(),
                       "time_scheduler has invalid duration type for the "
                       "injected timer manager");
         return {d};
@@ -143,5 +146,10 @@ class time_scheduler {
     [[no_unique_address]] Duration d{};
 };
 
-template <typename D> time_scheduler(D) -> time_scheduler<D>;
+template <typename D>
+time_scheduler(D) -> time_scheduler<timer_mgr::default_domain, D>;
+
+template <typename Domain = timer_mgr::default_domain>
+constexpr auto time_scheduler_factory =
+    []<typename D>(D d) -> time_scheduler<Domain, D> { return {d}; };
 } // namespace async

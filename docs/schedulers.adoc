@@ -116,7 +116,7 @@ elapsed.
 
 [source,cpp]
 ----
-using S = async::time_scheduler{10ms}; // after a duration of 10ms
+auto s = async::time_scheduler{10ms}; // after a duration of 10ms
 ----
 
 NOTE: The intended use case for `time_scheduler` is to schedule tasks
@@ -148,12 +148,10 @@ using timer_manager_t = async::generic_timer_manager<hal>;
 
 // tell the library how to infer a time point type from a duration type by
 // specializing time_point_for
-namespace async::timer_mgr {
 template <typename Rep, typename Period>
-struct time_point_for<std::chrono::duration<Rep, Period>> {
+struct async::timer_mgr::time_point_for<std::chrono::duration<Rep, Period>> {
     using type = hal::time_point_t;
 };
-} // namespace async::timer_mgr
 
 // time_scheduler will use this timer_manager
 template <> inline auto async::injected_timer_manager<> = timer_manager_t{};
@@ -183,4 +181,45 @@ async::on(async::time_scheduler{10ms},
 // when the interrupt fires...
 async::timer_mgr::service_task();
 // x is now 42
+----
+
+==== time domains
+
+A given system may have several independent timers. For that reason, a
+`time_scheduler` and an `injected_timer_manager` may be associated with a
+domain. A domain is typically just a tag type.
+
+[source,cpp]
+----
+namespace {
+// a tag type identifying an alternative timer domain
+struct alt_domain;
+
+// A HAL that interacts with different registers
+// for that alternative timer domain
+struct alt_domain_hal { ... };
+
+// the generic timer manager is still fine for the alt_domain
+using alt_timer_manager_t = async::generic_timer_manager<alt_domain_hal>;
+} // namespace
+
+// a time_scheduler for the alt domain will use the alt timer_manager
+template <> inline auto async::injected_timer_manager<alt_domain> = alt_timer_manager_t{};
+
+// to make it easy to create schedulers for that domain, use a factory
+auto sched_factory = async::time_scheduler_factory<alt_domain>;
+auto sched = sched_factory(10ms);
+
+int x{};
+auto s = async::on(sched,
+                   async::just(42) | async::then([&] (auto i) { x = i; });
+async::start_detached(s);
+
+// after 10ms, the alt domain interrupt will
+// call service_task for the alt_domain...
+auto alt_timer_interrupt_service_routine() {
+  async::timer_mgr::service_task<alt_domain>();
+}
+
+// and now x is 42
 ----
