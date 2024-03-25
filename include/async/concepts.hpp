@@ -111,7 +111,8 @@ concept sender_of =
     sender_in<S, E> and
     detail::matching_sig_v<
         Sig, typename detail::gather_signatures<
-                 typename detail::sender_of_helper<Sig>::tag, S, E,
+                 typename detail::sender_of_helper<Sig>::tag,
+                 completion_signatures_of_t<S, E>,
                  detail::sender_of_helper<Sig>::template as_signature,
                  std::type_identity_t>>;
 

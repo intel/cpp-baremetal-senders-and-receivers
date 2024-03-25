@@ -97,8 +97,9 @@ struct sender {
     template <typename... Ts>
     using invoked_type = std::invoke_result_t<F, Ts...>;
     template <typename E>
-    using dependent_senders = boost::mp11::mp_append<detail::gather_signatures<
-        Tags, S, E, invoked_type, completion_signatures>...>;
+    using dependent_senders = boost::mp11::mp_append<
+        detail::gather_signatures<Tags, completion_signatures_of_t<S, E>,
+                                  invoked_type, completion_signatures>...>;
 
     template <typename E> struct completions_of {
         template <typename T> using fn = completion_signatures_of_t<T, E>;
