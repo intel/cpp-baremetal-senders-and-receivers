@@ -42,9 +42,8 @@ template <typename Tag> struct with_tag {
     template <typename Sig> using fn = std::is_same<Tag, stdx::return_t<Sig>>;
 };
 
-template <typename S, typename E, typename Tag>
-using signatures_by_tag =
-    boost::mp11::mp_copy_if_q<completion_signatures_of_t<S, E>, with_tag<Tag>>;
+template <typename Sigs, typename Tag>
+using signatures_by_tag = boost::mp11::mp_copy_if_q<Sigs, with_tag<Tag>>;
 
 template <bool> struct indirect_meta_apply {
     template <template <typename...> typename T, typename... As>
@@ -78,40 +77,45 @@ struct variantify {
     template <typename List> using fn = meta_transform<List, fn_q>;
 };
 
-template <typename Tag, typename S, typename E,
-          template <typename...> typename Tuple,
+template <typename Tag, typename Sigs, template <typename...> typename Tuple,
           template <typename...> typename Variant>
 using gather_signatures =
     typename variantify<Variant,
-                        Tuple>::template fn<signatures_by_tag<S, E, Tag>>;
+                        Tuple>::template fn<signatures_by_tag<Sigs, Tag>>;
 
 template <typename...> struct type_list;
 } // namespace detail
 
 template <typename S, typename E = empty_env>
-using value_signatures_of_t = detail::signatures_by_tag<S, E, set_value_t>;
+using value_signatures_of_t =
+    detail::signatures_by_tag<completion_signatures_of_t<S, E>, set_value_t>;
 template <typename S, typename E = empty_env>
-using error_signatures_of_t = detail::signatures_by_tag<S, E, set_error_t>;
+using error_signatures_of_t =
+    detail::signatures_by_tag<completion_signatures_of_t<S, E>, set_error_t>;
 template <typename S, typename E = empty_env>
-using stopped_signatures_of_t = detail::signatures_by_tag<S, E, set_stopped_t>;
+using stopped_signatures_of_t =
+    detail::signatures_by_tag<completion_signatures_of_t<S, E>, set_stopped_t>;
 
 template <typename S, typename E = empty_env,
           template <typename...> typename Tuple = detail::type_list,
           template <typename...> typename Variant = detail::type_list>
 using value_types_of_t =
-    detail::gather_signatures<set_value_t, S, E, Tuple, Variant>;
+    detail::gather_signatures<set_value_t, completion_signatures_of_t<S, E>,
+                              Tuple, Variant>;
 
 template <typename S, typename E = empty_env,
           template <typename...> typename Tuple = detail::type_list,
           template <typename...> typename Variant = detail::type_list>
 using error_types_of_t =
-    detail::gather_signatures<set_error_t, S, E, Tuple, Variant>;
+    detail::gather_signatures<set_error_t, completion_signatures_of_t<S, E>,
+                              Tuple, Variant>;
 
 template <typename S, typename E = empty_env,
           template <typename...> typename Tuple = detail::type_list,
           template <typename...> typename Variant = detail::type_list>
 using stopped_types_of_t =
-    detail::gather_signatures<set_stopped_t, S, E, Tuple, Variant>;
+    detail::gather_signatures<set_stopped_t, completion_signatures_of_t<S, E>,
+                              Tuple, Variant>;
 
 template <typename S, typename E = empty_env>
 constexpr auto sends_stopped =

@@ -17,7 +17,7 @@
 #include <variant>
 
 namespace async::_let {
-template <typename F, channel_tag Tag, typename Ops, typename Rcvr>
+template <typename F, typename Ops, typename Rcvr, channel_tag... Tags>
 struct receiver {
     using is_receiver = void;
     [[no_unique_address]] F f;
@@ -30,7 +30,9 @@ struct receiver {
         OtherTag{}(self.ops->rcvr, std::forward<Args>(args)...);
     }
 
-    template <stdx::same_as_unqualified<receiver> Self, typename... Args>
+    template <channel_tag Tag, stdx::same_as_unqualified<receiver> Self,
+              typename... Args>
+        requires(... or std::same_as<Tag, Tags>)
     friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
         self.ops->complete_first(
             std::forward<Self>(self).f(std::forward<Args>(args)...));
@@ -43,11 +45,11 @@ struct receiver {
     }
 };
 
-template <typename Sndr, typename Rcvr, typename Func, channel_tag Tag,
-          typename DependentSenders>
+template <typename Sndr, typename Rcvr, typename Func,
+          typename DependentSenders, channel_tag... Tags>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
-    using first_rcvr = receiver<Func, Tag, op_state, Rcvr>;
+    using first_rcvr = receiver<Func, op_state, Rcvr, Tags...>;
 
     template <typename S, typename R, typename F>
     constexpr op_state(S &&s, R &&r, F &&f)
@@ -88,14 +90,16 @@ struct op_state {
     }
 };
 
-template <typename Sndr, typename S, typename F, typename Tag> struct sender {
+template <typename Sndr, typename S, typename F, channel_tag... Tags>
+struct sender {
     using is_sender = void;
 
     template <typename... Ts>
     using invoked_type = std::invoke_result_t<F, Ts...>;
     template <typename E>
-    using dependent_senders = detail::gather_signatures<Tag, S, E, invoked_type,
-                                                        completion_signatures>;
+    using dependent_senders = boost::mp11::mp_append<
+        detail::gather_signatures<Tags, completion_signatures_of_t<S, E>,
+                                  invoked_type, completion_signatures>...>;
 
     template <typename E> struct completions_of {
         template <typename T> using fn = completion_signatures_of_t<T, E>;
@@ -107,10 +111,11 @@ template <typename Sndr, typename S, typename F, typename Tag> struct sender {
     template <typename...> using signatures = completion_signatures<>;
 
     template <receiver_from<S> R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Sndr &&s, R &&r)
-        -> _let::op_state<S, std::remove_cvref_t<R>, F, Tag,
-                          dependent_senders<env_of_t<R>>> {
-        return {std::move(s).s, std::forward<R>(r), std::move(s).f};
+    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Sndr &&sndr,
+                                                   R &&r)
+        -> _let::op_state<S, std::remove_cvref_t<R>, F,
+                          dependent_senders<env_of_t<R>>, Tags...> {
+        return {std::move(sndr).s, std::forward<R>(r), std::move(sndr).f};
     }
 
     template <typename R> struct is_multishot_sender {
@@ -124,8 +129,8 @@ template <typename Sndr, typename S, typename F, typename Tag> struct sender {
                                           is_multishot_sender<R>>::value
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
-        -> _let::op_state<S, std::remove_cvref_t<R>, F, Tag,
-                          dependent_senders<env_of_t<R>>> {
+        -> _let::op_state<S, std::remove_cvref_t<R>, F,
+                          dependent_senders<env_of_t<R>>, Tags...> {
         return {std::forward<Self>(self).s, std::forward<R>(r),
                 std::forward<Self>(self).f};
     }
@@ -135,6 +140,9 @@ template <typename Sndr, typename S, typename F, typename Tag> struct sender {
                                                    Self &&self) {
         return forward_env_of(self.s);
     }
+
+    [[no_unique_address]] S s;
+    [[no_unique_address]] F f;
 };
 
 template <typename F, template <typename...> typename Sndr> struct pipeable {
@@ -143,8 +151,8 @@ template <typename F, template <typename...> typename Sndr> struct pipeable {
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return Sndr<std::remove_cvref_t<S>, F>{
-            {}, std::forward<S>(s), std::forward<Self>(self).f};
+        return Sndr<std::remove_cvref_t<S>, F>{std::forward<S>(s),
+                                               std::forward<Self>(self).f};
     }
 };
 } // namespace async::_let

@@ -235,8 +235,9 @@ template <typename T> using unary_variant_t = typename unary_variant<T>::type;
 
 template <typename S, typename Tag>
 concept single_sender = requires {
-    typename async::detail::gather_signatures<Tag, S, async::empty_env,
-                                              unary_tuple_t, unary_variant_t>;
+    typename async::detail::gather_signatures<
+        Tag, async::completion_signatures_of_t<S, async::empty_env>,
+        unary_tuple_t, unary_variant_t>;
 };
 } // namespace
 

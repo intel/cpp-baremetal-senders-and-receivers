@@ -57,8 +57,9 @@ template <typename SubOps> struct sub_receiver {
 
 template <typename S, typename Tag, typename E>
 concept single_sender = requires {
-    typename async::detail::gather_signatures<Tag, S, E, std::type_identity_t,
-                                              std::type_identity_t>;
+    typename async::detail::gather_signatures<
+        Tag, completion_signatures_of_t<S, E>, std::type_identity_t,
+        std::type_identity_t>;
 };
 
 template <typename E, typename S> struct sub_op_storage {

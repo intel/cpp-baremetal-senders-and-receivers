@@ -25,10 +25,6 @@ class sender : public _let::sender<sender<S, F>, S, F, set_stopped_t> {
             completion_signatures<>> {
         return {};
     }
-
-  public:
-    [[no_unique_address]] S s;
-    [[no_unique_address]] F f;
 };
 } // namespace _let_stopped
 
