@@ -4,6 +4,7 @@
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/type_traits.hpp>
 
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <concepts>
@@ -14,6 +15,49 @@ TEST_CASE("connect_result_t", "[type_traits]") {
     auto r = receiver{[] {}};
     static_assert(async::operation_state<
                   async::connect_result_t<decltype(s), decltype(r)>>);
+}
+
+namespace {
+template <typename...> struct variant;
+template <typename...> struct tuple;
+template <typename T> struct unary_tuple;
+template <typename T> struct unary_variant;
+} // namespace
+
+TEST_CASE("gather signatures", "[type_traits]") {
+    using sigs = async::completion_signatures<async::set_value_t(int),
+                                              async::set_error_t(float),
+                                              async::set_stopped_t()>;
+    static_assert(
+        std::is_same_v<variant<tuple<int>>,
+                       async::detail::gather_signatures<async::set_value_t,
+                                                        sigs, tuple, variant>>);
+    static_assert(
+        std::is_same_v<variant<tuple<float>>,
+                       async::detail::gather_signatures<async::set_error_t,
+                                                        sigs, tuple, variant>>);
+    static_assert(
+        std::is_same_v<variant<tuple<>>,
+                       async::detail::gather_signatures<async::set_stopped_t,
+                                                        sigs, tuple, variant>>);
+}
+
+TEMPLATE_TEST_CASE("gather signatures (no signature for tag)", "[type_traits]",
+                   async::set_value_t, async::set_error_t,
+                   async::set_stopped_t) {
+    using sigs = async::completion_signatures<>;
+    static_assert(
+        std::is_same_v<variant<>, async::detail::gather_signatures<
+                                      TestType, sigs, tuple, variant>>);
+}
+
+TEST_CASE("gather signatures (unary template)", "[type_traits]") {
+    using sigs = async::completion_signatures<async::set_value_t(int)>;
+    static_assert(
+        std::is_same_v<
+            unary_variant<unary_tuple<int>>,
+            async::detail::gather_signatures<async::set_value_t, sigs,
+                                             unary_tuple, unary_variant>>);
 }
 
 namespace {
@@ -124,12 +168,6 @@ TEST_CASE("queryable completion signatures dependent on environment",
                      async::completion_signatures<async::set_value_t(int)>>);
 }
 
-namespace {
-template <typename...> struct variant;
-template <typename...> struct tuple;
-template <typename> struct optional;
-} // namespace
-
 TEST_CASE("types by channel (exposed types)", "[type_traits]") {
     static_assert(
         std::same_as<variant<tuple<int>>,
@@ -212,9 +250,9 @@ TEST_CASE("types by channel (non-variadic templates)", "[type_traits]") {
                      async::error_types_of_t<typed_sender1, async::empty_env,
                                              tuple, std::type_identity_t>>);
     static_assert(
-        std::same_as<variant<optional<int>>,
+        std::same_as<variant<unary_tuple<int>>,
                      async::value_types_of_t<typed_sender1, async::empty_env,
-                                             optional, variant>>);
+                                             unary_tuple, variant>>);
 
     static_assert(
         std::same_as<int, async::value_types_of_t<
@@ -223,21 +261,11 @@ TEST_CASE("types by channel (non-variadic templates)", "[type_traits]") {
 }
 
 namespace {
-template <typename T> struct unary_tuple {
-    using type = T;
-};
-template <typename T> using unary_tuple_t = typename unary_tuple<T>::type;
-
-template <typename T> struct unary_variant {
-    using type = T;
-};
-template <typename T> using unary_variant_t = typename unary_variant<T>::type;
-
 template <typename S, typename Tag>
 concept single_sender = requires {
     typename async::detail::gather_signatures<
         Tag, async::completion_signatures_of_t<S, async::empty_env>,
-        unary_tuple_t, unary_variant_t>;
+        unary_tuple, unary_variant>;
 };
 } // namespace
 
@@ -269,4 +297,58 @@ TEST_CASE("channel holder (stopped)", "[type_traits]") {
     auto h = async::stopped_holder<>{};
     h(r);
     CHECK(value == 42);
+}
+
+namespace {
+template <typename Tag> struct set_lvalue {
+    template <typename... As>
+    using fn =
+        async::completion_signatures<Tag(std::add_lvalue_reference_t<As>...)>;
+};
+} // namespace
+
+TEST_CASE("transform completion signatures (values)", "[type_traits]") {
+    using sigs = async::completion_signatures<async::set_value_t(int),
+                                              async::set_value_t(float, bool)>;
+    using transformed_sigs = async::transform_completion_signatures<
+        sigs, async::completion_signatures<>,
+        set_lvalue<async::set_value_t>::template fn>;
+
+    static_assert(
+        std::is_same_v<
+            async::completion_signatures<async::set_value_t(int &),
+                                         async::set_value_t(float &, bool &)>,
+            transformed_sigs>);
+}
+
+TEST_CASE("transform completion signatures (errors)", "[type_traits]") {
+    using sigs = async::completion_signatures<async::set_error_t(int),
+                                              async::set_error_t(float)>;
+    using transformed_sigs = async::transform_completion_signatures<
+        sigs, async::completion_signatures<>, async::detail::default_set_value,
+        set_lvalue<async::set_error_t>::template fn>;
+
+    static_assert(std::is_same_v<
+                  async::completion_signatures<async::set_error_t(int &),
+                                               async::set_error_t(float &)>,
+                  transformed_sigs>);
+}
+
+TEST_CASE("transform completion signatures (stopped)", "[type_traits]") {
+    {
+        using sigs = async::completion_signatures<async::set_stopped_t()>;
+        using transformed_sigs = async::transform_completion_signatures<
+            sigs, async::completion_signatures<>,
+            async::detail::default_set_value, async::detail::default_set_error,
+            async::completion_signatures<async::set_value_t()>>;
+        static_assert(
+            std::is_same_v<async::completion_signatures<async::set_value_t()>,
+                           transformed_sigs>);
+    }
+    {
+        using sigs = async::completion_signatures<>;
+        using transformed_sigs = async::transform_completion_signatures<sigs>;
+        static_assert(
+            std::is_same_v<async::completion_signatures<>, transformed_sigs>);
+    }
 }

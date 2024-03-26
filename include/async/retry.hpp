@@ -100,7 +100,7 @@ template <typename Sndr, typename Pred> struct sender {
     tag_invoke(get_completion_signatures_t, sender const &, Env const &) {
         if constexpr (std::same_as<Pred,
                                    std::remove_cvref_t<decltype(never_stop)>>) {
-            return make_completion_signatures<
+            return transform_completion_signatures_of<
                 Sndr, Env, completion_signatures<>, detail::default_set_value,
                 signatures>{};
         } else {

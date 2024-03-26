@@ -165,7 +165,7 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
     [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
                                                    sender const &, Env const &)
         -> boost::mp11::mp_unique<
-            boost::mp11::mp_append<make_completion_signatures<Sndrs, Env>...>> {
+            boost::mp11::mp_append<completion_signatures_of_t<Sndrs, Env>...>> {
         return {};
     }
 

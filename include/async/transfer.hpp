@@ -143,7 +143,7 @@ template <typename Sched, typename S> class sender {
     template <typename Env>
     [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
                                                    sender const &, Env const &)
-        -> make_completion_signatures<S, Env> {
+        -> completion_signatures_of_t<S, Env> {
         return {};
     }
 

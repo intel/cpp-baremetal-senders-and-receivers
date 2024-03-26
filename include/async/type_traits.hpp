@@ -124,28 +124,44 @@ constexpr auto sends_stopped =
 namespace detail {
 template <typename... As>
 using default_set_value = completion_signatures<set_value_t(As...)>;
-template <typename... As>
-using default_set_error = completion_signatures<set_error_t(As...)>;
+template <typename... Es>
+using default_set_error = completion_signatures<set_error_t(Es...)>;
+
 template <typename S, typename E>
 using default_set_stopped =
     stdx::conditional_t<sends_stopped<S, E>,
                         completion_signatures<set_stopped_t()>,
                         completion_signatures<>>;
+
+template <typename InputSigs, typename SetStopped> struct stopped_list {
+    using sigs_t =
+        gather_signatures<set_stopped_t, InputSigs, type_list, type_list>;
+    using type = stdx::conditional_t<std::is_same_v<sigs_t, type_list<>>,
+                                     completion_signatures<>, SetStopped>;
+};
 } // namespace detail
+
+template <typename InputSigs, typename AddlSigs = completion_signatures<>,
+          template <typename...> typename SetValue = detail::default_set_value,
+          template <typename...> typename SetError = detail::default_set_error,
+          typename SetStopped = completion_signatures<set_stopped_t()>>
+using transform_completion_signatures =
+    boost::mp11::mp_unique<boost::mp11::mp_append<
+        AddlSigs,
+        boost::mp11::mp_flatten<detail::gather_signatures<
+            set_value_t, InputSigs, SetValue, completion_signatures>>,
+        boost::mp11::mp_flatten<detail::gather_signatures<
+            set_error_t, InputSigs, SetError, completion_signatures>>,
+        typename detail::stopped_list<InputSigs, SetStopped>::type>>;
 
 template <typename S, typename E = empty_env,
           typename AddlSigs = completion_signatures<>,
           template <typename...> typename SetValue = detail::default_set_value,
           template <typename...> typename SetError = detail::default_set_error,
-          typename SetStopped = detail::default_set_stopped<S, E>>
-using make_completion_signatures =
-    boost::mp11::mp_unique<boost::mp11::mp_append<
-        AddlSigs,
-        boost::mp11::mp_apply<boost::mp11::mp_append,
-                              value_types_of_t<S, E, SetValue>>,
-        boost::mp11::mp_apply<boost::mp11::mp_append,
-                              error_types_of_t<S, E, SetError>>,
-        SetStopped>>;
+          typename SetStopped = completion_signatures<set_stopped_t()>>
+using transform_completion_signatures_of =
+    transform_completion_signatures<completion_signatures_of_t<S, E>, AddlSigs,
+                                    SetValue, SetError, SetStopped>;
 
 namespace detail {
 template <typename T> struct eat_void {

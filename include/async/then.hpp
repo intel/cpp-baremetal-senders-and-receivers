@@ -201,24 +201,24 @@ template <typename Tag, typename S, typename... Fs> class sender {
         requires std::same_as<Tag, set_value_t>
     [[nodiscard]] friend constexpr auto
     tag_invoke(get_completion_signatures_t, sender const &, Env const &) {
-        return make_completion_signatures<S, Env, completion_signatures<>,
-                                          signatures>{};
+        return transform_completion_signatures_of<
+            S, Env, completion_signatures<>, signatures>{};
     }
 
     template <typename Env>
         requires std::same_as<Tag, set_error_t>
     [[nodiscard]] friend constexpr auto
     tag_invoke(get_completion_signatures_t, sender const &, Env const &) {
-        return make_completion_signatures<S, Env, completion_signatures<>,
-                                          ::async::detail::default_set_value,
-                                          signatures>{};
+        return transform_completion_signatures_of<
+            S, Env, completion_signatures<>, ::async::detail::default_set_value,
+            signatures>{};
     }
 
     template <typename Env>
         requires std::same_as<Tag, set_stopped_t>
     [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
                                                    sender const &, Env const &)
-        -> make_completion_signatures<S, Env> {
+        -> transform_completion_signatures_of<S, Env> {
         return {};
     }
 
