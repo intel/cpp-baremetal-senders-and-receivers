@@ -13,18 +13,7 @@
 namespace async {
 namespace _let_error {
 template <typename S, typename F>
-class sender : public _let::sender<sender<S, F>, S, F, set_error_t> {
-    using base = _let::sender<sender, S, F, set_error_t>;
-
-    template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> transform_completion_signatures_of<
-            S, Env, typename base::template dependent_signatures<Env>,
-            detail::default_set_value, base::template signatures> {
-        return {};
-    }
-};
+using sender = _let::sender<S, F, set_error_t>;
 } // namespace _let_error
 
 template <stdx::callable F>

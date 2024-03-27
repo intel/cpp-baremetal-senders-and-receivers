@@ -13,19 +13,7 @@
 namespace async {
 namespace _let_stopped {
 template <typename S, typename F>
-class sender : public _let::sender<sender<S, F>, S, F, set_stopped_t> {
-    using base = _let::sender<sender, S, F, set_stopped_t>;
-
-    template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> transform_completion_signatures_of<
-            S, Env, typename base::template dependent_signatures<Env>,
-            detail::default_set_value, detail::default_set_error,
-            completion_signatures<>> {
-        return {};
-    }
-};
+using sender = _let::sender<S, F, set_stopped_t>;
 } // namespace _let_stopped
 
 template <stdx::callable F>

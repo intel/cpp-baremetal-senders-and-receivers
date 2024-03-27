@@ -170,3 +170,21 @@ TEST_CASE("let_error propagates forwarding queries to its child environment",
     auto l = async::let_error(s, [] { return async::just(17); });
     CHECK(get_fwd(async::get_env(l)) == 42);
 }
+
+TEST_CASE("let_error advertises pass-through completions", "[let_error]") {
+    [[maybe_unused]] auto l = async::just(42) | async::let_error([](auto) {});
+    static_assert(async::sender_of<decltype(l), async::set_value_t(int)>);
+}
+
+TEST_CASE("let_error can be single shot", "[let_error]") {
+    [[maybe_unused]] auto l =
+        async::just_error(42) |
+        async::let_error([](auto i) { return async::just(move_only{i}); });
+    static_assert(async::singleshot_sender<decltype(l)>);
+}
+
+TEST_CASE("let_error can be single shot with passthrough", "[let_error]") {
+    [[maybe_unused]] auto l =
+        async::just(move_only{42}) | async::let_error([](auto) { return 42; });
+    static_assert(async::singleshot_sender<decltype(l)>);
+}
