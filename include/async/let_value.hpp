@@ -19,7 +19,7 @@ class sender : public _let::sender<sender<S, F>, S, F, set_value_t> {
     template <typename Env>
     [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
                                                    sender const &, Env const &)
-        -> make_completion_signatures<
+        -> transform_completion_signatures_of<
             S, Env, typename base::template dependent_signatures<Env>,
             base::template signatures> {
         return {};
