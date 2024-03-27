@@ -38,12 +38,14 @@ using completion_signatures_of_t =
     std::invoke_result_t<get_completion_signatures_t, S, E>;
 
 namespace detail {
-template <typename Tag> struct with_tag {
-    template <typename Sig> using fn = std::is_same<Tag, stdx::return_t<Sig>>;
+template <typename... Tags> struct with_any_tag {
+    template <typename Sig>
+    using fn =
+        std::bool_constant<(... or std::is_same_v<Tags, stdx::return_t<Sig>>)>;
 };
 
 template <typename Sigs, typename Tag>
-using signatures_by_tag = boost::mp11::mp_copy_if_q<Sigs, with_tag<Tag>>;
+using signatures_by_tag = boost::mp11::mp_copy_if_q<Sigs, with_any_tag<Tag>>;
 
 template <bool> struct indirect_meta_apply {
     template <template <typename...> typename T, typename... As>
