@@ -37,11 +37,11 @@ concept unstoppable_token = stoppable_token<T> and requires {
     } -> std::same_as<std::false_type>;
 };
 
-struct in_place_stop_source;
-template <typename F> struct in_place_stop_callback;
+struct inplace_stop_source;
+template <typename F> struct inplace_stop_callback;
 
 template <typename Source> struct stop_token {
-    template <class T> using callback_type = in_place_stop_callback<T>;
+    template <class T> using callback_type = inplace_stop_callback<T>;
 
     [[nodiscard]] auto stop_requested() const noexcept -> bool {
         return source != nullptr and source->stop_requested();
@@ -66,7 +66,7 @@ struct stop_callback_base {
     stop_callback_base *next{};
 };
 
-struct in_place_stop_source {
+struct inplace_stop_source {
     struct mutex;
 
     [[nodiscard]] auto stop_requested() const noexcept -> bool {
@@ -77,7 +77,7 @@ struct in_place_stop_source {
     }
 
     [[nodiscard]] constexpr auto get_token() const noexcept
-        -> stop_token<in_place_stop_source> {
+        -> stop_token<inplace_stop_source> {
         return {this};
     }
 
@@ -120,10 +120,10 @@ struct in_place_stop_source {
     stdx::intrusive_list<stop_callback_base> callbacks{};
 };
 
-using in_place_stop_token = stop_token<in_place_stop_source>;
+using inplace_stop_token = stop_token<inplace_stop_source>;
 
 struct never_stop_token {
-    template <class T> using callback_type = in_place_stop_callback<T>;
+    template <class T> using callback_type = inplace_stop_callback<T>;
 
     [[nodiscard]] constexpr static auto stop_requested() noexcept -> bool {
         return false;
@@ -159,27 +159,27 @@ struct never_stop_source {
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-template <typename F> struct in_place_stop_callback final : stop_callback_base {
-    in_place_stop_callback(never_stop_token, F const &f) : callback(f) {}
-    in_place_stop_callback(never_stop_token, F &&f) : callback(std::move(f)) {}
+template <typename F> struct inplace_stop_callback final : stop_callback_base {
+    inplace_stop_callback(never_stop_token, F const &f) : callback(f) {}
+    inplace_stop_callback(never_stop_token, F &&f) : callback(std::move(f)) {}
 
-    in_place_stop_callback(in_place_stop_token t, F const &f)
+    inplace_stop_callback(inplace_stop_token t, F const &f)
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-        : source{const_cast<in_place_stop_source *>(t.source)}, callback{f} {
+        : source{const_cast<inplace_stop_source *>(t.source)}, callback{f} {
         if (not source->register_callback(this)) {
             callback();
         }
     }
-    in_place_stop_callback(in_place_stop_token t, F &&f)
+    inplace_stop_callback(inplace_stop_token t, F &&f)
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-        : source{const_cast<in_place_stop_source *>(t.source)},
+        : source{const_cast<inplace_stop_source *>(t.source)},
           callback{std::move(f)} {
         if (not source->register_callback(this)) {
             callback();
         }
     }
-    in_place_stop_callback(in_place_stop_callback &&) = delete;
-    ~in_place_stop_callback() {
+    inplace_stop_callback(inplace_stop_callback &&) = delete;
+    ~inplace_stop_callback() {
         if (next != nullptr or prev != nullptr) {
             source->unregister_callback(this);
         }
@@ -187,7 +187,7 @@ template <typename F> struct in_place_stop_callback final : stop_callback_base {
 
     auto run() -> void override { callback(); }
 
-    in_place_stop_source *source{};
+    inplace_stop_source *source{};
     F callback;
 };
 

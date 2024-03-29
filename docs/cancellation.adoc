@@ -30,11 +30,11 @@ https://en.cppreference.com/w/cpp/header/stop_token[cppreference.com]. In the
 senders and receivers framework, the following implementations are in
 the `stop_token.hpp` header:
 
-- `async::in_place_stop_source` - a non-movable type that keeps the state
-- `async::in_place_stop_token` - lightweight and copyable
-- `async::in_place_stop_callback` - also non-movable
+- `async::inplace_stop_source` - a non-movable type that keeps the state
+- `async::inplace_stop_token` - lightweight and copyable
+- `async::inplace_stop_callback` - also non-movable
 
-None of these types causes allocation. `in_place_stop_callback` is similar to
+None of these types causes allocation. `inplace_stop_callback` is similar to
 the scheduler and timer task types, implemented as an intrusive list (hence it
 is non-movable).
 

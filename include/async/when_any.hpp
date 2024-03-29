@@ -38,7 +38,7 @@ template <typename SubOps> struct sub_receiver {
 
     [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
                                                    sub_receiver const &self)
-        -> detail::overriding_env<get_stop_token_t, in_place_stop_token,
+        -> detail::overriding_env<get_stop_token_t, inplace_stop_token,
                                   typename SubOps::receiver_t> {
         return override_env_with<get_stop_token_t>(self.ops->get_stop_token(),
                                                    self.ops->get_receiver());
@@ -69,7 +69,7 @@ struct sub_op_state {
         return static_cast<Ops const &>(*this).rcvr;
     }
 
-    [[nodiscard]] auto get_stop_token() const -> in_place_stop_token {
+    [[nodiscard]] auto get_stop_token() const -> inplace_stop_token {
         return static_cast<Ops const &>(*this).stop_source.get_token();
     }
 
@@ -183,7 +183,7 @@ struct op_state
     : sub_op_state<op_state<StopPolicy, Rcvr, Sndrs...>, Rcvr, Sndrs>... {
     struct stop_callback_fn {
         auto operator()() -> void { stop_source->request_stop(); }
-        in_place_stop_source *stop_source;
+        inplace_stop_source *stop_source;
     };
 
     template <typename S, typename R>
@@ -200,7 +200,7 @@ struct op_state
     using apply_tag = boost::mp11::mp_transform_q<prepend<Tag>, L>;
 
     using env_t =
-        detail::overriding_env<get_stop_token_t, in_place_stop_token, Rcvr>;
+        detail::overriding_env<get_stop_token_t, inplace_stop_token, Rcvr>;
 
     using completions_t = boost::mp11::mp_unique<boost::mp11::mp_append<
         std::variant<std::monostate>,
@@ -248,7 +248,7 @@ struct op_state
     [[no_unique_address]] Rcvr rcvr;
     completions_t completions{};
     std::atomic<std::size_t> count{};
-    in_place_stop_source stop_source{};
+    inplace_stop_source stop_source{};
     std::optional<stop_callback_t> stop_cb{};
 
   private:
@@ -292,7 +292,7 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
             ... and
             multishot_sender<typename Sndrs::sender_t,
                              detail::universal_receiver<detail::overriding_env<
-                                 get_stop_token_t, in_place_stop_token,
+                                 get_stop_token_t, inplace_stop_token,
                                  std::remove_cvref_t<R>>>>)
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)

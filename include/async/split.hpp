@@ -71,7 +71,7 @@ template <typename S, typename Uniq> struct single_receiver {
 
     [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
                                                    single_receiver const &)
-        -> detail::singleton_env<get_stop_token_t, in_place_stop_token> {
+        -> detail::singleton_env<get_stop_token_t, inplace_stop_token> {
         return {op_state_t::stop_source.get_token()};
     }
 };
@@ -95,7 +95,7 @@ template <typename S, typename Uniq> struct op_state_base {
         std::monostate>;
     static inline completions_t values{};
     static inline op_state_base *linked_ops{};
-    static inline in_place_stop_source stop_source{};
+    static inline inplace_stop_source stop_source{};
 
     using single_op_state_t = connect_result_t<S &&, single_receiver<S, Uniq>>;
     static inline std::optional<single_op_state_t> single_ops{};
@@ -111,7 +111,7 @@ struct op_state : op_state_base<S, Uniq> {
 
     struct stop_callback_fn {
         auto operator()() -> void { stop_source->request_stop(); }
-        in_place_stop_source *stop_source;
+        inplace_stop_source *stop_source;
     };
 
     template <stdx::same_as_unqualified<Rcvr> R>

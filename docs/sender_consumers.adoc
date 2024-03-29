@@ -7,7 +7,7 @@
 the work running detached. The return value is a
 https://intel.github.io/cpp-std-extensions/#_optional_hpp[`stdx::optional`]. If
 the optional is empty, the sender was not started. Otherwise, it contains a
-pointer to an xref:cancellation.adoc#_cancellation[`in_place_stop_source`] that
+pointer to an xref:cancellation.adoc#_cancellation[`inplace_stop_source`] that
 can be used to cancel the operation.
 
 [source,cpp]
@@ -40,7 +40,7 @@ the result of `start_detached` is an empty optional.
 `start_detached_unstoppable` behaves identically to `start_detached`, except
 that the returned optional value contains a pointer to a `never_stop_source`,
 which has the same interface as an
-xref:cancellation.adoc#_cancellation[`in_place_stop_source`] but never actually
+xref:cancellation.adoc#_cancellation[`inplace_stop_source`] but never actually
 cancels the operation. So `start_detached_unstoppable` is slightly more
 efficient than `start_detached` for the cases where cancellation is not
 required.
