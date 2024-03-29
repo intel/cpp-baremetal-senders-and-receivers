@@ -75,7 +75,7 @@ template <typename F> struct stopped_receiver : F {
 };
 template <typename F> stopped_receiver(F) -> stopped_receiver<F>;
 
-template <typename T> std::optional<async::in_place_stop_source> stop_source{};
+template <typename T> std::optional<async::inplace_stop_source> stop_source{};
 
 template <typename F> struct stoppable_receiver : F {
     using is_receiver = void;
@@ -88,7 +88,7 @@ template <typename F> struct stoppable_receiver : F {
     auto request_stop() { stop_source<stoppable_receiver>->request_stop(); }
 
     struct env {
-        async::in_place_stop_token stop_token;
+        async::inplace_stop_token stop_token;
 
       private:
         [[nodiscard]] friend constexpr auto tag_invoke(async::get_stop_token_t,

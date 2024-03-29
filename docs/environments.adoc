@@ -21,10 +21,10 @@ struct custom_receiver {
 
   struct env {
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_stop_token_t,
-                                                   env const& e) -> async::in_place_stop_token {
+                                                   env const& e) -> async::inplace_stop_token {
       return e.token;
     }
-    async::in_place_stop_token token;
+    async::inplace_stop_token token;
   };
 
   [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
@@ -32,13 +32,13 @@ struct custom_receiver {
     return {r.stop_source->get_token()};
   }
 
-  in_place_stop_source* stop_source;
+  inplace_stop_source* stop_source;
 };
 ----
 
 Given this, we can construct an arbitrary composition of senders with this as
 the final receiver. If we want to cancel the operation, we call `request_stop()`
-on the (external) `in_place_stop_source`. The internal senders, receivers and
+on the (external) `inplace_stop_source`. The internal senders, receivers and
 operation states in the composition can observe this request by querying the
 stop token in the environment for the final receiver, and this knowledge can
 propagate through the sender-receiver chain.

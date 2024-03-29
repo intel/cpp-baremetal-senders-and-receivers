@@ -85,7 +85,7 @@ template <typename Uniq, typename StopSource> struct pipeable {
 
 template <typename Uniq = decltype([] {})>
 [[nodiscard]] constexpr auto start_detached()
-    -> _start_detached::pipeable<Uniq, in_place_stop_source> {
+    -> _start_detached::pipeable<Uniq, inplace_stop_source> {
     return {};
 }
 
