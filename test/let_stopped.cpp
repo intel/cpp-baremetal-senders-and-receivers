@@ -118,3 +118,21 @@ TEST_CASE("let_stopped propagates forwarding queries to its child environment",
     auto l = async::let_stopped(s, [] { return async::just(17); });
     CHECK(get_fwd(async::get_env(l)) == 42);
 }
+
+TEST_CASE("let_stopped advertises pass-through completions", "[let_stopped]") {
+    [[maybe_unused]] auto l = async::just(42) | async::let_stopped([] {});
+    static_assert(async::sender_of<decltype(l), async::set_value_t(int)>);
+}
+
+TEST_CASE("let_stopped can be single shot", "[let_stopped]") {
+    [[maybe_unused]] auto l = async::just_stopped() | async::let_stopped([] {
+                                  return async::just(move_only{42});
+                              });
+    static_assert(async::singleshot_sender<decltype(l)>);
+}
+
+TEST_CASE("let_stopped can be single shot with passthrough", "[let_stopped]") {
+    [[maybe_unused]] auto l = async::just(move_only{42}) |
+                              async::let_stopped([](auto) { return 42; });
+    static_assert(async::singleshot_sender<decltype(l)>);
+}

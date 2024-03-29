@@ -27,6 +27,7 @@ add_tests(
     just_result_of
     just_stopped
     let_error
+    let_multichannel
     let_stopped
     let_value
     on

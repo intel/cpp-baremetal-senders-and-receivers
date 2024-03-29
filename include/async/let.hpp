@@ -17,6 +17,30 @@
 #include <variant>
 
 namespace async::_let {
+namespace detail {
+template <channel_tag Tag, typename F, typename... Ts>
+auto invoke(F &&f, Ts &&...ts)
+    -> decltype(std::forward<F>(f).template operator()<Tag>(
+        std::forward<Ts>(ts)...)) {
+    return std::forward<F>(f).template operator()<Tag>(std::forward<Ts>(ts)...);
+}
+
+template <channel_tag Tag, typename F, typename... Ts>
+auto invoke(F &&f, Ts &&...ts)
+    -> decltype(std::forward<F>(f)(std::forward<Ts>(ts)...)) {
+    return std::forward<F>(f)(std::forward<Ts>(ts)...);
+}
+
+template <typename Tag, typename F> struct invoked_type {
+    template <typename... Ts>
+    using fn = decltype(invoke<Tag>(std::declval<F>(), std::declval<Ts>()...));
+};
+
+template <typename E> struct completions_of {
+    template <typename T> using fn = completion_signatures_of_t<T, E>;
+};
+} // namespace detail
+
 template <typename F, typename Ops, typename Rcvr, channel_tag... Tags>
 struct receiver {
     using is_receiver = void;
@@ -34,13 +58,13 @@ struct receiver {
               typename... Args>
         requires(... or std::same_as<Tag, Tags>)
     friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
-        self.ops->complete_first(
-            std::forward<Self>(self).f(std::forward<Args>(args)...));
+        self.ops->complete_first(detail::invoke<Tag>(
+            std::forward<Self>(self).f, std::forward<Args>(args)...));
     }
 
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
                                                    receiver const &r)
-        -> detail::forwarding_env<env_of_t<Rcvr>> {
+        -> ::async::detail::forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(r.ops->rcvr);
     }
 };
@@ -90,41 +114,55 @@ struct op_state {
     }
 };
 
-template <typename Sndr, typename S, typename F, channel_tag... Tags>
-struct sender {
+template <typename S, typename F, channel_tag... Tags> struct sender {
     using is_sender = void;
 
-    template <typename... Ts>
-    using invoked_type = std::invoke_result_t<F, Ts...>;
+    [[no_unique_address]] S s;
+    [[no_unique_address]] F f;
+
+  private:
     template <typename E>
-    using dependent_senders = boost::mp11::mp_append<
-        detail::gather_signatures<Tags, completion_signatures_of_t<S, E>,
-                                  invoked_type, completion_signatures>...>;
+    using raw_completions =
+        boost::mp11::mp_partition_q<completion_signatures_of_t<S, E>,
+                                    ::async::detail::with_any_tag<Tags...>>;
 
-    template <typename E> struct completions_of {
-        template <typename T> using fn = completion_signatures_of_t<T, E>;
-    };
     template <typename E>
-    using dependent_signatures = boost::mp11::mp_unique<boost::mp11::mp_flatten<
-        boost::mp11::mp_transform_q<completions_of<E>, dependent_senders<E>>>>;
+    using unchanged_completions = boost::mp11::mp_second<raw_completions<E>>;
 
-    template <typename...> using signatures = completion_signatures<>;
+    template <typename E>
+    using dependent_senders = boost::mp11::mp_unique<
+        boost::mp11::mp_append<::async::detail::gather_signatures<
+            Tags, boost::mp11::mp_first<raw_completions<E>>,
+            detail::invoked_type<Tags, F>::template fn,
+            completion_signatures>...>>;
 
-    template <receiver_from<S> R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Sndr &&sndr,
+    template <typename E>
+    using dependent_completions =
+        boost::mp11::mp_flatten<boost::mp11::mp_transform_q<
+            detail::completions_of<E>, dependent_senders<E>>>;
+
+    template <receiver_from<sender> R>
+    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&sndr,
                                                    R &&r)
         -> _let::op_state<S, std::remove_cvref_t<R>, F,
                           dependent_senders<env_of_t<R>>, Tags...> {
         return {std::move(sndr).s, std::forward<R>(r), std::move(sndr).f};
     }
 
+    template <typename R>
+    using is_multishot_leftover_sender = stdx::conditional_t<
+        boost::mp11::mp_empty<
+            boost::mp11::mp_second<raw_completions<env_of_t<R>>>>::value,
+        std::true_type, std::bool_constant<multishot_sender<S, R>>>;
+
     template <typename R> struct is_multishot_sender {
         template <typename T>
         using fn = std::bool_constant<multishot_sender<T, R>>;
     };
 
-    template <stdx::same_as_unqualified<Sndr> Self, receiver_from<S> R>
-        requires multishot_sender<S, R> and
+    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+        requires multishot_sender<S> and
+                 is_multishot_leftover_sender<R>::value and
                  boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
                                           is_multishot_sender<R>>::value
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
@@ -135,14 +173,19 @@ struct sender {
                 std::forward<Self>(self).f};
     }
 
-    template <stdx::same_as_unqualified<Sndr> Self>
+    template <stdx::same_as_unqualified<sender> Self>
     [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
                                                    Self &&self) {
-        return forward_env_of(self.s);
+        return forward_env_of(std::forward<Self>(self).s);
     }
 
-    [[no_unique_address]] S s;
-    [[no_unique_address]] F f;
+    template <typename Env>
+    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
+                                                   sender const &, Env const &)
+        -> boost::mp11::mp_unique<boost::mp11::mp_append<
+            unchanged_completions<Env>, dependent_completions<Env>>> {
+        return {};
+    }
 };
 
 template <typename F, template <typename...> typename Sndr> struct pipeable {

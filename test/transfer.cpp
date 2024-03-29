@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/just.hpp>
+#include <async/let_stopped.hpp>
 #include <async/on.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/tags.hpp>
@@ -98,6 +99,22 @@ TEST_CASE("transfer error", "[transfer]") {
     auto op = async::connect(n2, error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 59);
+
+    CHECK(test_scheduler<1>::schedule_calls == 1);
+}
+
+TEST_CASE("transfer stopped", "[transfer]") {
+    test_scheduler<1>::schedule_calls = 0;
+    int value{};
+
+    auto sched = test_scheduler<1>{};
+
+    auto n1 = async::just_stopped();
+    auto t = async::transfer(n1, sched);
+    auto n2 = async::let_stopped(t, [] { return async::just(42); });
+    auto op = async::connect(n2, receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 42);
 
     CHECK(test_scheduler<1>::schedule_calls == 1);
 }
