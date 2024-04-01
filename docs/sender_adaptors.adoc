@@ -106,7 +106,7 @@ xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`].
 NOTE: `repeat_n` must always run at least once to be able to complete. So
 `repeat_n(1)` repeats once, i.e. runs twice. `repeat_n(0)` runs once (thus is redundant).
 
-==== `repeat_until`
+=== `repeat_until`
 
 `repeat_until` works the same way as `repeat`, but repeats the sender until a
 given (nullary) predicate returns true.
@@ -137,6 +137,53 @@ xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`].
 
 `retry_until` works like `retry`, but takes a predicate. If the predicate
 returns false, `retry_until` can complete on the error channel.
+
+=== `sequence`
+
+`sequence` is like xref:_let_value[`let_value`], but it must take a nullary
+function that returns a sender. In other words, the first sender's values (if
+any) are discarded before the second sender is run.
+
+[source,cpp]
+----
+auto sndr = async::just(17);
+auto seq_sndr = async::sequence(sndr, [] { return async::just(42); });
+// when run, seq_sndr will produce 42
+----
+
+[NOTE]
+.For functional programmers
+====
+`sequence` is equivalent to `(>>)` in Haskell.
+====
+
+`let_value` should be used when dynamic sender selection at runtime is required
+based on a sent value. When it suffices to run one sender after another with no
+dependency between them, use `sequence`. Because `sequence` is more constrained,
+in some cases it allows more compile-time manipulation like
+xref:attributes.adoc#_sender_attributes[sender attribute interrogation].
+
+Sequencing unrelated senders is common enough that there is a shortcut for
+`sequence` that saves typing a lambda expression: `seq`.
+
+[source,cpp]
+----
+auto seq_sndr = async::just(17) | async::seq(async::just(42));
+// when run, seq_sndr will produce 42
+----
+
+`seq` is useful, but notice the difference between these two:
+
+[source,cpp]
+----
+auto seq1 = async::seq(async::just(move_only_obj{}));
+auto seq2 = async::sequence([] { return async::just(move_only_obj{}); });
+----
+
+They are compositionally the same. However `seq1` constructs the sender (`just`)
+early; `seq2` constructs the sender only when called. In this case with a
+move-only object, that means that `seq1` is single shot, but `seq2` is
+multishot.
 
 === `split`
 

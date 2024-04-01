@@ -34,6 +34,7 @@ add_tests(
     read
     repeat
     retry
+    sequence
     split
     start_detached
     stop_token

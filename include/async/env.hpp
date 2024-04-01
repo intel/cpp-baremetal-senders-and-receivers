@@ -31,7 +31,7 @@ template <typename Tag, typename T> struct singleton_env {
         -> T {
         return self.value;
     }
-    T value;
+    [[no_unique_address]] T value{};
 };
 
 template <typename E> struct forwarding_env {
@@ -43,7 +43,7 @@ template <typename E> struct forwarding_env {
         return tag(self.child_env);
     }
 
-    E child_env;
+    [[no_unique_address]] E child_env;
 };
 template <typename E> forwarding_env(E) -> forwarding_env<E>;
 
