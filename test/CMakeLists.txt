@@ -30,7 +30,7 @@ add_tests(
     let_multichannel
     let_stopped
     let_value
-    read
+    read_env
     repeat
     retry
     sequence
