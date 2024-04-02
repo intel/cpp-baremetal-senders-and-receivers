@@ -4,6 +4,7 @@
 #include <async/read.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/sequence.hpp>
 #include <async/start_on.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
@@ -54,7 +55,7 @@ TEST_CASE("sync_wait with read (inline scheduler)",
              });
 
     auto value = async::inline_scheduler::schedule() |
-                 async::let_value([&] { return s; }) | async::sync_wait();
+                 async::sequence([&] { return s; }) | async::sync_wait();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
 }
@@ -65,7 +66,7 @@ TEST_CASE("sync_wait with read (thread scheduler", "[freestanding_sync_wait]") {
              });
 
     auto value = async::thread_scheduler::schedule() |
-                 async::let_value([&] { return s; }) | async::sync_wait();
+                 async::sequence([&] { return s; }) | async::sync_wait();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
 }
