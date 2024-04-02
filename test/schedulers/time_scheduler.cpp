@@ -1,9 +1,9 @@
 #include "detail/common.hpp"
 
 #include <async/just_result_of.hpp>
-#include <async/on.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
+#include <async/start_on.hpp>
 
 #include <stdx/concepts.hpp>
 
@@ -107,7 +107,7 @@ TEST_CASE("time_scheduler schedules tasks", "[time_scheduler]") {
     auto s = async::time_scheduler{10ms};
     int var{};
     async::sender auto sndr =
-        async::on(s, async::just_result_of([&] { var = 42; }));
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto op = async::connect(sndr, universal_receiver{});
 
     async::timer_mgr::service_task();
@@ -125,7 +125,7 @@ TEST_CASE("time_scheduler is cancellable before start", "[time_scheduler]") {
     auto s = async::time_scheduler{10ms};
     int var{};
     async::sender auto sndr =
-        async::on(s, async::just_result_of([&] { var = 42; }));
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto r = stoppable_receiver{[&] { var = 17; }};
     auto op = async::connect(sndr, r);
 
@@ -140,7 +140,7 @@ TEST_CASE("time_scheduler cancels via HAL after start", "[time_scheduler]") {
     auto s = async::time_scheduler{1s};
     int var{};
     async::sender auto sndr =
-        async::on(s, async::just_result_of([&] { var = 42; }));
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto r = stoppable_receiver{[&] { var = 17; }};
     auto op = async::connect(sndr, r);
 
@@ -169,7 +169,7 @@ TEST_CASE("time_scheduler can have different domain", "[time_scheduler]") {
     auto s = scheduler_factory(10ms);
     int var{};
     async::sender auto sndr =
-        async::on(s, async::just_result_of([&] { var = 42; }));
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto op = async::connect(sndr, universal_receiver{});
 
     async::timer_mgr::service_task<alt_domain>();

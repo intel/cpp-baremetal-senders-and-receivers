@@ -2,9 +2,9 @@
 
 #include <async/concepts.hpp>
 #include <async/just.hpp>
-#include <async/on.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/split.hpp>
+#include <async/start_on.hpp>
 #include <async/tags.hpp>
 #include <async/then.hpp>
 
@@ -128,7 +128,7 @@ TEST_CASE("split cancellation (stopped by source)", "[split]") {
 
 TEST_CASE("split cancellation (stopped by sender)", "[split]") {
     int stopped{};
-    auto s = async::on(singleshot_scheduler{}, async::just_stopped());
+    auto s = async::start_on(singleshot_scheduler{}, async::just_stopped());
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto spl = async::split(std::move(s));
 

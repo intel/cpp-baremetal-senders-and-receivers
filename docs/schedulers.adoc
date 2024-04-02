@@ -46,7 +46,7 @@ run when priority interrupts fire.
 [source,cpp]
 ----
 int x{};
-async::on(async::fixed_priority_scheduler<0>{},
+async::start_on(async::fixed_priority_scheduler<0>{},
           async::just_result_of([&] { x = 42; }))
 | async::start_detached();
 
@@ -64,7 +64,7 @@ as concurrency goes; starting the work also completes it.
 [source,cpp]
 ----
 int x{};
-auto s = async::on(async::inline_scheduler{},
+auto s = async::start_on(async::inline_scheduler{},
                    async::just(42)
                  | async::then([&] (auto i) { x = i; });
 async::start_detached(s);
@@ -85,7 +85,7 @@ xref:sender_consumers.adoc#_sync_wait[`sync_wait`].
 ----
 auto value = async::get_scheduler()
            | async::let_value([&](auto sched) {
-                 return async::on(sched, async::just(42));
+                 return async::start_on(sched, async::just(42));
              })
            | async::sync_wait();
 ----
@@ -102,7 +102,7 @@ thread that is detached.
 [source,cpp]
 ----
 int x{};
-auto s = async::on(async::thread_scheduler{},
+auto s = async::start_on(async::thread_scheduler{},
                    async::just(42) | async::then([&] (auto i) { x = i; });
 async::start_detached(s);
 // without some other sync mechanism, this is risky:
@@ -174,7 +174,7 @@ run when a timer interrupt fires.
 [source,cpp]
 ----
 int x{};
-async::on(async::time_scheduler{10ms},
+async::start_on(async::time_scheduler{10ms},
           async::just_result_of([&] { x = 42; }))
 | async::start_detached();
 
@@ -211,7 +211,7 @@ auto sched_factory = async::time_scheduler_factory<alt_domain>;
 auto sched = sched_factory(10ms);
 
 int x{};
-auto s = async::on(sched,
+auto s = async::start_on(sched,
                    async::just(42) | async::then([&] (auto i) { x = i; });
 async::start_detached(s);
 

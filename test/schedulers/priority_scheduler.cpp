@@ -2,10 +2,10 @@
 
 #include <async/concepts.hpp>
 #include <async/just_result_of.hpp>
-#include <async/on.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
 #include <async/start_detached.hpp>
+#include <async/start_on.hpp>
 #include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/transfer.hpp>
@@ -50,7 +50,7 @@ TEST_CASE("fixed_priority_scheduler schedules tasks", "[priority_scheduler]") {
     auto s = async::fixed_priority_scheduler<0>{};
     int var{};
     async::sender auto sndr =
-        async::on(s, async::just_result_of([&] { var = 42; }));
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto op = async::connect(sndr, universal_receiver{});
 
     async::task_mgr::service_tasks<0>();
@@ -67,7 +67,7 @@ TEST_CASE("fixed_priority_scheduler is cancellable before start",
     auto s = async::fixed_priority_scheduler<0>{};
     int var{};
     async::sender auto sndr =
-        async::on(s, async::just_result_of([&] { var = 42; }));
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto r = stoppable_receiver{[&] { var = 17; }};
     auto op = async::connect(sndr, r);
 
@@ -83,7 +83,7 @@ TEST_CASE("fixed_priority_scheduler is cancellable after start",
     auto s = async::fixed_priority_scheduler<0>{};
     int var{};
     async::sender auto sndr =
-        async::on(s, async::just_result_of([&] { var = 42; }));
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto r = stoppable_receiver{[&] { var = 17; }};
     auto op = async::connect(sndr, r);
 

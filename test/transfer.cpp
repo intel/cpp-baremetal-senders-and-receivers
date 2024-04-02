@@ -3,8 +3,8 @@
 #include <async/concepts.hpp>
 #include <async/just.hpp>
 #include <async/let_stopped.hpp>
-#include <async/on.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/start_on.hpp>
 #include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/transfer.hpp>
@@ -214,7 +214,8 @@ TEST_CASE("transfer cancellation", "[transfer]") {
     auto sched1 = test_scheduler<1>{};
     auto sched2 = test_scheduler<2>{};
 
-    auto s = async::on(sched1, async::just_stopped()) | async::transfer(sched2);
+    auto s = async::start_on(sched1, async::just_stopped()) |
+             async::transfer(sched2);
 
     auto op = async::connect(s, stopped_receiver{[&] { value = 42; }});
     async::start(op);

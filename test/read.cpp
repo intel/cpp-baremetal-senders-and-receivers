@@ -3,9 +3,10 @@
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
-#include <async/on.hpp>
+#include <async/let_value.hpp>
 #include <async/read.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/start_on.hpp>
 #include <async/stop_token.hpp>
 #include <async/sync_wait.hpp>
 #include <async/tags.hpp>
@@ -41,7 +42,7 @@ TEST_CASE("read sends a value", "[read]") {
 
 TEST_CASE("read with sync_wait", "[read]") {
     auto s = async::get_scheduler() | async::let_value([&](auto sched) {
-                 return async::on(sched, async::just(42));
+                 return async::start_on(sched, async::just(42));
              });
 
     auto value = s | async::sync_wait();

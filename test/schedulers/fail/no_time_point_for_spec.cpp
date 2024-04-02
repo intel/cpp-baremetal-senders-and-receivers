@@ -1,8 +1,8 @@
 #include <async/just.hpp>
-#include <async/on.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
 #include <async/start_detached.hpp>
+#include <async/start_on.hpp>
 
 #include <chrono>
 
@@ -29,5 +29,5 @@ template <> inline auto async::injected_timer_manager<> = timer_manager_t{};
 auto main() -> int {
     auto s = async::time_scheduler{10ms};
     [[maybe_unused]] auto x =
-        async::on(s, async::just(42)) | async::start_detached();
+        async::start_on(s, async::just(42)) | async::start_detached();
 }
