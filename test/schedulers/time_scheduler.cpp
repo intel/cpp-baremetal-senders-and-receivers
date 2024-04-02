@@ -100,6 +100,7 @@ TEST_CASE("sender has the time_scheduler as its completion scheduler",
         std::same_as<decltype(cs),
                      async::time_scheduler<async::timer_mgr::default_domain,
                                            std::chrono::milliseconds>>);
+    CHECK(cs.d == 10ms);
 }
 
 TEST_CASE("time_scheduler schedules tasks", "[time_scheduler]") {
