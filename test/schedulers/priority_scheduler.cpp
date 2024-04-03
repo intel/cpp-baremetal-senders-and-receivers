@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/continue_on.hpp>
 #include <async/just_result_of.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
@@ -8,7 +9,6 @@
 #include <async/start_on.hpp>
 #include <async/tags.hpp>
 #include <async/then.hpp>
-#include <async/transfer.hpp>
 
 #include <stdx/concepts.hpp>
 
@@ -104,13 +104,13 @@ TEST_CASE("request and response", "[priority_scheduler]") {
              | async::then([&] {
                    ++var;
                    return 42;
-               })                                //
-             | async::transfer(server_context{}) //
+               })                                   //
+             | async::continue_on(server_context{}) //
              | async::then([&](auto i) {
                    ++var;
                    return i * 2;
-               })                                //
-             | async::transfer(client_context{}) //
+               })                                   //
+             | async::continue_on(client_context{}) //
              | async::then([&](auto i) { var += i; });
     CHECK(async::start_detached(s));
 

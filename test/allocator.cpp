@@ -3,10 +3,10 @@
 #include <async/allocator.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/sequence.hpp>
 #include <async/stack_allocator.hpp>
 #include <async/static_allocator.hpp>
 #include <async/then.hpp>
-#include <async/transfer.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -30,11 +30,11 @@ TEST_CASE("allocator is forwarded through senders", "[allocator]") {
 }
 
 TEST_CASE("allocator is overridden through senders", "[allocator]") {
-    [[maybe_unused]] auto s = async::inline_scheduler{}.schedule() |
-                              async::transfer(async::thread_scheduler{});
+    [[maybe_unused]] auto s = async::thread_scheduler{}.schedule() |
+                              async::seq(async::inline_scheduler{}.schedule());
     static_assert(
         std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s)>>,
-                       async::static_allocator>);
+                       async::stack_allocator>);
 }
 
 namespace {
