@@ -30,13 +30,13 @@ add_tests(
     let_multichannel
     let_stopped
     let_value
-    on
-    read
+    read_env
     repeat
     retry
     sequence
     split
     start_detached
+    start_on
     stop_token
     then
     transfer

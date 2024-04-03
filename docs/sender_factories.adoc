@@ -83,22 +83,23 @@ auto s = async::just_result_of([] { return 42; });
 auto s = async::just() | async::then([] { return 42; });
 ----
 
-=== `read`
+=== `read_env`
 
-`read` takes a _tag_ and returns a sender that sends the value denoted by that
-tag, pulled from the environment of the receiver the sender is connected to.
+`read_env` takes a _tag_ and returns a sender that sends the value denoted by
+that tag, pulled from the environment of the receiver the sender is
+connected to.
 
 [source,cpp]
 ----
-auto s = async::read(async::get_stop_token_t{});
+auto s = async::read_env(async::get_stop_token_t{});
 // when connected to a receiver, s will send the stop token from that receiver's environment
 ----
 
 `read` has some built-in aliases for well-known tags:
 [source,cpp]
 ----
-auto s1 = async::get_stop_token(); // same as async::read(async::get_stop_token_t{});
-auto s2 = async::get_scheduler();  // same as async::read(async::get_scheduler_t{});
+auto s1 = async::get_stop_token(); // same as async::read_env(async::get_stop_token_t{});
+auto s2 = async::get_scheduler();  // same as async::read_env(async::get_scheduler_t{});
 ----
 
 === `schedule`

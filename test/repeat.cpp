@@ -2,10 +2,10 @@
 
 #include <async/concepts.hpp>
 #include <async/just.hpp>
-#include <async/let_value.hpp>
-#include <async/on.hpp>
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/sequence.hpp>
+#include <async/start_on.hpp>
 #include <async/tags.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
@@ -45,7 +45,7 @@ TEST_CASE("repeat propagates forwarding queries to its child environment",
 TEST_CASE("repeat repeats", "[repeat]") {
     int var{};
 
-    auto sub = async::just() | async::let_value([&] {
+    auto sub = async::just() | async::sequence([&] {
                    return async::make_variant_sender(
                        ++var == 2, [] { return async::just_error(42); },
                        [] { return async::just(17); });
@@ -74,7 +74,7 @@ TEST_CASE("repeat_n advertises what it sends", "[repeat]") {
 TEST_CASE("repeat_n repeats n times", "[repeat]") {
     int var{};
 
-    auto sub = async::just() | async::let_value([&] {
+    auto sub = async::just() | async::sequence([&] {
                    ++var;
                    return async::just(42);
                });
@@ -87,7 +87,7 @@ TEST_CASE("repeat_n repeats n times", "[repeat]") {
 TEST_CASE("repeat_until completes when true", "[repeat]") {
     int var{};
 
-    auto sub = async::just() | async::let_value([&] {
+    auto sub = async::just() | async::sequence([&] {
                    ++var;
                    return async::just(42);
                });
@@ -101,7 +101,7 @@ TEST_CASE("repeat can be cancelled", "[repeat]") {
     int var{};
     only_stoppable_receiver r{[&] { var += 42; }};
 
-    auto sub = async::just() | async::let_value([&] {
+    auto sub = async::just() | async::sequence([&] {
                    if (++var == 2) {
                        r.request_stop();
                    }

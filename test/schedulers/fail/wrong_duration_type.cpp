@@ -1,7 +1,7 @@
 #include <async/just.hpp>
-#include <async/on.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
+#include <async/start_on.hpp>
 
 #include <chrono>
 
@@ -34,5 +34,6 @@ template <> inline auto async::injected_timer_manager<> = timer_manager_t{};
 
 auto main() -> int {
     auto s = async::time_scheduler{0};
-    [[maybe_unused]] async::sender auto sndr = async::on(s, async::just(42));
+    [[maybe_unused]] async::sender auto sndr =
+        async::start_on(s, async::just(42));
 }

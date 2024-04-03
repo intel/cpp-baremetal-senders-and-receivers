@@ -13,7 +13,7 @@
 #include <utility>
 
 namespace async {
-namespace _read {
+namespace _read_env {
 template <typename R, typename Tag> struct op_state {
     [[no_unique_address]] R receiver;
     [[no_unique_address]] Tag t;
@@ -54,17 +54,17 @@ template <typename Tag> struct sender {
         return {std::forward<R>(r), std::forward<Self>(self).t};
     }
 };
-} // namespace _read
+} // namespace _read_env
 
 template <typename Tag>
-[[nodiscard]] constexpr auto read(Tag &&t) -> sender auto {
-    return _read::sender<Tag>{{std::forward<Tag>(t)}};
+[[nodiscard]] constexpr auto read_env(Tag &&t) -> sender auto {
+    return _read_env::sender<Tag>{{std::forward<Tag>(t)}};
 }
 
 [[nodiscard]] constexpr auto get_stop_token() -> sender auto {
-    return read(get_stop_token_t{});
+    return read_env(get_stop_token_t{});
 }
 [[nodiscard]] constexpr auto get_scheduler() -> sender auto {
-    return read(get_scheduler_t{});
+    return read_env(get_scheduler_t{});
 }
 } // namespace async

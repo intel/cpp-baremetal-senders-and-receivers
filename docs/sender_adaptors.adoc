@@ -60,27 +60,6 @@ auto let_sndr = async::let_value(
 This works: using the helper function `make_variant_sender`, `let_value` can
 successfully make a runtime choice about which sender to proceed with.
 
-=== `on`
-
-`on` takes a scheduler and a sender, and composes them so that the work will run
-on that scheduler. It chains the sender work on to the result of calling
-`schedule`.
-
-[source,cpp]
-----
-// s is a scheduler
-auto sndr = async::on(s, async::just(42));
-// when run, sndr will execute on the compute resource specified by s, producing 42
-----
-
-`on` can be equivalent to `schedule` followed by `then`:
-[source,cpp]
-----
-auto sndr = async::then(s.schedule(), [] {  return 42 ;});
-----
-
-But note that `then` takes a function where `on` takes a sender.
-
 === `repeat`
 
 `repeat` takes a sender and repeats it indefinitely. When the sender completes
@@ -197,6 +176,25 @@ multiple times.
 `split` turns a single shot sender into a multishot sender. It has no effect
 when called on a multishot sender.
 
+=== `start_on`
+
+`start_on` takes a scheduler and a sender, and composes them so that the work
+will run on that scheduler. It chains the sender work onto the result of
+calling `schedule`.
+
+[source,cpp]
+----
+// s is a scheduler
+auto sndr = async::start_on(s, async::just(42));
+// when run, sndr will execute on the compute resource specified by s, producing 42
+----
+
+`start_on` is equivalent to `seq(scheduler.schedule(), sender`):
+[source,cpp]
+----
+auto sndr = s.schedule() | async::seq(async::just(42));
+----
+
 === `then`
 
 `then` takes a sender and a function, and returns a sender that will call the
@@ -264,7 +262,7 @@ auto t = async::then(s,
 [source,cpp]
 ----
 // s1 and s2 are different schedulers representing different computation contexts
-auto sndr = async::on(s1, async::just(42));
+auto sndr = async::start_on(s1, async::just(42));
 auto t = async::transfer(sndr, s2);
 auto transferred = async::then(t, [] (int i) { return std::to_string(i); });
 // when transferred runs:

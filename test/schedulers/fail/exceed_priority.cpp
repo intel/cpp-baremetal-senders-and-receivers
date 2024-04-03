@@ -1,7 +1,7 @@
 #include <async/just.hpp>
-#include <async/on.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
+#include <async/start_on.hpp>
 
 // EXPECT: fixed_priority_scheduler has invalid priority
 
@@ -17,5 +17,6 @@ template <> inline auto async::injected_task_manager<> = task_manager_t{};
 
 auto main() -> int {
     auto s = async::fixed_priority_scheduler<8>{};
-    [[maybe_unused]] async::sender auto sndr = async::on(s, async::just(42));
+    [[maybe_unused]] async::sender auto sndr =
+        async::start_on(s, async::just(42));
 }
