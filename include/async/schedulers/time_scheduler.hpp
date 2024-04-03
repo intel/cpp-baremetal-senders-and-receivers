@@ -89,9 +89,9 @@ template <typename Domain, typename Duration,
 class time_scheduler {
     struct env {
         [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>, env) noexcept
+        tag_invoke(get_completion_scheduler_t<set_value_t>, env e) noexcept
             -> time_scheduler {
-            return {};
+            return {e.d};
         }
 
         [[no_unique_address]] Duration d{};
