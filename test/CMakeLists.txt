@@ -17,6 +17,7 @@ endfunction()
 add_tests(
     allocator
     concepts
+    continue_on
     env
     forwarding_query
     freestanding_sync_wait
@@ -39,7 +40,6 @@ add_tests(
     start_on
     stop_token
     then
-    transfer
     type_traits
     upon_error
     upon_stopped

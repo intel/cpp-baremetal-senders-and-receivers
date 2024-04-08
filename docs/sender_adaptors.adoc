@@ -1,6 +1,21 @@
 
 == Sender adaptors
 
+=== `continue_on`
+
+`continue_on` allows an asynchronous computation to switch where it is running.
+
+[source,cpp]
+----
+// s1 and s2 are different schedulers representing different computation contexts
+auto sndr = async::start_on(s1, async::just(42));
+auto t = async::continue_on(sndr, s2);
+auto transferred = async::then(t, [] (int i) { return std::to_string(i); });
+// when transferred runs:
+// first on s1 it will produce 42
+// then on s2 it will convert 42 to a string, producing "42"
+----
+
 === `let_value`
 
 `let_value` is like xref:_then[`then`], but the function given to it will itself
@@ -253,21 +268,6 @@ auto t = async::then(s,
     [] (auto b, std::string_view s) -> std::string_view { if (b) return s; else return "no"; },
     [] { return 1.0f; });
 // when run, this will call set_value(59, "no", 1.0f) on the downstream receiver
-----
-
-=== `transfer`
-
-`transfer` allows an asynchronous computation to switch where it is running.
-
-[source,cpp]
-----
-// s1 and s2 are different schedulers representing different computation contexts
-auto sndr = async::start_on(s1, async::just(42));
-auto t = async::transfer(sndr, s2);
-auto transferred = async::then(t, [] (int i) { return std::to_string(i); });
-// when transferred runs:
-// first on s1 it will produce 42
-// then on s2 it will convert 42 to a string, producing "42"
 ----
 
 === `upon_error`

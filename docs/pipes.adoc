@@ -2,14 +2,14 @@
 == Pipe syntax
 
 We can compose senders with pipe syntax, which can make things easier to read.
-To take the transfer example:
+To take the continue_on example:
 
 [source,cpp]
 ----
-// this is equivalent to the previous non-piped transfer example
+// this is equivalent to the previous non-piped continue_on example
 auto async_computation =
     s1.schedule()
   | async::then([] { return 42; })
-  | async::transfer(s2)
+  | async::continue_on(s2)
   | async::then([] (int i) { return std::to_string(i); });
 ----
