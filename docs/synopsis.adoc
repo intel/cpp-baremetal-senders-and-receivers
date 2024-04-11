@@ -1,5 +1,5 @@
 
-== Index
+== Index of identifiers
 
 === By header
 
@@ -12,11 +12,11 @@
 * `get_completion_scheduler` - a tag used to retrieve a completion_scheduler from a sender's attributes
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[concepts.hpp]
+* `multishot_sender<S>` - a concept modelled by senders where `connect` may operate on lvalues
 * `operation_state<O>` - a concept modelled by operation states
 * `receiver<R>` - a concept modelled by receivers
 * `receiver_base` - an empty type; deriving from this opts in to modelling the `receiver` concept
 * `receiver_from<R, S>` - a concept modelled by a receiver `R` that handles what a sender `S` sends
-* `multishot_sender<S>` - a concept modelled by senders where `connect` may operate on lvalues
 * `scheduler<S>` - a concept modelled by schedulers
 * `sender<S>` - a concept modelled by senders
 * `sender_base` - an empty type; deriving from this opts in to modelling the `sender` concept
@@ -115,8 +115,8 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 * `timer_mgr::time_point_for` - a class template that can be specialized to specify a `time_point` type corresponding to a `duration` type
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/sequence.hpp[sequence.hpp]
-* `sequence` - a xref:sender_adaptors.adoc#_sequence[sender adaptor] that sequences two senders
 * `seq` - a xref:sender_adaptors.adoc#_sequence[sender adaptor] used to sequence two senders without typing a lambda expression
+* `sequence` - a xref:sender_adaptors.adoc#_sequence[sender adaptor] that sequences two senders
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/split.hpp[split.hpp]
 * `split` - a xref:sender_adaptors.adoc#_split[sender adaptor] that turns a single-shot sender into a multi-shot sender
@@ -125,28 +125,26 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 * `stack_allocator` - an xref:attributes.adoc#_allocator[`allocator`] that allocates on the stack
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/start_detached.hpp[start_detached.hpp]
-* `start_detached`- a xref:sender_consumers.adoc#_start_detached[sender consumer] that starts a sender without waiting for it to complete
-* `start_detached_unstoppable`- a xref:sender_consumers.adoc#_start_detached_unstoppable[sender consumer] that starts a sender without waiting for it to complete, without a provision for cancellation
+* `start_detached` - a xref:sender_consumers.adoc#_start_detached[sender consumer] that starts a sender without waiting for it to complete
+* `start_detached_unstoppable` - a xref:sender_consumers.adoc#_start_detached_unstoppable[sender consumer] that starts a sender without waiting for it to complete, without a provision for cancellation
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/start_on.hpp[start_on.hpp]
 * `start_on` - a xref:sender_adaptors.adoc#_start_on[sender adaptor] that starts execution on a given scheduler
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/static_allocator.hpp[static_allocator.hpp]
-* `static_allocator` - an xref:attributes.adoc#_allocator[`allocator`] that allocates using static storage
 * `static_allocation_limit<Domain>` - a variable template that can be specialized to customize the allocation limit for a domain
+* `static_allocator` - an xref:attributes.adoc#_allocator[`allocator`] that allocates using static storage
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/stop_token.hpp[stop_token.hpp]
-* `get_stop_token` - a tag used to retrieve a `stop_token` from a receiver's environment
 * `inplace_stop_source` - a https://en.cppreference.com/w/cpp/thread/stop_source[stop source] that can be used to control cancellation
-* `inplace_stop_token`- a https://en.cppreference.com/w/cpp/thread/stop_token[stop token] corresponding to `inplace_stop_source`
+* `inplace_stop_token` - a https://en.cppreference.com/w/cpp/thread/stop_token[stop token] corresponding to `inplace_stop_source`
 * `stop_token_of_t` - the type returned by `get_stop_token`
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/sync_wait.hpp[sync_wait.hpp]
-* `sync_wait`- a xref:sender_consumers.adoc#_sync_wait[sender consumer] that starts a sender and waits for it to complete
+* `sync_wait` - a xref:sender_consumers.adoc#_sync_wait[sender consumer] that starts a sender and waits for it to complete
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/tags.hpp[tags.hpp]
 * `connect` - a tag used to connect a sender with a receiver
-* `get_scheduler` - a query used to get a scheduler from a receiver's environment
 * `set_error` - a tag used to complete on the error channel
 * `set_stopped` - a tag used to complete on the stopped channel
 * `set_value` - a tag used to complete on the value channel
@@ -171,3 +169,84 @@ contains traits and metaprogramming constructs used by many senders.
 * `first_successful` - a xref:sender_adaptors.adoc#_when_any[sender adaptor] that completes when any of its child senders complete on the value channel
 * `stop_when` - a binary xref:sender_adaptors.adoc#_when_any[sender adaptor] equivalent to `when_any`
 * `when_any` - an n-ary xref:sender_adaptors.adoc#_when_any[sender adaptor] that completes when any of its child senders complete on the value or error channels
+
+=== By identifier
+
+* xref:attributes.adoc#_allocator[`allocator`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[`#include <async/allocator.hpp>`]
+* `allocator_of_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[`#include <async/allocator.hpp>`]
+* `connect` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/tags.hpp[`#include <async/tags.hpp>`]
+* xref:sender_adaptors.adoc#_continue_on[`continue_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/continue_on.hpp[`#include <async/continue_on.hpp>`]
+* xref:sender_adaptors.adoc#_when_any[`first_successful`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_any.hpp[`#include <async/when_any.hpp>`]
+* xref:schedulers.adoc#_fixed_priority_scheduler[`fixed_priority_scheduler<P>`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/priority_scheduler.hpp[`#include <async/schedulers/priority_scheduler.hpp>`]
+* `forwarding_query` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/forwarding_query.hpp[`#include <async/forwarding_query.hpp>`]
+* `generic_timer_manager<HAL>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager.hpp[`#include <async/schedulers/timer_manager.hpp>`]
+* `get_allocator` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[`#include <async/allocator.hpp>`]
+* `get_completion_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/completion_scheduler.hpp[`#include <async/completion_scheduler.hpp>`]
+* xref:environments.adoc#_environments[`get_env`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/env.hpp[`#include <async/env.hpp>`]
+* `get_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
+* `get_stop_token` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
+* `injected_task_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
+* `injected_timer_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
+* xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/inline_scheduler.hpp[`#include <async/schedulers/inline_scheduler.hpp>`]
+* `inplace_stop_source` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stop_token.hpp[`#include <async/stop_token.hpp>`]
+* `inplace_stop_token`- https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stop_token.hpp[`#include <async/stop_token.hpp>`]
+* xref:sender_factories.adoc#_just[`just`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[`#include <async/just.hpp>`]
+* xref:sender_factories.adoc#_just_error[`just_error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[`#include <async/just.hpp>`]
+* xref:sender_factories.adoc#_just_error_result_of[`just_error_result_of`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just_result_of.hpp[`#include <async/just_result_of.hpp>`]
+* xref:sender_factories.adoc#_just_result_of[`just_result_of`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just_result_of.hpp[`#include <async/just_result_of.hpp>`]
+* xref:sender_factories.adoc#_just_stopped[`just_stopped`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[`#include <async/just.hpp>`]
+* xref:sender_adaptors.adoc#_let_error[`let_error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_error.hpp[`#include <async/let_error.hpp>`]
+* xref:sender_adaptors.adoc#_let_stopped[`let_stopped`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_stopped.hpp[`#include <async/let_stopped.hpp>`]
+* xref:sender_adaptors.adoc#_let_value[`let_value`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_value.hpp[`#include <async/let_value.hpp>`]
+* xref:variant_senders.adoc#_variant_senders[`make_variant_sender`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/variant_sender.hpp[`#include <async/variant_sender.hpp>`]
+* `multishot_sender<S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `operation_state<O>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `priority_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
+* `priority_task_manager<HAL, NumPriorities>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[`#include <async/schedulers/task_manager.hpp>`]
+* xref:sender_factories.adoc#_read_env[`read_env`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
+* `receiver<R>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `receiver_base` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `receiver_from<R, S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* xref:sender_adaptors.adoc#_repeat[`repeat`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[`#include <async/repeat.hpp>`]
+* xref:sender_adaptors.adoc#_repeat_n[`repeat_n`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[`#include <async/repeat.hpp>`]
+* xref:sender_adaptors.adoc#_repeat_until[`repeat_until`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[`#include <async/repeat.hpp>`]
+* `requeue_policy::immediate` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[`#include <async/schedulers/task_manager.hpp>`]
+* `requeue_policy::deferred` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[`#include <async/schedulers/task_manager.hpp>`]
+* xref:sender_adaptors.adoc#_retry[`retry`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/retry.hpp[`#include <async/retry.hpp>`]
+* xref:sender_adaptors.adoc#_retry_until[`retry_until`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/retry.hpp[`#include <async/retry.hpp>`]
+* xref:schedulers.adoc#_runloop_scheduler[`runloop_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/runloop_scheduler.hpp[`#include <async/schedulers/runloop_scheduler.hpp>`]
+* `scheduler<S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `sender<S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `sender_base` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `sender_in<S, E>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `sender_of<S, Sig, E>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* `sender_to<S, R>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* xref:sender_adaptors.adoc#_sequence[`seq`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/sequence.hpp[`#include <async/sequence.hpp>`]
+* xref:sender_adaptors.adoc#_sequence[`sequence`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/sequence.hpp[`#include <async/sequence.hpp>`]
+* `set_error` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/tags.hpp[`#include <async/tags.hpp>`]
+* `set_stopped` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/tags.hpp[`#include <async/tags.hpp>`]
+* `set_value` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/tags.hpp[`#include <async/tags.hpp>`]
+* `singleshot_sender<S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* xref:sender_adaptors.adoc#_split[`split`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/split.hpp[`#include <async/split.hpp>`]
+* xref:attributes.adoc#_allocator[`stack_allocator`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stack_allocator.hpp[`#include <async/stack_allocator.hpp>`]
+* `start` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/tags.hpp[`#include <async/tags.hpp>`]
+* xref:sender_consumers.adoc#_start_detached[`start_detached`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/start_detached.hpp[`#include <async/start_detached.hpp>`]
+* xref:sender_consumers.adoc#_start_detached_unstoppable[`start_detached_unstoppable`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/start_detached.hpp[`#include <async/start_detached.hpp>`]
+* xref:sender_adaptors.adoc#_start_on[`start_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/start_on.hpp[`#include <async/start_on.hpp>`]
+* `static_allocation_limit<Domain>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/static_allocator.hpp[`#include <async/static_allocator.hpp>`]
+* xref:attributes.adoc#_allocator[`static_allocator`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/static_allocator.hpp[`#include <async/static_allocator.hpp>`]
+* `stop_token_of_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stop_token.hpp[`#include <async/stop_token.hpp>`]
+* xref:sender_adaptors.adoc#_when_any[`stop_when`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_any.hpp[`#include <async/when_any.hpp>`]
+* xref:sender_consumers.adoc#_sync_wait[`sync_wait`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/sync_wait.hpp[`#include <async/sync_wait.hpp>`]
+* `task_mgr::is_idle()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
+* `task_mgr::service_tasks<P>()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
+* xref:sender_adaptors.adoc#_then[`then`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
+* xref:schedulers.adoc#_thread_scheduler[`thread_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/thread_scheduler.hpp[`#include <async/schedulers/thread_scheduler.hpp>`]
+* xref:schedulers.adoc#_time_scheduler[`time_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/time_scheduler.hpp[`#include <async/schedulers/time_scheduler.hpp>`]
+* `timer_mgr::is_idle()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
+* `timer_mgr::service_task()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
+* `timer_mgr::time_point_for` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
+* xref:sender_adaptors.adoc#_upon_error[`upon error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
+* xref:sender_adaptors.adoc#_upon_stopped[`upon stopped`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
+* xref:sender_adaptors.adoc#_when_all[`when_all`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_all.hpp[`#include <async/when_all.hpp>`]
+* xref:sender_adaptors.adoc#_when_any[`when_any`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_any.hpp[`#include <async/when_any.hpp>`]
