@@ -1,0 +1,173 @@
+
+== Index
+
+=== By header
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[allocator.hpp]
+* `allocator` - a concept for an xref:attributes.adoc#_allocator[`allocator`]
+* `allocator_of_t` - the type returned by `get_allocator`
+* `get_allocator` - a tag used to retrieve an allocator from a sender's attributes
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/completion_scheduler.hpp[completion_scheduler.hpp]
+* `get_completion_scheduler` - a tag used to retrieve a completion_scheduler from a sender's attributes
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[concepts.hpp]
+* `operation_state<O>` - a concept modelled by operation states
+* `receiver<R>` - a concept modelled by receivers
+* `receiver_base` - an empty type; deriving from this opts in to modelling the `receiver` concept
+* `receiver_from<R, S>` - a concept modelled by a receiver `R` that handles what a sender `S` sends
+* `multishot_sender<S>` - a concept modelled by senders where `connect` may operate on lvalues
+* `scheduler<S>` - a concept modelled by schedulers
+* `sender<S>` - a concept modelled by senders
+* `sender_base` - an empty type; deriving from this opts in to modelling the `sender` concept
+* `sender_in<S, E>` - a concept modelled by a sender `S` whose completion signatures depend on an environment `E`
+* `sender_of<S, Sig, E>` - a concept modelled by a sender `S` that may complete with `Sig` given environment `E`
+* `sender_to<S, R>` - the inverse of `receiver_from<R, S>`
+* `singleshot_sender<S>` - a concept modelled by senders where `connect` operates on rvalues only
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/continue_on.hpp[continue_on.hpp]
+* `continue_on` - a xref:sender_adaptors.adoc#_continue_on[sender adaptor] that continues execution on another scheduler
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/env.hpp[env.hpp]
+* `get_env` - a tag used to retrieve the xref:environments.adoc#_environments[environment] of a receiver or the xref:attributes.adoc#_sender_attributes[attributes] of a sender
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/forwarding_query.hpp[forwarding_query.hpp]
+* `forwarding_query` - a tag indicating whether or not a query may be forwarded
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[just.hpp]
+* `just` - a xref:sender_factories.adoc#_just[sender factory] that sends on the value channel
+* `just_error` - a xref:sender_factories.adoc#_just_error[sender factory] that sends on the error channel
+* `just_stopped` - a xref:sender_factories.adoc#_just_stopped[sender factory] that sends on the stopped channel
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just_result_of.hpp[just_result_of.hpp]
+* `just_error_result_of` - a xref:sender_factories.adoc#_just_error_result_of[sender factory] that sends lazily computed values on the error channel
+* `just_result_of` - a xref:sender_factories.adoc#_just_result_of[sender factory] that sends lazily computed values on the value channel
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let.hpp[let.hpp]
+An internal header that contains no public-facing identifiers. `let.hpp` is used
+by `let_error.hpp`, `let_stopped.hpp`, and `let_value.hpp`
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_error.hpp[let_error.hpp]
+* `let_error` - a xref:sender_adaptors.adoc#_let_error[sender adaptor] that can make runtime decisions on the error channel
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_stopped.hpp[let_stopped.hpp]
+* `let_stopped` - a xref:sender_adaptors.adoc#_let_stopped[sender adaptor] that can make runtime decisions on the stopped channel
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_value.hpp[let_value.hpp]
+* `let_value` - a xref:sender_adaptors.adoc#_let_value[sender adaptor] that can make runtime decisions on the value channel
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[read_env.hpp]
+* `get_scheduler` - a sender factory equivalent to `read_env(get_scheduler_t{})`
+* `get_stop_token` - a sender factory equivalent to `read_env(get_stop_token_t{})`
+* `read_env` - a xref:sender_factories.adoc#_read_env[sender factory] that sends values obtained from a receiver's environment
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[repeat.hpp]
+* `repeat` - a xref:sender_adaptors.adoc#_repeat[sender adaptor] that repeats a sender indefinitely
+* `repeat_n` - a xref:sender_adaptors.adoc#_repeat_n[sender adaptor] that repeats a sender a set number of times
+* `repeat_until` - a xref:sender_adaptors.adoc#_repeat_until[sender adaptor] that repeats a sender until a condition becomes true
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/retry.hpp[retry.hpp]
+* `retry` - a xref:sender_adaptors.adoc#_retry[sender adaptor] that retries a sender that completes with an error
+* `retry_until` - a xref:sender_adaptors.adoc#_retry_until[sender adaptor] that retries an error-completing sender until a condition becomes true
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/inline_scheduler.hpp[schedulers/inline_scheduler.hpp]
+* `inline_scheduler` - a xref:schedulers.adoc#_inline_scheduler[scheduler] that completes inline as if by a normal function call
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/priority_scheduler.hpp[schedulers/priority_scheduler.hpp]
+* `fixed_priority_scheduler<P>` - a xref:schedulers.adoc#_fixed_priority_scheduler[scheduler] that completes on a priority interrupt
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/runloop_scheduler.hpp[schedulers/runloop_scheduler.hpp]
+* `runloop_scheduler` - a xref:schedulers.adoc#_runloop_scheduler[scheduler] that allows further work to be added during execution, and is used by xref:sender_consumers.adoc#_sync_wait[`sync_wait`]
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task.hpp[schedulers/task.hpp]
+An internal header that contains no public-facing identifiers. `task.hpp`
+defines base classes that are used by
+xref:schedulers.adoc#_fixed_priority_scheduler[fixed_priority_scheduler] and
+xref:schedulers.adoc#_time_scheduler[time_scheduler].
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[schedulers/task_manager.hpp]
+* `priority_task_manager<HAL, NumPriorities>` - an implementation of a task
+  manager that can be used with
+  xref:schedulers.adoc#_fixed_priority_scheduler[fixed_priority_scheduler]
+* `requeue_policy::immediate` - a policy used with `priority_task_manager::service_tasks()`
+* `requeue_policy::deferred` - the default policy used with `priority_task_manager::service_tasks()`
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[schedulers/task_manager_interface.hpp]
+* `injected_task_manager<>` - a variable template used to inject a specific implementation of a priority task manager
+* `priority_t` - a type used for priority values
+* `task_mgr::is_idle()` - a function that returns `true` when no priority tasks are queued
+* `task_mgr::service_tasks<P>()` - an ISR function used to execute tasks at a given priority
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/thread_scheduler.hpp[schedulers/thread_scheduler.hpp]
+* `thread_scheduler` - a xref:schedulers.adoc#_thread_scheduler[scheduler] that completes on a newly created thread
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/time_scheduler.hpp[schedulers/time_scheduler.hpp]
+* `time_scheduler` - a xref:schedulers.adoc#_time_scheduler[scheduler] that completes on a timer interrupt
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager.hpp[schedulers/timer_manager.hpp]
+* `generic_timer_manager<HAL>` - an implementation of a timer manager that can
+  be used with xref:schedulers.adoc#_time_scheduler[time_scheduler]
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[schedulers/timer_manager_interface.hpp]
+* `injected_timer_manager<>` - a variable template used to inject a specific implementation of a timer manager
+* `timer_mgr::is_idle()` - a function that returns `true` when no timer tasks are queued
+* `timer_mgr::service_task()` - an ISR function used to execute the next timer task
+* `timer_mgr::time_point_for` - a class template that can be specialized to specify a `time_point` type corresponding to a `duration` type
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/sequence.hpp[sequence.hpp]
+* `sequence` - a xref:sender_adaptors.adoc#_sequence[sender adaptor] that sequences two senders
+* `seq` - a xref:sender_adaptors.adoc#_sequence[sender adaptor] used to sequence two senders without typing a lambda expression
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/split.hpp[split.hpp]
+* `split` - a xref:sender_adaptors.adoc#_split[sender adaptor] that turns a single-shot sender into a multi-shot sender
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/stack_allocator.hpp[stack_allocator.hpp]
+* `stack_allocator` - an xref:attributes.adoc#_allocator[`allocator`] that allocates on the stack
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/start_detached.hpp[start_detached.hpp]
+* `start_detached`- a xref:sender_consumers.adoc#_start_detached[sender consumer] that starts a sender without waiting for it to complete
+* `start_detached_unstoppable`- a xref:sender_consumers.adoc#_start_detached_unstoppable[sender consumer] that starts a sender without waiting for it to complete, without a provision for cancellation
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/start_on.hpp[start_on.hpp]
+* `start_on` - a xref:sender_adaptors.adoc#_start_on[sender adaptor] that starts execution on a given scheduler
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/static_allocator.hpp[static_allocator.hpp]
+* `static_allocator` - an xref:attributes.adoc#_allocator[`allocator`] that allocates using static storage
+* `static_allocation_limit<Domain>` - a variable template that can be specialized to customize the allocation limit for a domain
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/stop_token.hpp[stop_token.hpp]
+* `get_stop_token` - a tag used to retrieve a `stop_token` from a receiver's environment
+* `inplace_stop_source` - a https://en.cppreference.com/w/cpp/thread/stop_source[stop source] that can be used to control cancellation
+* `inplace_stop_token`- a https://en.cppreference.com/w/cpp/thread/stop_token[stop token] corresponding to `inplace_stop_source`
+* `stop_token_of_t` - the type returned by `get_stop_token`
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/sync_wait.hpp[sync_wait.hpp]
+* `sync_wait`- a xref:sender_consumers.adoc#_sync_wait[sender consumer] that starts a sender and waits for it to complete
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/tags.hpp[tags.hpp]
+* `connect` - a tag used to connect a sender with a receiver
+* `get_scheduler` - a query used to get a scheduler from a receiver's environment
+* `set_error` - a tag used to complete on the error channel
+* `set_stopped` - a tag used to complete on the stopped channel
+* `set_value` - a tag used to complete on the value channel
+* `start` - a tag used to start an operation state
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/then.hpp[then.hpp]
+* `then` - a xref:sender_adaptors.adoc#_then[sender adaptor] that transforms what a sender sends on the value channel
+* `upon error` - a xref:sender_adaptors.adoc#_upon_error[sender adaptor] that transforms what a sender sends on the error channel
+* `upon stopped` - a xref:sender_adaptors.adoc#_upon_stopped[sender adaptor] that transforms what a sender sends on the stopped channel
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/type_traits.hpp[type_traits.hpp]
+An internal header that contains no public-facing identifiers. `type_traits.hpp`
+contains traits and metaprogramming constructs used by many senders.
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/variant_sender.hpp[variant_sender.hpp]
+* `make_variant_sender` - a function used to create a xref:variant_senders.adoc#_variant_senders[sender] returned from `let_value`
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/when_all.hpp[when_all.hpp]
+* `when_all` - an n-ary xref:sender_adaptors.adoc#_when_all[sender adaptor] that completes when all of its child senders complete
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/when_any.hpp[when_any.hpp]
+* `first_successful` - a xref:sender_adaptors.adoc#_when_any[sender adaptor] that completes when any of its child senders complete on the value channel
+* `stop_when` - a binary xref:sender_adaptors.adoc#_when_any[sender adaptor] equivalent to `when_any`
+* `when_any` - an n-ary xref:sender_adaptors.adoc#_when_any[sender adaptor] that completes when any of its child senders complete on the value or error channels
