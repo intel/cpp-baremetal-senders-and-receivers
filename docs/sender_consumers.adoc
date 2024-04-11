@@ -3,6 +3,8 @@
 
 === `start_detached`
 
+Found in the header: `async/start_detached.hpp`
+
 `start_detached` takes a sender, connects and starts it, and returns, leaving
 the work running detached. The return value is a
 https://intel.github.io/cpp-std-extensions/#_optional_hpp[`stdx::optional`]. If
@@ -37,6 +39,8 @@ the result of `start_detached` is an empty optional.
 
 === `start_detached_unstoppable`
 
+Found in the header: `async/start_detached.hpp`
+
 `start_detached_unstoppable` behaves identically to `start_detached`, except
 that the returned optional value contains a pointer to a `never_stop_source`,
 which has the same interface as an
@@ -51,6 +55,8 @@ auto result = async::start_detached_unstoppable<struct Name>(s);
 ----
 
 === `sync_wait`
+
+Found in the header: `async/sync_wait.hpp`
 
 `sync_wait` takes a sender and:
 

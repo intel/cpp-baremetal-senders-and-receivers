@@ -3,6 +3,8 @@
 
 === `just`
 
+Found in the header: `async/just.hpp`
+
 `just` returns a sender that produces the provided values.
 
 [source,cpp]
@@ -20,6 +22,8 @@ continuation monad.
 
 === `just_error`
 
+Found in the header: `async/just.hpp`
+
 `just_error` is like `just`, but instead of completing by calling `set_value` on
 a receiver, it will call `set_error`.
 
@@ -30,6 +34,8 @@ auto sndr = async::just_error(42);
 ----
 
 === `just_error_result_of`
+
+Found in the header: `async/just_result_of.hpp`
 
 `just_error_result_of` is like `just_error`, but instead of taking raw values, it takes
 functions that produce values.
@@ -53,6 +59,8 @@ unary function. However `just_error_result_of` is an n-ary function: exactly one
 of the functions passed must return something other than `void`.
 
 === `just_result_of`
+
+Found in the header: `async/just_result_of.hpp`
 
 `just_result_of` is like `just`, but instead of taking raw values, it takes
 functions that produce values.
@@ -83,7 +91,22 @@ auto s = async::just_result_of([] { return 42; });
 auto s = async::just() | async::then([] { return 42; });
 ----
 
+=== `just_stopped`
+
+Found in the header: `async/just.hpp`
+
+`just_stopped` is like `just`, but instead of completing by calling `set_value` on
+a receiver, it will call `set_stopped`.
+
+[source,cpp]
+----
+auto sndr = async::just_stopped();
+// sndr completes on the stopped channel
+----
+
 === `read_env`
+
+Found in the header: `async/read_env.hpp`
 
 `read_env` takes a _tag_ and returns a sender that sends the value denoted by
 that tag, pulled from the environment of the receiver the sender is
@@ -95,7 +118,7 @@ auto s = async::read_env(async::get_stop_token_t{});
 // when connected to a receiver, s will send the stop token from that receiver's environment
 ----
 
-`read` has some built-in aliases for well-known tags:
+`read_env` has some built-in aliases for well-known tags:
 [source,cpp]
 ----
 auto s1 = async::get_stop_token(); // same as async::read_env(async::get_stop_token_t{});
@@ -103,6 +126,8 @@ auto s2 = async::get_scheduler();  // same as async::read_env(async::get_schedul
 ----
 
 === `schedule`
+
+See xref:schedulers.adoc#_schedulers_2[`Schedulers`].
 
 A _scheduler_'s `schedule` function returns a sender that produces nothing, but
 represents running on that scheduler's compute resource. We can chain more work

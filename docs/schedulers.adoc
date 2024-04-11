@@ -3,6 +3,8 @@
 
 === `fixed_priority_scheduler`
 
+Found in the header: `async/schedulers/priority_scheduler.hpp`
+
 A `fixed_priority_scheduler` represents work that will be run at a certain priority.
 
 [source,cpp]
@@ -57,6 +59,8 @@ async::task_mgr::service_tasks<0>();
 
 === `inline_scheduler`
 
+Found in the header: `async/schedulers/inline_scheduler.hpp`
+
 The most basic scheduler is the `inline_scheduler`. It runs work with a regular
 function call in the current execution context. It's the degenerate case as far
 as concurrency goes; starting the work also completes it.
@@ -77,6 +81,8 @@ xref:sender_adaptors.adoc#_retry[`retry`].
 
 === `runloop_scheduler`
 
+Found in the header: `async/schedulers/runloop_scheduler.hpp`
+
 The `runloop_scheduler` adds any work to a queue that is executed in order. It
 is used as a completion scheduler inside
 xref:sender_consumers.adoc#_sync_wait[`sync_wait`].
@@ -96,6 +102,8 @@ schedule work.
 
 === `thread_scheduler`
 
+Found in the header: `async/schedulers/thread_scheduler.hpp`
+
 The `thread_scheduler` is a basic scheduler that runs work on a newly-created
 thread that is detached.
 
@@ -110,6 +118,8 @@ async::start_detached(s);
 ----
 
 === `time_scheduler`
+
+Found in the header: `async/schedulers/time_scheduler.hpp`
 
 A `time_scheduler` represents work that will be run after a certain duration has
 elapsed.
