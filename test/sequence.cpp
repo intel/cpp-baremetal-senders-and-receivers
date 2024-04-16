@@ -165,3 +165,48 @@ TEST_CASE("sequence propagates forwarding queries multiple levels",
     auto seq = async::just() | async::seq(s);
     CHECK(get_fwd(async::get_env(seq)) == 42);
 }
+
+namespace {
+struct stateful_env {
+    [[nodiscard]] friend constexpr auto tag_invoke(get_fwd_t,
+                                                   stateful_env const &e)
+        -> int {
+        return e.state;
+    }
+
+    int state{};
+};
+
+struct stateful_sender {
+    using is_sender = void;
+    using completion_signatures =
+        async::completion_signatures<async::set_value_t()>;
+
+    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
+                                                   stateful_sender const &s)
+        -> stateful_env {
+        return {s.state};
+    }
+
+    template <typename R> struct op_state {
+        auto start() -> void { async::set_value(std::move(r)); }
+        [[no_unique_address]] R r;
+    };
+
+    template <typename R>
+    [[nodiscard]] friend constexpr auto tag_invoke(async::connect_t,
+                                                   stateful_sender &&, R &&r)
+        -> op_state<std::remove_cvref_t<R>> {
+        return {std::forward<R>(r)};
+    }
+
+    int state{};
+};
+} // namespace
+
+TEST_CASE(
+    "seq (eagerly-constructed sender) propagates state in forwarding queries",
+    "[sequence]") {
+    auto s = async::just() | async::seq(stateful_sender{1337});
+    CHECK(get_fwd(async::get_env(s)) == 1337);
+}
