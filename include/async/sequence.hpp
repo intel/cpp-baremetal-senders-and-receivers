@@ -5,6 +5,7 @@
 
 #include <stdx/functional.hpp>
 
+#include <concepts>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -68,6 +69,21 @@ struct op_state {
     }
 };
 
+namespace detail {
+template <async::sender S> struct wrapper {
+    using eager_sender_t = S;
+    [[no_unique_address]] S s;
+    [[nodiscard]] constexpr auto operator()() && -> S { return std::move(s); }
+};
+template <typename S> wrapper(S) -> wrapper<S>;
+
+template <typename F>
+concept has_eager_sender = requires(F f) {
+    { std::move(f)() } -> std::same_as<typename F::eager_sender_t>;
+    { f.s } -> std::same_as<typename F::eager_sender_t &>;
+};
+} // namespace detail
+
 template <typename S, std::invocable F> struct sender {
     using is_sender = void;
 
@@ -113,11 +129,16 @@ template <typename S, std::invocable F> struct sender {
         return {};
     }
 
-    template <stdx::same_as_unqualified<sender> Self>
-        requires std::is_empty_v<env_of_t<dependent_sender>>
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t, Self &&)
-        -> decltype(forward_env_of(std::declval<dependent_sender>())) {
-        return {};
+    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
+                                                   sender const &sndr)
+        requires detail::has_eager_sender<F> or
+                 std::is_empty_v<env_of_t<dependent_sender>>
+    {
+        if constexpr (detail::has_eager_sender<F>) {
+            return forward_env_of(sndr.f.s);
+        } else {
+            return decltype(forward_env_of(std::declval<dependent_sender>())){};
+        }
     }
 };
 
@@ -131,14 +152,6 @@ template <std::invocable F> struct pipeable {
                                                  std::forward<Self>(self).f};
     }
 };
-
-template <async::sender S> struct wrapper {
-    [[no_unique_address]] S s;
-    [[nodiscard]] constexpr auto operator()() && -> S && {
-        return std::move(s);
-    }
-};
-template <typename S> wrapper(S) -> wrapper<S>;
 } // namespace _sequence
 
 template <std::invocable F>
@@ -153,6 +166,6 @@ template <sender S, std::invocable F>
 }
 
 template <sender S> [[nodiscard]] constexpr auto seq(S &&s) {
-    return sequence(_sequence::wrapper{std::forward<S>(s)});
+    return sequence(_sequence::detail::wrapper{std::forward<S>(s)});
 }
 } // namespace async
