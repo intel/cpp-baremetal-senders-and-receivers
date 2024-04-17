@@ -53,19 +53,20 @@ class inline_scheduler {
     };
 
     class multishot_sender : public sender_base {
-        template <stdx::same_as_unqualified<multishot_sender> S,
-                  receiver_from<multishot_sender> R>
+        template <stdx::same_as_unqualified<multishot_sender> S, receiver R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r)
             -> op_state<R> {
+            check_connect<S, R>();
             return {std::forward<R>(r)};
         }
     };
 
     class singleshot_sender : public sender_base {
-        template <receiver_from<singleshot_sender> R>
+        template <receiver R>
         [[nodiscard]] friend constexpr auto
         // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
         tag_invoke(connect_t, singleshot_sender &&, R &&r) -> op_state<R> {
+            check_connect<singleshot_sender &&, R>();
             return {std::forward<R>(r)};
         }
     };

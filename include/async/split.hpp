@@ -196,10 +196,11 @@ template <typename Sndr, typename Uniq> struct sender {
         return {};
     }
 
-    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+    template <stdx::same_as_unqualified<sender> Self, receiver R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
+        check_connect<Self, R>();
         if (not op_state_t::single_ops) {
             op_state_t::single_ops.emplace(stdx::with_result_of{
                 [&]()

@@ -95,19 +95,21 @@ template <typename S, std::invocable F> struct sender {
     static_assert(async::sender<dependent_sender>,
                   "The function passed to sequence must return a sender");
 
-    template <receiver_from<sender> R>
+    template <async::receiver R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
                                                    R &&r)
         -> op_state<S, F, std::remove_cvref_t<R>> {
+        check_connect<sender &&, R>();
         return {std::move(self).s, std::move(self).f, std::forward<R>(r)};
     }
 
-    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+    template <stdx::same_as_unqualified<sender> Self, async::receiver R>
         requires multishot_sender<S> and std::copy_constructible<S> and
                  std::copy_constructible<F>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<S, F, std::remove_cvref_t<R>> {
+        check_connect<Self, R>();
         return {std::forward<Self>(self).s, std::forward<Self>(self).f,
                 std::forward<R>(r)};
     }

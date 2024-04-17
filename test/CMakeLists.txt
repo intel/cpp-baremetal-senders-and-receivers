@@ -48,3 +48,4 @@ add_tests(
     when_any)
 
 add_subdirectory(schedulers)
+add_subdirectory(fail)
