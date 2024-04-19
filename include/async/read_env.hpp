@@ -39,18 +39,20 @@ template <typename Tag> struct sender {
     [[no_unique_address]] Tag t;
 
   private:
-    template <receiver_from<sender> R>
+    template <receiver R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
                                                    R &&r)
         -> op_state<std::remove_cvref_t<R>, Tag> {
+        check_connect<sender &&, R>();
         return {std::forward<R>(r), std::move(self).t};
     }
 
-    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+    template <stdx::same_as_unqualified<sender> Self, receiver R>
         requires std::copy_constructible<Tag>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> op_state<std::remove_cvref_t<R>, Tag> {
+        check_connect<Self, R>();
         return {std::forward<R>(r), std::forward<Self>(self).t};
     }
 };

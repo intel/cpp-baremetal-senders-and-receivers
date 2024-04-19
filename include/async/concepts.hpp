@@ -5,8 +5,10 @@
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/function_traits.hpp>
+#include <stdx/type_traits.hpp>
 
 #include <concepts>
 #include <type_traits>
@@ -151,4 +153,13 @@ concept scheduler = queryable<S> and
                         } -> stdx::same_as_unqualified<S>;
                     } and std::equality_comparable<std::remove_cvref_t<S>> and
                     std::copy_constructible<std::remove_cvref_t<S>>;
+
+template <typename S, typename R> CONSTEVAL auto check_connect() -> void {
+    if constexpr (not receiver_from<R, S>) {
+        static_assert(
+            stdx::always_false_v<S, R,
+                                 completion_signatures_of_t<S, env_of_t<R>>>,
+            "Can't connect sender and receiver!");
+    }
+}
 } // namespace async
