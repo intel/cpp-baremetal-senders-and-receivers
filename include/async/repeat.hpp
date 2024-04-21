@@ -7,6 +7,8 @@
 #include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
 
+#include <boost/mp11/algorithm.hpp>
+
 #include <concepts>
 #include <optional>
 #include <type_traits>
@@ -41,10 +43,27 @@ template <typename Ops, typename Rcvr> struct receiver {
     }
 };
 
-constexpr auto never_stop = [] { return false; };
+constexpr auto never_stop = [](auto &&...) { return false; };
+
+template <typename Pred, typename Sig, typename = void>
+struct is_callable : std::false_type {};
+template <typename Pred, typename... Args>
+struct is_callable<Pred, set_value_t(Args...),
+                   std::void_t<std::invoke_result_t<Pred, Args...>>>
+    : std::true_type {};
+
+template <typename Pred> struct callable_with {
+    template <typename Sig> using fn = is_callable<Pred, Sig>;
+};
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
+template <typename Sndr, typename Rcvr, stdx::callable Pred> struct op_state {
+    using receiver_t = receiver<op_state, Rcvr>;
+    using value_completions = value_signatures_of_t<Sndr, env_of_t<receiver_t>>;
+    static_assert(
+        boost::mp11::mp_all_of_q<value_completions, callable_with<Pred>>::value,
+        "Predicate is not callable with value completions of sender");
+
     template <stdx::same_as_unqualified<Sndr> S,
               stdx::same_as_unqualified<Rcvr> R,
               stdx::same_as_unqualified<Pred> P>
@@ -56,14 +75,14 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
 
     auto restart() -> void {
         auto &op = state.emplace(stdx::with_result_of{
-            [&] { return connect(sndr, receiver<op_state, Rcvr>{this}); }});
+            [&] { return connect(sndr, receiver_t{this}); }});
         start(std::move(op));
     }
 
     template <typename... Args> auto repeat(Args &&...args) -> void {
         if constexpr (not std::same_as<
                           Pred, std::remove_cvref_t<decltype(never_stop)>>) {
-            if (pred()) {
+            if (pred(args...)) {
                 set_value(rcvr, std::forward<Args>(args)...);
                 return;
             }
@@ -75,7 +94,7 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
     [[no_unique_address]] Rcvr rcvr;
     [[no_unique_address]] Pred pred;
 
-    using state_t = async::connect_result_t<Sndr &, receiver<op_state, Rcvr>>;
+    using state_t = async::connect_result_t<Sndr &, receiver_t>;
     std::optional<state_t> state{};
 
   private:
@@ -120,7 +139,7 @@ template <typename Sndr, typename Pred> struct sender {
     }
 };
 
-template <stdx::predicate Pred> struct pipeable {
+template <stdx::callable Pred> struct pipeable {
     Pred p;
 
   private:
@@ -132,14 +151,13 @@ template <stdx::predicate Pred> struct pipeable {
 };
 } // namespace _repeat
 
-template <stdx::predicate P>
+template <typename P>
 [[nodiscard]] constexpr auto repeat_until(P &&p)
     -> _repeat::pipeable<std::remove_cvref_t<P>> {
     return {std::forward<P>(p)};
 }
 
-template <sender S, stdx::predicate P>
-[[nodiscard]] auto repeat_until(S &&s, P &&p) {
+template <sender S, typename P> [[nodiscard]] auto repeat_until(S &&s, P &&p) {
     return std::forward<S>(s) | repeat(std::forward<P>(p));
 }
 
@@ -152,7 +170,7 @@ template <sender S> [[nodiscard]] auto repeat(S &&s) {
 }
 
 [[nodiscard]] constexpr auto repeat_n(unsigned int n) {
-    return repeat_until([n]() mutable { return n-- == 0; });
+    return repeat_until([n](auto &&...) mutable { return n-- == 0; });
 }
 
 template <sender S> [[nodiscard]] auto repeat_n(S &&s, unsigned int n) {

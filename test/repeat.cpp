@@ -58,7 +58,7 @@ TEST_CASE("repeat repeats", "[repeat]") {
 
 TEST_CASE("repeat_until advertises what it sends", "[repeat]") {
     [[maybe_unused]] auto s =
-        async::just(42) | async::repeat_until([] { return true; });
+        async::just(42) | async::repeat_until([](auto) { return true; });
     static_assert(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_value_t(int)>>);
@@ -91,10 +91,10 @@ TEST_CASE("repeat_until completes when true", "[repeat]") {
                    ++var;
                    return async::just(42);
                });
-    auto s = sub | async::repeat_until([&] { return var == 2; });
+    auto s = sub | async::repeat_until([&](auto i) { return i == 42; });
     auto op = async::connect(s, receiver{[&](auto i) { var += i; }});
     async::start(op);
-    CHECK(var == 44);
+    CHECK(var == 43);
 }
 
 TEST_CASE("repeat can be cancelled", "[repeat]") {
