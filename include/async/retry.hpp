@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/tags.hpp>
@@ -7,6 +8,8 @@
 
 #include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
+
+#include <boost/mp11/algorithm.hpp>
 
 #include <concepts>
 #include <optional>
@@ -43,10 +46,27 @@ template <typename Ops, typename Rcvr> struct receiver {
     }
 };
 
-constexpr auto never_stop = [] { return false; };
+constexpr auto never_stop = [](auto &&...) { return false; };
+
+template <typename Pred, typename Sig, typename = void>
+struct is_callable : std::false_type {};
+template <typename Pred, typename... Args>
+struct is_callable<Pred, set_error_t(Args...),
+                   std::void_t<std::invoke_result_t<Pred, Args...>>>
+    : std::true_type {};
+
+template <typename Pred> struct callable_with {
+    template <typename Sig> using fn = is_callable<Pred, Sig>;
+};
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
+    using receiver_t = receiver<op_state, Rcvr>;
+    using value_completions = error_signatures_of_t<Sndr, env_of_t<receiver_t>>;
+    static_assert(
+        boost::mp11::mp_all_of_q<value_completions, callable_with<Pred>>::value,
+        "Predicate is not callable with error completions of sender");
+
     template <stdx::same_as_unqualified<Sndr> S,
               stdx::same_as_unqualified<Rcvr> R,
               stdx::same_as_unqualified<Pred> P>
@@ -58,14 +78,14 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
 
     auto restart() -> void {
         auto &op = state.emplace(stdx::with_result_of{
-            [&] { return connect(sndr, receiver<op_state, Rcvr>{this}); }});
+            [&] { return connect(sndr, receiver_t{this}); }});
         start(std::move(op));
     }
 
     template <typename... Args> auto retry(Args &&...args) -> void {
         if constexpr (not std::same_as<
                           Pred, std::remove_cvref_t<decltype(never_stop)>>) {
-            if (pred()) {
+            if (pred(args...)) {
                 set_error(rcvr, std::forward<Args>(args)...);
                 return;
             }
@@ -77,7 +97,7 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
     [[no_unique_address]] Rcvr rcvr;
     [[no_unique_address]] Pred pred;
 
-    using state_t = async::connect_result_t<Sndr &, receiver<op_state, Rcvr>>;
+    using state_t = async::connect_result_t<Sndr &, receiver_t>;
     std::optional<state_t> state{};
 
   private:
@@ -123,7 +143,7 @@ template <typename Sndr, typename Pred> struct sender {
     }
 };
 
-template <stdx::predicate Pred> struct pipeable {
+template <typename Pred> struct pipeable {
     Pred p;
 
   private:
@@ -135,15 +155,13 @@ template <stdx::predicate Pred> struct pipeable {
 };
 } // namespace _retry
 
-template <stdx::predicate P>
-[[nodiscard]] constexpr auto retry_until(P &&p)
-    -> _retry::pipeable<std::remove_cvref_t<P>> {
-    return {std::forward<P>(p)};
+template <typename P> [[nodiscard]] constexpr auto retry_until(P &&p) {
+    return _compose::adaptor{stdx::tuple{
+        _retry::pipeable<std::remove_cvref_t<P>>{std::forward<P>(p)}}};
 }
 
-template <sender S, stdx::predicate P>
-[[nodiscard]] auto retry_until(S &&s, P &&p) {
-    return std::forward<S>(s) | retry(std::forward<P>(p));
+template <sender S, typename P> [[nodiscard]] auto retry_until(S &&s, P &&p) {
+    return std::forward<S>(s) | retry_until(std::forward<P>(p));
 }
 
 [[nodiscard]] constexpr auto retry() { return retry_until(_retry::never_stop); }

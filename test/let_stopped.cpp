@@ -55,6 +55,17 @@ TEST_CASE("let_stopped is pipeable", "[let_stopped]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("let_stopped is adaptor-pipeable", "[let_stopped]") {
+    int value{};
+
+    auto l = async::let_stopped([] { return async::just_stopped(); }) |
+             async::let_stopped([] { return async::just(42); });
+    auto op = async::connect(async::just_stopped() | l,
+                             receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
 TEST_CASE("move-only value", "[let_stopped]") {
     int value{};
 

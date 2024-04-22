@@ -114,6 +114,25 @@ TEST_CASE("continue_on is pipeable", "[continue_on]") {
     CHECK(test_scheduler<2>::schedule_calls == 1);
 }
 
+TEST_CASE("continue_on is adaptor-pipeable", "[continue_on]") {
+    test_scheduler<1>::schedule_calls = 0;
+    test_scheduler<2>::schedule_calls = 0;
+    int value{};
+
+    auto sched1 = test_scheduler<1>{};
+    auto sched2 = test_scheduler<2>{};
+
+    auto n = async::then([] { return 42; }) | async::continue_on(sched2) |
+             async::then([](auto i) { return i + 17; });
+    auto op = async::connect(sched1.schedule() | n,
+                             receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 59);
+
+    CHECK(test_scheduler<1>::schedule_calls == 1);
+    CHECK(test_scheduler<2>::schedule_calls == 1);
+}
+
 TEST_CASE("continue_on advertises pass-through completions", "[continue_on]") {
     auto sched = test_scheduler<1>{};
     [[maybe_unused]] auto t = async::just_error(42) | async::continue_on(sched);

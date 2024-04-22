@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/let.hpp>
 #include <async/tags.hpp>
@@ -16,10 +17,10 @@ template <typename S, typename F>
 using sender = _let::sender<S, F, set_error_t>;
 } // namespace _let_error
 
-template <stdx::callable F>
-[[nodiscard]] constexpr auto let_error(F &&f)
-    -> _let::pipeable<std::remove_cvref_t<F>, _let_error::sender> {
-    return {std::forward<F>(f)};
+template <stdx::callable F> [[nodiscard]] constexpr auto let_error(F &&f) {
+    return _compose::adaptor{
+        stdx::tuple{_let::pipeable<std::remove_cvref_t<F>, _let_error::sender>{
+            std::forward<F>(f)}}};
 }
 
 template <sender S, stdx::callable F>

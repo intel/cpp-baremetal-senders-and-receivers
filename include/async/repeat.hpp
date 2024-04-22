@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
@@ -151,10 +152,9 @@ template <stdx::callable Pred> struct pipeable {
 };
 } // namespace _repeat
 
-template <typename P>
-[[nodiscard]] constexpr auto repeat_until(P &&p)
-    -> _repeat::pipeable<std::remove_cvref_t<P>> {
-    return {std::forward<P>(p)};
+template <typename P> [[nodiscard]] constexpr auto repeat_until(P &&p) {
+    return _compose::adaptor{stdx::tuple{
+        _repeat::pipeable<std::remove_cvref_t<P>>{std::forward<P>(p)}}};
 }
 
 template <sender S, typename P> [[nodiscard]] auto repeat_until(S &&s, P &&p) {
