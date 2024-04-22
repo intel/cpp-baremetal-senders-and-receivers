@@ -3,7 +3,7 @@
 #include <async/concepts.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
-#include <async/sequence.hpp>
+#include <async/start_on.hpp>
 
 #include <stdx/concepts.hpp>
 
@@ -19,12 +19,12 @@ template <typename Sched> struct pipeable {
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
         return std::forward<S>(s) |
-               let_value(
-                   [sch = std::forward<Self>(self).sched]<typename... Args>(
-                       Args &&...args) mutable {
-                       return sch.schedule() |
-                              seq(async::just(std::forward<Args>(args)...));
-                   });
+               let_value([sch =
+                              std::forward<Self>(self).sched]<typename... Args>(
+                             Args &&...args) mutable {
+                   return start_on(sch,
+                                   async::just(std::forward<Args>(args)...));
+               });
     }
 };
 } // namespace _continue_on
