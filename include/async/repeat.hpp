@@ -157,16 +157,16 @@ template <typename P>
     return {std::forward<P>(p)};
 }
 
+template <sender S, typename P> [[nodiscard]] auto repeat_until(S &&s, P &&p) {
+    return std::forward<S>(s) | repeat_until(std::forward<P>(p));
+}
+
 [[nodiscard]] constexpr auto repeat() {
     return repeat_until(_repeat::never_stop);
 }
 
 template <sender S> [[nodiscard]] auto repeat(S &&s) {
     return std::forward<S>(s) | repeat();
-}
-
-template <sender S, typename P> [[nodiscard]] auto repeat_until(S &&s, P &&p) {
-    return std::forward<S>(s) | repeat(std::forward<P>(p));
 }
 
 [[nodiscard]] constexpr auto repeat_n(unsigned int n) {
