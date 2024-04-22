@@ -79,6 +79,18 @@ TEST_CASE("let_value is pipeable", "[let_value]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("let_value is adaptor-pipeable", "[let_value]") {
+    int value{};
+
+    auto l = async::let_value([] { return async::just(42); }) |
+             async::let_value([](int i) { return async::just(i * 2); });
+    auto sched = async::inline_scheduler{};
+    auto op = async::connect(sched.schedule() | l,
+                             receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 84);
+}
+
 TEST_CASE("move-only value", "[let_value]") {
     int value{};
 

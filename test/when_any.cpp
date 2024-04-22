@@ -237,6 +237,17 @@ TEST_CASE("stop_when is pipeable", "[when_any]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("stop_when is adaptor-pipeable", "[when_any]") {
+    int value{};
+    auto w = async::then([] { return 42; }) | async::stop_when(async::just(17));
+    auto op = async::connect(async::just() | w, receiver{[&](auto i) {
+                                 CHECK(value == 0);
+                                 value = i;
+                             }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
 TEST_CASE("when_any with zero args never completes", "[when_any]") {
     int value{};
     [[maybe_unused]] auto w = async::when_any();

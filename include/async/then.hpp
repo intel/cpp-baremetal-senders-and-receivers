@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
@@ -243,10 +244,10 @@ template <typename Tag, typename... Fs> struct pipeable {
 };
 } // namespace _then
 
-template <stdx::callable... Fs>
-[[nodiscard]] constexpr auto then(Fs &&...fs)
-    -> _then::pipeable<set_value_t, std::remove_cvref_t<Fs>...> {
-    return {std::forward<Fs>(fs)...};
+template <stdx::callable... Fs> [[nodiscard]] constexpr auto then(Fs &&...fs) {
+    return _compose::adaptor<
+        _then::pipeable<set_value_t, std::remove_cvref_t<Fs>...>>{
+        std::forward<Fs>(fs)...};
 }
 
 template <sender S, stdx::callable... Fs>
@@ -254,10 +255,10 @@ template <sender S, stdx::callable... Fs>
     return std::forward<S>(s) | then(std::forward<Fs>(fs)...);
 }
 
-template <stdx::callable F>
-[[nodiscard]] constexpr auto upon_error(F &&f)
-    -> _then::pipeable<set_error_t, std::remove_cvref_t<F>> {
-    return {std::forward<F>(f)};
+template <stdx::callable F> [[nodiscard]] constexpr auto upon_error(F &&f) {
+    return _compose::adaptor<
+        _then::pipeable<set_error_t, std::remove_cvref_t<F>>>{
+        std::forward<F>(f)};
 }
 
 template <sender S, stdx::callable F>
@@ -265,14 +266,15 @@ template <sender S, stdx::callable F>
     return std::forward<S>(s) | upon_error(std::forward<F>(f));
 }
 
-template <stdx::callable F>
-[[nodiscard]] constexpr auto upon_stopped(F &&f)
-    -> _then::pipeable<set_stopped_t, std::remove_cvref_t<F>> {
-    return {std::forward<F>(f)};
+template <stdx::callable F> [[nodiscard]] constexpr auto upon_stopped(F &&f) {
+    return _compose::adaptor<
+        _then::pipeable<set_stopped_t, std::remove_cvref_t<F>>>{
+        std::forward<F>(f)};
 }
 
 template <sender S, stdx::callable F>
 [[nodiscard]] constexpr auto upon_stopped(S &&s, F &&f) -> sender auto {
     return std::forward<S>(s) | upon_stopped(std::forward<F>(f));
 }
+
 } // namespace async

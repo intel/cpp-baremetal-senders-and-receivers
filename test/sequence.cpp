@@ -75,6 +75,16 @@ TEST_CASE("sequence is pipeable", "[sequence]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("sequence is adaptor-pipeable", "[sequence]") {
+    int value{};
+    auto s = async::sequence([] { return async::just(17); }) |
+             async::sequence([] { return async::just(42); });
+    auto op =
+        async::connect(async::just() | s, receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
 TEST_CASE("move-only first sender", "[sequence]") {
     int value{};
     auto s = async::sequence(async::just(move_only{17}),

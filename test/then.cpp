@@ -55,6 +55,18 @@ TEST_CASE("then is pipeable", "[then]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("then is adaptor-pipeable", "[then]") {
+    int value{};
+
+    auto n = async::then([] { return 42; }) |
+             async::then([](int i) { return i * 2; });
+    auto sched = async::inline_scheduler{};
+    auto op = async::connect(sched.schedule() | n,
+                             receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 84);
+}
+
 TEST_CASE("then can send nothing", "[then]") {
     int value{};
 

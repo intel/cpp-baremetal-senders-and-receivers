@@ -30,9 +30,10 @@ template <typename Sched> struct pipeable {
 } // namespace _continue_on
 
 template <typename Sched>
-[[nodiscard]] constexpr auto continue_on(Sched &&sched)
-    -> _continue_on::pipeable<std::remove_cvref_t<Sched>> {
-    return {std::forward<Sched>(sched)};
+[[nodiscard]] constexpr auto continue_on(Sched &&sched) {
+    return _compose::adaptor{
+        stdx::tuple{_continue_on::pipeable<std::remove_cvref_t<Sched>>{
+            std::forward<Sched>(sched)}}};
 }
 
 template <sender S, typename Sched>

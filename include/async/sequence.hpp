@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/tags.hpp>
 
@@ -156,10 +157,9 @@ template <std::invocable F> struct pipeable {
 };
 } // namespace _sequence
 
-template <std::invocable F>
-[[nodiscard]] constexpr auto sequence(F &&f)
-    -> _sequence::pipeable<std::remove_cvref_t<F>> {
-    return {std::forward<F>(f)};
+template <std::invocable F> [[nodiscard]] constexpr auto sequence(F &&f) {
+    return _compose::adaptor{stdx::tuple{
+        _sequence::pipeable<std::remove_cvref_t<F>>{std::forward<F>(f)}}};
 }
 
 template <sender S, std::invocable F>

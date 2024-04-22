@@ -72,6 +72,17 @@ TEST_CASE("let_error is pipeable", "[let_error]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("let_error is adaptor-pipeable", "[let_error]") {
+    int value{};
+
+    auto l = async::let_error([](int) { return async::just_error(42); }) |
+             async::let_error([](int i) { return async::just(i * 2); });
+    auto op = async::connect(async::just_error(0) | l,
+                             receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 84);
+}
+
 TEST_CASE("move-only value", "[let_error]") {
     int value{};
 

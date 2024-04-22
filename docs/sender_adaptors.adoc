@@ -146,7 +146,7 @@ given predicate returns true.
 [source,cpp]
 ----
 // this is the same as repeat_n(0), i.e. just run once
-auto s = some_sender | async::repeat_until([] (auto&&...){ return true; });
+auto s = some_sender | async::repeat_until([] (auto&&...) { return true; });
 ----
 
 NOTE: The arguments passed to the predicate are those in the value completion(s)
@@ -175,7 +175,16 @@ xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`].
 Found in the header: `async/retry.hpp`
 
 `retry_until` works like `retry`, but takes a predicate. If the predicate
-returns false, `retry_until` can complete on the error channel.
+returns true, `retry_until` can complete on the error channel.
+
+[source,cpp]
+----
+// this is the same as just running the sender
+auto s = some_sender | async::retry_until([] (auto&&) { return true; });
+----
+
+NOTE: The arguments passed to the predicate are those in the error completion(s)
+of the sender.
 
 === `sequence`
 

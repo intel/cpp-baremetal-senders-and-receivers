@@ -62,9 +62,24 @@ TEST_CASE("retry retries on error", "[retry]") {
     CHECK(var == 44);
 }
 
+TEST_CASE("retry is adapter-pipeable", "[retry]") {
+    int var{};
+
+    auto s = async::sequence([&] {
+                 return async::make_variant_sender(
+                     ++var == 2, [] { return async::just(42); },
+                     [] { return async::just_error(17); });
+             }) |
+             async::retry();
+    auto op =
+        async::connect(async::just() | s, receiver{[&](auto i) { var += i; }});
+    async::start(op);
+    CHECK(var == 44);
+}
+
 TEST_CASE("retry_until advertises what it sends", "[retry]") {
     [[maybe_unused]] auto s =
-        async::just_error(42) | async::retry_until([] { return true; });
+        async::just_error(42) | async::retry_until([](auto) { return true; });
     static_assert(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_error_t(int)>>);
@@ -77,7 +92,7 @@ TEST_CASE("retry_until retries on error", "[retry]") {
                    ++var;
                    return async::just_error(17);
                });
-    auto s = sub | async::retry_until([&] { return var == 3; });
+    auto s = sub | async::retry_until([&](auto i) { return i + var == 20; });
     auto op = async::connect(s, receiver{[] {}});
     async::start(op);
     CHECK(var == 3);

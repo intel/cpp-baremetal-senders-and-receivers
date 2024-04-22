@@ -91,8 +91,35 @@ TEST_CASE("repeat_until completes when true", "[repeat]") {
                    ++var;
                    return async::just(42);
                });
+    auto s = async::repeat_until(sub, [&](auto i) { return i == 42; });
+    auto op = async::connect(s, receiver{[&](auto i) { var += i; }});
+    async::start(op);
+    CHECK(var == 43);
+}
+
+TEST_CASE("repeat_until is pipeable", "[repeat]") {
+    int var{};
+
+    auto sub = async::just() | async::sequence([&] {
+                   ++var;
+                   return async::just(42);
+               });
     auto s = sub | async::repeat_until([&](auto i) { return i == 42; });
     auto op = async::connect(s, receiver{[&](auto i) { var += i; }});
+    async::start(op);
+    CHECK(var == 43);
+}
+
+TEST_CASE("repeat_until is adaptor-pipeable", "[repeat]") {
+    int var{};
+
+    auto s = async::sequence([&] {
+                 ++var;
+                 return async::just(42);
+             }) |
+             async::repeat_until([&](auto i) { return i == 42; });
+    auto op =
+        async::connect(async::just() | s, receiver{[&](auto i) { var += i; }});
     async::start(op);
     CHECK(var == 43);
 }

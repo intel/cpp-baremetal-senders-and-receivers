@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/stop_token.hpp>
@@ -379,10 +380,11 @@ template <sender... Sndrs>
     return when_any<_when_any::first_successful>(std::forward<Sndrs>(sndrs)...);
 }
 
-template <sender Trigger>
-[[nodiscard]] constexpr auto stop_when(Trigger &&t)
-    -> _when_any::pipeable<std::remove_cvref_t<Trigger>> {
-    return {std::forward<Trigger>(t)};
+template <typename Trigger>
+[[nodiscard]] constexpr auto stop_when(Trigger &&t) {
+    return _compose::adaptor{
+        stdx::tuple{_when_any::pipeable<std::remove_cvref_t<Trigger>>{
+            std::forward<Trigger>(t)}}};
 }
 
 template <sender Sndr, sender Trigger>
