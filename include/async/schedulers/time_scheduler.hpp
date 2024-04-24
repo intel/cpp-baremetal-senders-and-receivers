@@ -60,7 +60,7 @@ struct op_state<Domain, Duration, Rcvr, Task> final
   private:
     struct stop_callback_fn {
         auto operator()() -> void {
-            if (detail::cancel(*ops)) {
+            if (detail::cancel<Domain>(*ops)) {
                 set_stopped(std::move(ops->rcvr));
             }
         }
