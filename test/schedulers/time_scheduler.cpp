@@ -184,3 +184,22 @@ TEST_CASE("time_scheduler can have different domain", "[time_scheduler]") {
     CHECK(async::timer_mgr::is_idle<alt_domain>());
     CHECK(not enabled<alt_domain>);
 }
+
+TEST_CASE("time_scheduler cancellation works on different domain",
+          "[time_scheduler]") {
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<alt_domain>;
+    auto s = scheduler_factory(10ms);
+    int var{};
+    async::sender auto sndr =
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
+    auto r = stoppable_receiver{[&] { var = 17; }};
+    auto op = async::connect(sndr, r);
+
+    async::start(op);
+    CHECK(enabled<alt_domain>);
+    r.request_stop();
+    CHECK(var == 17);
+    CHECK(async::timer_mgr::is_idle<alt_domain>());
+    CHECK(not enabled<alt_domain>);
+}
