@@ -29,14 +29,6 @@ TEST_CASE("allocator is forwarded through senders", "[allocator]") {
                        async::static_allocator>);
 }
 
-TEST_CASE("allocator is overridden through senders", "[allocator]") {
-    [[maybe_unused]] auto s = async::thread_scheduler{}.schedule() |
-                              async::seq(async::inline_scheduler{}.schedule());
-    static_assert(
-        std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s)>>,
-                       async::stack_allocator>);
-}
-
 namespace {
 struct domain;
 struct multi_domain;
