@@ -4,8 +4,13 @@
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/sequence.hpp>
+#include <async/start_on.hpp>
+#include <async/just_result_of.hpp>
+#include <async/start_detached.hpp>
 #include <async/stack_allocator.hpp>
 #include <async/static_allocator.hpp>
+#include <async/schedulers/task_manager.hpp>
+#include <async/schedulers/priority_scheduler.hpp>
 #include <async/then.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -92,6 +97,53 @@ TEST_CASE("static allocate more than 1", "[allocator]") {
             alloc.destruct<domain>(&p);
         },
         42));
+}
+
+namespace {
+struct hal {
+    static auto schedule(async::priority_t) {}
+};
+
+using task_manager_t = async::priority_task_manager<hal, 8>;
+} // namespace
+
+template <> inline auto async::injected_task_manager<> = task_manager_t{};
+
+TEST_CASE("allocator is forwarded through start_on and start_detached", "[allocator]") {
+    auto var{0};
+    [[maybe_unused]] auto s1 =
+        async::start_on(async::inline_scheduler{}, async::just_result_of([&] {var = 42; })) | async::start_detached<multi_domain>();
+    static_assert(
+        std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s1)>>,
+                       async::static_allocator>);
+
+    CHECK(42 == var);
+}
+
+TEST_CASE("allocation works also for fixed priority scheduler with stack allocator", "[allocator]") {
+    auto var{0};
+    auto s2 =
+        async::start_on(async::fixed_priority_scheduler<0>{}, async::just_result_of([&] { var = 24; })) | async::start_detached();
+
+    CHECK(s2.has_value());
+    async::task_mgr::service_tasks<0>();
+    CHECK(24 == var);
+    static_assert(
+        std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s2)>>,
+                       async::static_allocator>);
+}
+
+TEST_CASE("allocation works also for fixed priority scheduler static allocator", "[allocator]") {
+    auto var{0};
+    auto s2 =
+        async::start_on(async::fixed_priority_scheduler<0>{}, async::just_result_of([&] { var = 24; })) | async::start_detached<multi_domain>();
+
+    CHECK(s2.has_value());
+    async::task_mgr::service_tasks<0>();
+    CHECK(24 == var);
+    static_assert(
+        std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s2)>>,
+                       async::static_allocator>);
 }
 
 namespace {
