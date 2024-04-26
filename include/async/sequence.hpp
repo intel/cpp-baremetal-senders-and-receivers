@@ -131,18 +131,6 @@ template <typename S, std::invocable F> struct sender {
             unchanged_completions<Env>, dependent_completions<Env>>> {
         return {};
     }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   sender const &sndr)
-        requires detail::has_eager_sender<F> or
-                 std::is_empty_v<env_of_t<dependent_sender>>
-    {
-        if constexpr (detail::has_eager_sender<F>) {
-            return forward_env_of(sndr.f.s);
-        } else {
-            return decltype(forward_env_of(std::declval<dependent_sender>())){};
-        }
-    }
 };
 
 template <std::invocable F> struct pipeable {
