@@ -155,9 +155,10 @@ template <typename Pred> struct pipeable {
 };
 } // namespace _retry
 
-template <typename P> [[nodiscard]] constexpr auto retry_until(P &&p) {
-    return _compose::adaptor{stdx::tuple{
-        _retry::pipeable<std::remove_cvref_t<P>>{std::forward<P>(p)}}};
+template <typename P>
+[[nodiscard]] constexpr auto retry_until(P &&p)
+    -> _retry::pipeable<std::remove_cvref_t<P>> {
+    return {std::forward<P>(p)};
 }
 
 template <sender S, typename P> [[nodiscard]] auto retry_until(S &&s, P &&p) {
