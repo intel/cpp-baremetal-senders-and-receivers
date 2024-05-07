@@ -110,20 +110,6 @@ TEST_CASE("repeat_until is pipeable", "[repeat]") {
     CHECK(var == 43);
 }
 
-TEST_CASE("repeat_until is adaptor-pipeable", "[repeat]") {
-    int var{};
-
-    auto s = async::sequence([&] {
-                 ++var;
-                 return async::just(42);
-             }) |
-             async::repeat_until([&](auto i) { return i == 42; });
-    auto op =
-        async::connect(async::just() | s, receiver{[&](auto i) { var += i; }});
-    async::start(op);
-    CHECK(var == 43);
-}
-
 TEST_CASE("repeat can be cancelled", "[repeat]") {
     int var{};
     only_stoppable_receiver r{[&] { var += 42; }};

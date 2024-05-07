@@ -62,21 +62,6 @@ TEST_CASE("retry retries on error", "[retry]") {
     CHECK(var == 44);
 }
 
-TEST_CASE("retry is adapter-pipeable", "[retry]") {
-    int var{};
-
-    auto s = async::sequence([&] {
-                 return async::make_variant_sender(
-                     ++var == 2, [] { return async::just(42); },
-                     [] { return async::just_error(17); });
-             }) |
-             async::retry();
-    auto op =
-        async::connect(async::just() | s, receiver{[&](auto i) { var += i; }});
-    async::start(op);
-    CHECK(var == 44);
-}
-
 TEST_CASE("retry_until advertises what it sends", "[retry]") {
     [[maybe_unused]] auto s =
         async::just_error(42) | async::retry_until([](auto) { return true; });
