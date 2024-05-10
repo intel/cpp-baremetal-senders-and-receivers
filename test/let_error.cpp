@@ -3,6 +3,7 @@
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
+#include <async/just_result_of.hpp>
 #include <async/let_error.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/tags.hpp>
@@ -198,4 +199,14 @@ TEST_CASE("let_error can be single shot with passthrough", "[let_error]") {
     [[maybe_unused]] auto l =
         async::just(move_only{42}) | async::let_error([](auto) { return 42; });
     static_assert(async::singleshot_sender<decltype(l)>);
+}
+
+TEST_CASE("let_error stores result of input sender", "[let_error]") {
+    int value{};
+    auto s = async::just_error_result_of([] { return 42; }) |
+             async::let_error([](int &v) { return async::just(&v); });
+
+    auto op = async::connect(s, receiver{[&](int const *i) { value = *i; }});
+    async::start(op);
+    CHECK(value == 42);
 }
