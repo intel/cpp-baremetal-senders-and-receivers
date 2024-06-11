@@ -378,7 +378,8 @@ auto w = async::when_all(s1, s2);
 NOTE: The order in which the sender arguments to `when_all` run is unspecified.
 
 IMPORTANT: If _no_ arguments are given to `when_all`, it will complete
-_immediately_.
+_immediately_. If only _one_ argument is given to `when_all`,
+`when_all` has no effect. i.e. it behaves like the identity function.
 
 === `when_any`
 
@@ -430,4 +431,5 @@ it cannot occur before all senders complete (regardless of the channel each may
 complete on).
 
 IMPORTANT: If _no_ arguments are given to `when_any`, it will _never_ complete
-unless it is cancelled.
+unless it is cancelled. If only _one_ argument is given to `when_any`,
+`when_any` has no effect. i.e. it behaves like the identity function.

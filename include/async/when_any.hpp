@@ -366,12 +366,16 @@ template <typename Sndr> struct pipeable {
 
 template <typename StopPolicy = _when_any::first_noncancelled, sender... Sndrs>
 [[nodiscard]] constexpr auto when_any(Sndrs &&...sndrs) -> sender auto {
-    return [&]<auto... Is>(std::index_sequence<Is...>) {
-        return _when_any::sender<
-            StopPolicy,
-            _when_any::sub_sender<std::remove_cvref_t<Sndrs>, Is>...>{
-            {std::forward<Sndrs>(sndrs)}...};
-    }(std::make_index_sequence<sizeof...(Sndrs)>{});
+    if constexpr (sizeof...(Sndrs) == 1) {
+        return (sndrs, ...);
+    } else {
+        return [&]<auto... Is>(std::index_sequence<Is...>) {
+            return _when_any::sender<
+                StopPolicy,
+                _when_any::sub_sender<std::remove_cvref_t<Sndrs>, Is>...>{
+                {std::forward<Sndrs>(sndrs)}...};
+        }(std::make_index_sequence<sizeof...(Sndrs)>{});
+    }
 }
 
 template <sender... Sndrs>

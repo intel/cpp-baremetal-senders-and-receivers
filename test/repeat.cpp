@@ -120,7 +120,7 @@ TEST_CASE("repeat can be cancelled", "[repeat]") {
                    }
                    return async::just(17);
                });
-    auto s = async::when_all(sub) | async::repeat();
+    auto s = async::when_all(sub, async::just()) | async::repeat();
     auto op = async::connect(s, r);
     async::start(op);
     CHECK(var == 44);

@@ -327,10 +327,14 @@ template <> struct sender<> {
 
 template <sender... Sndrs>
 [[nodiscard]] constexpr auto when_all(Sndrs &&...sndrs) -> sender auto {
-    return [&]<auto... Is>(std::index_sequence<Is...>) {
-        return _when_all::sender<
-            _when_all::sub_sender<std::remove_cvref_t<Sndrs>, Is>...>{
-            {std::forward<Sndrs>(sndrs)}...};
-    }(std::make_index_sequence<sizeof...(Sndrs)>{});
+    if constexpr (sizeof...(Sndrs) == 1) {
+        return (sndrs, ...);
+    } else {
+        return [&]<auto... Is>(std::index_sequence<Is...>) {
+            return _when_all::sender<
+                _when_all::sub_sender<std::remove_cvref_t<Sndrs>, Is>...>{
+                {std::forward<Sndrs>(sndrs)}...};
+        }(std::make_index_sequence<sizeof...(Sndrs)>{});
+    }
 }
 } // namespace async

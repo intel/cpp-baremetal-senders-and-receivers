@@ -171,8 +171,8 @@ TEST_CASE("when_all cancellation (before start)", "[when_all]") {
 
     auto s =
         async::thread_scheduler::schedule() | async::then([&] { fail = true; });
-    auto const w =
-        async::when_all(s) | async::upon_stopped([&] { success = true; });
+    auto const w = async::when_all(s, async::just()) |
+                   async::upon_stopped([&] { success = true; });
 
     auto r = stoppable_receiver{[&] { ctrl.advance(); }};
     auto op = async::connect(w, r);
@@ -191,8 +191,8 @@ TEST_CASE("when_all cancellation (during operation)", "[when_all]") {
 
     auto s = async::thread_scheduler::schedule() |
              async::then([&] { ctrl.advance_and_wait(); });
-    auto const w =
-        async::when_all(s) | async::upon_stopped([&] { success = true; });
+    auto const w = async::when_all(s, async::just()) |
+                   async::upon_stopped([&] { success = true; });
 
     auto r = stoppable_receiver{[&] { ctrl.advance(); }};
     auto op = async::connect(w, r);
@@ -238,4 +238,10 @@ TEST_CASE("when_all with zero args completes immediately when stopped",
 TEST_CASE("when_all nests", "[when_all]") {
     [[maybe_unused]] auto w = async::when_all(async::when_all());
     [[maybe_unused]] auto op = async::connect(w, receiver{[] {}});
+}
+
+TEST_CASE("when_all with one arg is a no-op", "[when_all]") {
+    auto s = async::just(42);
+    [[maybe_unused]] auto w = async::when_all(s);
+    static_assert(std::same_as<decltype(s), decltype(w)>);
 }
