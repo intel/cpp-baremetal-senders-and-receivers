@@ -27,15 +27,14 @@ class inline_scheduler {
     };
 
     class env {
-        [[nodiscard]] friend constexpr auto tag_invoke(get_allocator_t,
-                                                       env) noexcept
-            -> stack_allocator {
+        [[nodiscard]] friend constexpr auto
+        tag_invoke(get_allocator_t, env) noexcept -> stack_allocator {
             return {};
         }
 
         [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>, env) noexcept
-            -> inline_scheduler {
+        tag_invoke(get_completion_scheduler_t<set_value_t>,
+                   env) noexcept -> inline_scheduler {
             return {};
         }
     };
@@ -45,17 +44,16 @@ class inline_scheduler {
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
-        [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                       sender_base) noexcept
-            -> env {
+        [[nodiscard]] friend constexpr auto
+        tag_invoke(get_env_t, sender_base) noexcept -> env {
             return {};
         }
     };
 
     class multishot_sender : public sender_base {
         template <stdx::same_as_unqualified<multishot_sender> S, receiver R>
-        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r)
-            -> op_state<R> {
+        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&,
+                                                       R &&r) -> op_state<R> {
             check_connect<S, R>();
             return {std::forward<R>(r)};
         }
@@ -71,9 +69,8 @@ class inline_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(inline_scheduler,
-                                                   inline_scheduler)
-        -> bool = default;
+    [[nodiscard]] friend constexpr auto
+    operator==(inline_scheduler, inline_scheduler) -> bool = default;
 
   public:
     struct singleshot;

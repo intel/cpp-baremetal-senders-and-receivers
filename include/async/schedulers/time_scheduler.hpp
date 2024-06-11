@@ -89,8 +89,8 @@ template <typename Domain, typename Duration,
 class time_scheduler {
     struct env {
         [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>, env e) noexcept
-            -> time_scheduler {
+        tag_invoke(get_completion_scheduler_t<set_value_t>,
+                   env e) noexcept -> time_scheduler {
             return {e.d};
         }
 
@@ -110,9 +110,8 @@ class time_scheduler {
                                        Task>{std::forward<R>(r), s.d};
         }
 
-        [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                       sender s) noexcept
-            -> env {
+        [[nodiscard]] friend constexpr auto
+        tag_invoke(get_env_t, sender s) noexcept -> env {
             return {s.d};
         }
 
@@ -132,9 +131,8 @@ class time_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(time_scheduler,
-                                                   time_scheduler)
-        -> bool = default;
+    [[nodiscard]] friend constexpr auto
+    operator==(time_scheduler, time_scheduler) -> bool = default;
 
   public:
     [[nodiscard]] constexpr auto schedule() -> sender {

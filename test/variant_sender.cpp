@@ -76,14 +76,14 @@ TEST_CASE("matcher with non-moveable type", "[variant_sender]") {
 
 TEST_CASE("binary select", "[variant_sender]") {
     auto const i = 0;
-    auto const v1 = async::select(
-        i == 0, [] { return 17; }, [] { return 3.14f; });
+    auto const v1 =
+        async::select(i == 0, [] { return 17; }, [] { return 3.14f; });
     REQUIRE(v1.index() == 0);
     CHECK(std::get<0>(v1) == 17);
 
     auto const j = 1;
-    auto const v2 = async::select(
-        j == 0, [] { return 17; }, [] { return 3.14f; });
+    auto const v2 =
+        async::select(j == 0, [] { return 17; }, [] { return 3.14f; });
     REQUIRE(v2.index() == 1);
     CHECK(std::get<1>(v2) == 3.14f);
 }

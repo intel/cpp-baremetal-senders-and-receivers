@@ -78,8 +78,8 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
 
   private:
     template <channel_tag OtherTag, typename... Args>
-    friend auto tag_invoke(OtherTag, receiver const &self, Args &&...args)
-        -> void {
+    friend auto tag_invoke(OtherTag, receiver const &self,
+                           Args &&...args) -> void {
         OtherTag{}(self.ops->rcvr, std::forward<Args>(args)...);
     }
 
@@ -213,9 +213,9 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
 
     template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
         requires multishot_sender<S> and
-                 is_multishot_leftover_sender<R>::value and
-                 boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
-                                          is_multishot_sender<R>>::value
+                     is_multishot_leftover_sender<R>::value and
+                     boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
+                                              is_multishot_sender<R>>::value
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
                                                    R &&r)
         -> _let::op_state<S, std::remove_cvref_t<R>, F,

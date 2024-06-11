@@ -37,8 +37,8 @@ template <typename F> struct receiver : F {
 
   private:
     template <stdx::same_as_unqualified<receiver> R, typename... Args>
-    friend constexpr auto tag_invoke(async::set_value_t, R &&r, Args &&...args)
-        -> void {
+    friend constexpr auto tag_invoke(async::set_value_t, R &&r,
+                                     Args &&...args) -> void {
         std::forward<R>(r)(std::forward<Args>(args)...);
     }
     friend constexpr auto tag_invoke(async::channel_tag auto, receiver const &,
@@ -51,13 +51,13 @@ template <typename F> struct error_receiver : F {
 
   private:
     template <stdx::same_as_unqualified<error_receiver> R, typename... Args>
-    friend constexpr auto tag_invoke(async::set_error_t, R &&r, Args &&...args)
-        -> void {
+    friend constexpr auto tag_invoke(async::set_error_t, R &&r,
+                                     Args &&...args) -> void {
         std::forward<R>(r)(std::forward<Args>(args)...);
     }
     friend constexpr auto tag_invoke(async::channel_tag auto,
-                                     error_receiver const &, auto &&...)
-        -> void {}
+                                     error_receiver const &,
+                                     auto &&...) -> void {}
 };
 template <typename F> error_receiver(F) -> error_receiver<F>;
 
@@ -70,8 +70,8 @@ template <typename F> struct stopped_receiver : F {
         std::forward<R>(r)();
     }
     friend constexpr auto tag_invoke(async::channel_tag auto,
-                                     stopped_receiver const &, auto &&...)
-        -> void {}
+                                     stopped_receiver const &,
+                                     auto &&...) -> void {}
 };
 template <typename F> stopped_receiver(F) -> stopped_receiver<F>;
 
@@ -98,15 +98,14 @@ template <typename F> struct stoppable_receiver : F {
     };
 
   private:
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   stoppable_receiver const &)
-        -> env {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(async::get_env_t, stoppable_receiver const &) -> env {
         return {stop_source<stoppable_receiver>->get_token()};
     }
 
     template <stdx::same_as_unqualified<stoppable_receiver> R>
-    friend constexpr auto tag_invoke(async::channel_tag auto, R &&r, auto &&...)
-        -> void {
+    friend constexpr auto tag_invoke(async::channel_tag auto, R &&r,
+                                     auto &&...) -> void {
         std::forward<R>(r)();
     }
 };
@@ -118,8 +117,8 @@ template <typename F> struct only_stoppable_receiver : stoppable_receiver<F> {
 
   private:
     template <stdx::same_as_unqualified<only_stoppable_receiver> R>
-    friend constexpr auto tag_invoke(async::channel_tag auto, R &&r, auto &&...)
-        -> void {
+    friend constexpr auto tag_invoke(async::channel_tag auto, R &&r,
+                                     auto &&...) -> void {
         std::forward<R>(r)();
     }
     template <stdx::same_as_unqualified<only_stoppable_receiver> R>
@@ -143,8 +142,8 @@ class singleshot_scheduler {
     class env {
         template <typename Tag>
         [[nodiscard]] friend constexpr auto
-        tag_invoke(async::get_completion_scheduler_t<Tag>, env) noexcept
-            -> singleshot_scheduler {
+        tag_invoke(async::get_completion_scheduler_t<Tag>,
+                   env) noexcept -> singleshot_scheduler {
             return {};
         }
     };
@@ -161,9 +160,8 @@ class singleshot_scheduler {
         }
 
         template <async::receiver_from<sender> R>
-        [[nodiscard]] friend constexpr auto tag_invoke(async::connect_t,
-                                                       sender &&, R &&r)
-            -> op_state<R> {
+        [[nodiscard]] friend constexpr auto
+        tag_invoke(async::connect_t, sender &&, R &&r) -> op_state<R> {
             return {std::forward<R>(r)};
         }
     };
@@ -176,8 +174,8 @@ class singleshot_scheduler {
 };
 
 struct none {
-    [[nodiscard]] friend constexpr auto operator==(none, none)
-        -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(none,
+                                                   none) -> bool = default;
 };
 
 constexpr inline struct get_fwd_t : async::forwarding_query_t {
@@ -220,9 +218,8 @@ struct custom_sender {
     using completion_signatures =
         async::completion_signatures<async::set_value_t()>;
 
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   custom_sender const &)
-        -> custom_env {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(async::get_env_t, custom_sender const &) -> custom_env {
         return {};
     }
 
@@ -232,9 +229,9 @@ struct custom_sender {
     };
 
     template <typename R>
-    [[nodiscard]] friend constexpr auto tag_invoke(async::connect_t,
-                                                   custom_sender &&, R &&r)
-        -> op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(async::connect_t, custom_sender &&,
+               R &&r) -> op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };

@@ -33,8 +33,8 @@ class thread_scheduler {
 
     class env {
         [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>, env) noexcept
-            -> thread_scheduler {
+        tag_invoke(get_completion_scheduler_t<set_value_t>,
+                   env) noexcept -> thread_scheduler {
             return {};
         }
     };
@@ -51,16 +51,15 @@ class thread_scheduler {
         }
 
         template <stdx::same_as_unqualified<sender> S, receiver R>
-        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r)
-            -> op_state<R> {
+        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&,
+                                                       R &&r) -> op_state<R> {
             check_connect<S, R>();
             return {std::forward<R>(r)};
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(thread_scheduler,
-                                                   thread_scheduler)
-        -> bool = default;
+    [[nodiscard]] friend constexpr auto
+    operator==(thread_scheduler, thread_scheduler) -> bool = default;
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender { return {}; }

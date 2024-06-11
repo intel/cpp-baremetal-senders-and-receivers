@@ -41,8 +41,8 @@ template <typename S, typename Uniq> struct single_receiver {
 
   private:
     template <typename... Args>
-    friend auto tag_invoke(set_value_t, single_receiver const &, Args &&...args)
-        -> void {
+    friend auto tag_invoke(set_value_t, single_receiver const &,
+                           Args &&...args) -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = value_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -51,8 +51,8 @@ template <typename S, typename Uniq> struct single_receiver {
     }
 
     template <typename... Args>
-    friend auto tag_invoke(set_error_t, single_receiver const &, Args &&...args)
-        -> void {
+    friend auto tag_invoke(set_error_t, single_receiver const &,
+                           Args &&...args) -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = error_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -190,16 +190,16 @@ template <typename Sndr, typename Uniq> struct sender {
 
   private:
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> completion_signatures_of_t<Sndr, Env> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(get_completion_signatures_t, sender const &,
+               Env const &) -> completion_signatures_of_t<Sndr, Env> {
         return {};
     }
 
     template <stdx::same_as_unqualified<sender> Self, receiver R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
-                                                   R &&r)
-        -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, Self &&self,
+               R &&r) -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
         check_connect<Self, R>();
         if (not op_state_t::single_ops) {
             op_state_t::single_ops.emplace(stdx::with_result_of{

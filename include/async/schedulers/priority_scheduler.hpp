@@ -53,8 +53,8 @@ template <priority_t P, typename Task = priority_task>
 class fixed_priority_scheduler {
     class env {
         [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>, env) noexcept
-            -> fixed_priority_scheduler {
+        tag_invoke(get_completion_scheduler_t<set_value_t>,
+                   env) noexcept -> fixed_priority_scheduler {
             return {};
         }
     };
@@ -91,9 +91,9 @@ class fixed_priority_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(fixed_priority_scheduler,
-                                                   fixed_priority_scheduler)
-        -> bool = default;
+    [[nodiscard]] friend constexpr auto
+    operator==(fixed_priority_scheduler,
+               fixed_priority_scheduler) -> bool = default;
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender {

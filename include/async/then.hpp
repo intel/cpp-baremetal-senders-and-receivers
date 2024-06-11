@@ -219,9 +219,9 @@ template <typename Tag, typename S, typename... Fs> class sender {
 
     template <typename Env>
         requires std::same_as<Tag, set_stopped_t>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> transform_completion_signatures_of<S, Env> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(get_completion_signatures_t, sender const &,
+               Env const &) -> transform_completion_signatures_of<S, Env> {
         return {};
     }
 

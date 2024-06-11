@@ -21,8 +21,8 @@ template <typename Ops> struct receiver {
     Ops *ops;
 
   private:
-    friend auto tag_invoke(channel_tag auto, receiver const &r, auto &&...)
-        -> void {
+    friend auto tag_invoke(channel_tag auto, receiver const &r,
+                           auto &&...) -> void {
         r.ops->die();
     }
 
@@ -84,8 +84,8 @@ template <typename Uniq, typename StopSource> struct pipeable {
 } // namespace _start_detached
 
 template <typename Uniq = decltype([] {})>
-[[nodiscard]] constexpr auto start_detached()
-    -> _start_detached::pipeable<Uniq, inplace_stop_source> {
+[[nodiscard]] constexpr auto
+start_detached() -> _start_detached::pipeable<Uniq, inplace_stop_source> {
     return {};
 }
 

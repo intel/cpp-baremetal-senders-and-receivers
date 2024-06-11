@@ -10,6 +10,7 @@ project(
 
 include(cmake/get_cpm.cmake)
 cpmaddpackage("gh:intel/cicd-repo-infrastructure#main")
+update_versioned_package("gh:intel/cicd-repo-infrastructure#main")
 
 add_versioned_package("gh:intel/cpp-std-extensions#6fe6ae9")
 add_versioned_package("gh:intel/cpp-baremetal-concurrency#659771e")

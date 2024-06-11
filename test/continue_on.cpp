@@ -28,8 +28,8 @@ template <auto> class test_scheduler {
     class env {
         template <typename Tag>
         [[nodiscard]] friend constexpr auto
-        tag_invoke(async::get_completion_scheduler_t<Tag>, env) noexcept
-            -> test_scheduler {
+        tag_invoke(async::get_completion_scheduler_t<Tag>,
+                   env) noexcept -> test_scheduler {
             return {};
         }
     };
@@ -53,9 +53,8 @@ template <auto> class test_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(test_scheduler,
-                                                   test_scheduler)
-        -> bool = default;
+    [[nodiscard]] friend constexpr auto
+    operator==(test_scheduler, test_scheduler) -> bool = default;
 
   public:
     auto schedule() {

@@ -26,9 +26,8 @@ template <typename T> using env_of_t = decltype(get_env(std::declval<T>()));
 
 namespace detail {
 template <typename Tag, typename T> struct singleton_env {
-    [[nodiscard]] friend constexpr auto tag_invoke(Tag,
-                                                   singleton_env const &self)
-        -> T {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(Tag, singleton_env const &self) -> T {
         return self.value;
     }
     [[no_unique_address]] T value{};
@@ -37,9 +36,8 @@ template <typename Tag, typename T> struct singleton_env {
 template <typename E> struct forwarding_env {
     template <typename ForwardTag>
         requires(forwarding_query(ForwardTag{}))
-    [[nodiscard]] friend constexpr auto tag_invoke(ForwardTag tag,
-                                                   forwarding_env const &self)
-        -> decltype(auto) {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(ForwardTag tag, forwarding_env const &self) -> decltype(auto) {
         return tag(self.child_env);
     }
 
@@ -52,8 +50,8 @@ struct overriding_env : singleton_env<Tag, T>, forwarding_env<env_of_t<Q>> {};
 } // namespace detail
 
 template <typename Tag, typename T>
-constexpr auto singleton_env(T &&t)
-    -> detail::singleton_env<Tag, std::remove_cvref_t<T>> {
+constexpr auto
+singleton_env(T &&t) -> detail::singleton_env<Tag, std::remove_cvref_t<T>> {
     return {std::forward<T>(t)};
 }
 
