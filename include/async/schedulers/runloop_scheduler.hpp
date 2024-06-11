@@ -60,8 +60,8 @@ template <typename Uniq = decltype([] {})> class run_loop {
     struct scheduler {
         struct env {
             [[nodiscard]] friend constexpr auto
-            tag_invoke(get_completion_scheduler_t<set_value_t>, env e) noexcept
-                -> scheduler {
+            tag_invoke(get_completion_scheduler_t<set_value_t>,
+                       env e) noexcept -> scheduler {
                 return e.loop->get_scheduler();
             }
             run_loop *loop;
@@ -72,16 +72,14 @@ template <typename Uniq = decltype([] {})> class run_loop {
             using completion_signatures =
                 async::completion_signatures<set_value_t(), set_stopped_t()>;
 
-            [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                           sender s) noexcept
-                -> env {
+            [[nodiscard]] friend constexpr auto
+            tag_invoke(get_env_t, sender s) noexcept -> env {
                 return {s.loop};
             }
 
             template <stdx::same_as_unqualified<sender> S, receiver R>
-            [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&s,
-                                                           R &&r)
-                -> op_state<R> {
+            [[nodiscard]] friend constexpr auto
+            tag_invoke(connect_t, S &&s, R &&r) -> op_state<R> {
                 check_connect<S, R>();
                 return {s.loop, std::forward<R>(r)};
             }
@@ -92,8 +90,8 @@ template <typename Uniq = decltype([] {})> class run_loop {
         [[nodiscard]] constexpr auto schedule() -> sender { return {loop}; }
 
         template <typename T>
-        [[nodiscard]] friend constexpr auto operator==(scheduler x, T const &y)
-            -> bool {
+        [[nodiscard]] friend constexpr auto operator==(scheduler x,
+                                                       T const &y) -> bool {
             if constexpr (std::same_as<T, scheduler>) {
                 return x.loop == y.loop;
             }

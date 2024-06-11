@@ -101,10 +101,9 @@ struct queryable_sender1 : async::sender_base {
 struct dependent_env {};
 
 struct queryable_sender2 : async::sender_base {
-    [[nodiscard, maybe_unused]] friend constexpr auto
-    tag_invoke(async::get_completion_signatures_t, queryable_sender2 const &,
-               dependent_env const &) noexcept
-        -> async::completion_signatures<> {
+    [[nodiscard, maybe_unused]] friend constexpr auto tag_invoke(
+        async::get_completion_signatures_t, queryable_sender2 const &,
+        dependent_env const &) noexcept -> async::completion_signatures<> {
         return {};
     }
 };
@@ -134,8 +133,8 @@ template <typename... Ts> struct value_receiver : async::receiver_base {
   private:
     template <std::same_as<value_receiver> R>
     friend auto tag_invoke(async::set_value_t, R const &, Ts...) -> void {}
-    friend auto tag_invoke(async::set_error_t, value_receiver const &, auto)
-        -> void {}
+    friend auto tag_invoke(async::set_error_t, value_receiver const &,
+                           auto) -> void {}
 };
 } // namespace
 
@@ -173,8 +172,8 @@ struct singleshot_sender : async::sender_base {
                                      async::set_error_t(E)>;
 
     template <async::receiver_from<singleshot_sender> R>
-    friend auto tag_invoke(async::connect_t, singleshot_sender &&, R &&)
-        -> op_state {
+    friend auto tag_invoke(async::connect_t, singleshot_sender &&,
+                           R &&) -> op_state {
         return {};
     }
 };

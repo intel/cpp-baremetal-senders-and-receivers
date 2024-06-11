@@ -147,9 +147,8 @@ struct test_sender {
     using completion_signatures =
         async::completion_signatures<async::set_value_t()>;
 
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   test_sender const &)
-        -> custom_env {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(async::get_env_t, test_sender const &) -> custom_env {
         return {};
     }
 
@@ -164,9 +163,9 @@ struct test_sender {
     };
 
     template <typename R>
-    [[nodiscard]] friend constexpr auto tag_invoke(async::connect_t,
-                                                   test_sender &&, R &&r)
-        -> op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(async::connect_t, test_sender &&,
+               R &&r) -> op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };

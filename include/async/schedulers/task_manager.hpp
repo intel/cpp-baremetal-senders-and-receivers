@@ -38,7 +38,7 @@ template <typename T>
 concept scheduler_hal = requires {
     { T::schedule(priority_t{}) } -> std::same_as<void>;
 };
-}
+} // namespace detail
 
 namespace archetypes {
 struct scheduler_hal {

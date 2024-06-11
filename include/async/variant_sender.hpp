@@ -35,8 +35,8 @@ template <typename P, typename F> struct match_option : P, F {
     }
 
     template <typename... Args>
-    [[nodiscard]] constexpr auto invoke(Args &&...args) const
-        -> decltype(auto) {
+    [[nodiscard]] constexpr auto
+    invoke(Args &&...args) const -> decltype(auto) {
         return std::invoke(static_cast<F const &>(*this),
                            std::forward<Args>(args)...);
     }
@@ -46,8 +46,8 @@ template <typename P, typename F> match_option(P, F) -> match_option<P, F>;
 template <typename P> struct match : P {
   private:
     template <stdx::same_as_unqualified<match> M, typename F>
-    [[nodiscard]] friend constexpr auto operator>>(M &&m, F &&f)
-        -> match_option<P, std::remove_cvref_t<F>> {
+    [[nodiscard]] friend constexpr auto
+    operator>>(M &&m, F &&f) -> match_option<P, std::remove_cvref_t<F>> {
         return {std::forward<M>(m), std::forward<F>(f)};
     }
 };
@@ -88,8 +88,8 @@ template <typename... Options> struct matcher : Options... {
   private:
     template <typename Option, std::size_t I, typename Ret, typename... Args>
     struct selector {
-        constexpr static auto select(matcher const &m, Args const &...args)
-            -> Ret {
+        constexpr static auto select(matcher const &m,
+                                     Args const &...args) -> Ret {
             return Ret{std::in_place_index<I>, stdx::with_result_of{[&] {
                            return static_cast<Option const &>(m).invoke(
                                args...);
@@ -97,8 +97,8 @@ template <typename... Options> struct matcher : Options... {
         }
     };
 
-    [[nodiscard]] constexpr auto first_matching_index(auto const &...args) const
-        -> std::size_t {
+    [[nodiscard]] constexpr auto
+    first_matching_index(auto const &...args) const -> std::size_t {
         std::size_t index{std::numeric_limits<std::size_t>::max()};
         auto const f = [&]<typename F>() {
             ++index;
@@ -173,8 +173,8 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
     using ops_t = op_state<connect_result_t<Sndrs, std::remove_cvref_t<R>>...>;
 
     template <typename Sndr, typename R>
-    [[nodiscard]] constexpr static auto connect_impl(Sndr &&sndr, R &&r)
-        -> ops_t<R> {
+    [[nodiscard]] constexpr static auto connect_impl(Sndr &&sndr,
+                                                     R &&r) -> ops_t<R> {
         return std::visit(
             [&]<typename S>(S &&s) -> ops_t<R> {
                 using V = typename ops_t<R>::variant_t;

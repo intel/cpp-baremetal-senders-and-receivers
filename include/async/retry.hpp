@@ -39,9 +39,9 @@ template <typename Ops, typename Rcvr> struct receiver {
         set_stopped(r.ops->rcvr);
     }
 
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   receiver const &self)
-        -> detail::forwarding_env<env_of_t<Rcvr>> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(async::get_env_t,
+               receiver const &self) -> detail::forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(self.ops->rcvr);
     }
 };
@@ -135,9 +135,9 @@ template <typename Sndr, typename Pred> struct sender {
 
     template <stdx::same_as_unqualified<sender> Self, receiver_from<Sndr> R>
         requires multishot_sender<Sndr, R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
-                                                   R &&r)
-        -> op_state<Sndr, std::remove_cvref_t<R>, Pred> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, Self &&self,
+               R &&r) -> op_state<Sndr, std::remove_cvref_t<R>, Pred> {
         return {std::forward<Self>(self).sndr, std::forward<R>(r),
                 std::forward<Self>(self).p};
     }
@@ -156,8 +156,8 @@ template <typename Pred> struct pipeable {
 } // namespace _retry
 
 template <typename P>
-[[nodiscard]] constexpr auto retry_until(P &&p)
-    -> _retry::pipeable<std::remove_cvref_t<P>> {
+[[nodiscard]] constexpr auto
+retry_until(P &&p) -> _retry::pipeable<std::remove_cvref_t<P>> {
     return {std::forward<P>(p)};
 }
 

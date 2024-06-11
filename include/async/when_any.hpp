@@ -289,9 +289,8 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
     }
 
     template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
-        requires(
-            ... and
-            multishot_sender<typename Sndrs::sender_t,
+        requires(... and multishot_sender<
+                             typename Sndrs::sender_t,
                              detail::universal_receiver<detail::overriding_env<
                                  get_stop_token_t, inplace_stop_token,
                                  std::remove_cvref_t<R>>>>)
@@ -330,24 +329,24 @@ template <typename StopPolicy> struct sender<StopPolicy> {
 
   private:
     template <receiver_from<sender> R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender const &,
-                                                   R &&r)
-        -> op_state<StopPolicy, std::remove_cvref_t<R>> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, sender const &,
+               R &&r) -> op_state<StopPolicy, std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> completion_signatures<set_stopped_t()> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(get_completion_signatures_t, sender const &,
+               Env const &) -> completion_signatures<set_stopped_t()> {
         return {};
     }
 
     template <typename Env>
         requires unstoppable_token<stop_token_of_t<Env>>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> completion_signatures<> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(get_completion_signatures_t, sender const &,
+               Env const &) -> completion_signatures<> {
         return {};
     }
 };

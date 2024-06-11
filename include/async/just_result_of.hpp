@@ -45,34 +45,32 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
 
 template <typename Tag, std::invocable... Fs> class sender : public Fs... {
     class env {
-        [[nodiscard]] friend constexpr auto tag_invoke(get_allocator_t,
-                                                       env) noexcept
-            -> stack_allocator {
+        [[nodiscard]] friend constexpr auto
+        tag_invoke(get_allocator_t, env) noexcept -> stack_allocator {
             return {};
         }
     };
 
     template <receiver R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
-                                                   R &&r)
-        -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, sender &&self,
+               R &&r) -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {
         check_connect<sender &&, R>();
         return {{static_cast<Fs>(std::move(self))}..., std::forward<R>(r)};
     }
 
     template <stdx::same_as_unqualified<sender> Self, receiver R>
         requires(... and std::copy_constructible<Fs>)
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
-                                                   R &&r)
-        -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, Self &&self,
+               R &&r) -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {
         check_connect<Self, R>();
         return {{static_cast<Fs>(std::forward<Self>(self))}...,
                 std::forward<R>(r)};
     }
 
-    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                   sender const &) noexcept
-        -> env {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(get_env_t, sender const &) noexcept -> env {
         return {};
     }
 

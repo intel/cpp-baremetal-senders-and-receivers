@@ -35,8 +35,8 @@ template <typename V, typename RL> struct receiver {
 
   private:
     template <typename... Args>
-    friend auto tag_invoke(set_value_t, receiver const &r, Args &&...args)
-        -> void {
+    friend auto tag_invoke(set_value_t, receiver const &r,
+                           Args &&...args) -> void {
         r.values.emplace(stdx::make_tuple(std::forward<Args>(args)...));
         r.loop.finish();
     }

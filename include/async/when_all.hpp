@@ -33,13 +33,13 @@ template <typename SubOps> struct sub_receiver {
 
   private:
     template <typename... Args>
-    friend auto tag_invoke(set_value_t, sub_receiver const &r, Args &&...args)
-        -> void {
+    friend auto tag_invoke(set_value_t, sub_receiver const &r,
+                           Args &&...args) -> void {
         r.ops->emplace_value(std::forward<Args>(args)...);
     }
     template <typename... Args>
-    friend auto tag_invoke(set_error_t, sub_receiver const &r, Args &&...args)
-        -> void {
+    friend auto tag_invoke(set_error_t, sub_receiver const &r,
+                           Args &&...args) -> void {
         r.ops->emplace_error(std::forward<Args>(args)...);
     }
     friend auto tag_invoke(set_stopped_t, sub_receiver const &r) -> void {
@@ -242,22 +242,21 @@ template <typename... Sndrs> struct sender : Sndrs... {
 
   private:
     template <receiver_from<sender> R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
-                                                   R &&r)
-        -> op_state<std::remove_cvref_t<R>, Sndrs...> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, sender &&self,
+               R &&r) -> op_state<std::remove_cvref_t<R>, Sndrs...> {
         return {std::move(self), std::forward<R>(r)};
     }
 
     template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
-        requires(
-            ... and
-            multishot_sender<typename Sndrs::sender_t,
+        requires(... and multishot_sender<
+                             typename Sndrs::sender_t,
                              detail::universal_receiver<detail::overriding_env<
                                  get_stop_token_t, inplace_stop_token,
                                  std::remove_cvref_t<R>>>>)
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
-                                                   R &&r)
-        -> op_state<std::remove_cvref_t<R>, Sndrs...> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, Self &&self,
+               R &&r) -> op_state<std::remove_cvref_t<R>, Sndrs...> {
         return {std::forward<Self>(self), std::forward<R>(r)};
     }
 
@@ -273,9 +272,9 @@ template <typename... Sndrs> struct sender : Sndrs... {
         detail::default_set_stopped<Sndrs, E>...>>;
 
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> signatures<Env> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(get_completion_signatures_t, sender const &,
+               Env const &) -> signatures<Env> {
         return {};
     }
 };
@@ -303,9 +302,9 @@ template <> struct sender<> {
 
   private:
     template <receiver_from<sender> R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender const &,
-                                                   R &&r)
-        -> op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, sender const &,
+               R &&r) -> op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 
@@ -318,9 +317,9 @@ template <> struct sender<> {
 
     template <typename Env>
         requires unstoppable_token<stop_token_of_t<Env>>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
-        -> completion_signatures<set_value_t()> {
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(get_completion_signatures_t, sender const &,
+               Env const &) -> completion_signatures<set_value_t()> {
         return {};
     }
 };
