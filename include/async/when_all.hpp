@@ -120,17 +120,24 @@ struct sub_op_state : sub_op_storage<env_of_t<R>, S> {
 template <typename...> struct error_op_state;
 
 template <typename E> struct error_op_state<E, boost::mp11::mp_list<>> {
-    auto release_error(auto &&) const -> void {}
+    [[nodiscard]] auto have_error() const -> bool { return false; }
+    [[nodiscard]] auto release_error(auto &&) const -> bool { return false; }
     using signatures = completion_signatures<>;
 };
 
 template <typename E, single_sender<set_error_t, E>... Sndrs>
 struct error_op_state<E, boost::mp11::mp_list<Sndrs...>> {
     template <typename... Args> auto store_error(Args &&...args) -> void {
-        e.emplace(std::forward<Args>(args)...);
+        if (not caught_error.exchange(true)) {
+            e.emplace(std::forward<Args>(args)...);
+        }
     }
-    template <typename R> auto release_error(R &&r) -> void {
-        set_error(std::forward<R>(r), std::move(*e));
+    template <typename R> [[nodiscard]] auto release_error(R &&r) -> bool {
+        if (caught_error) {
+            set_error(std::forward<R>(r), std::move(*e));
+            return true;
+        }
+        return false;
     }
 
     // All senders should send the same error type
@@ -140,6 +147,7 @@ struct error_op_state<E, boost::mp11::mp_list<Sndrs...>> {
         completion_signatures<set_error_t(typename error_t::value_type)>;
 
     error_t e{};
+    std::atomic<bool> caught_error{};
 };
 
 template <typename E> struct is_error_sender {
@@ -172,9 +180,7 @@ struct op_state
     }
 
     template <typename... Args> auto notify_error(Args &&...args) -> void {
-        if (not have_error.exchange(true)) {
-            this->store_error(std::forward<Args>(args)...);
-        }
+        this->store_error(std::forward<Args>(args)...);
         stop_source.request_stop();
         if (--count == 0) {
             complete();
@@ -194,8 +200,7 @@ struct op_state
 
     auto complete() -> void {
         stop_cb.reset();
-        if (have_error) {
-            this->release_error(rcvr);
+        if (this->release_error(rcvr)) {
         } else if (stop_source.stop_requested()) {
             set_stopped(rcvr);
         } else {
@@ -218,7 +223,6 @@ struct op_state
     std::atomic<std::size_t> count{};
     inplace_stop_source stop_source{};
     std::optional<stop_callback_t> stop_cb{};
-    std::atomic<bool> have_error{};
 
   private:
     template <stdx::same_as_unqualified<op_state> O>
@@ -234,6 +238,69 @@ struct op_state
                        .ops),
              ...);
         }
+    }
+};
+
+template <typename S, typename R>
+concept not_stoppable = not stoppable_sender<S, env_of_t<R>>;
+
+template <typename Rcvr, typename... Sndrs>
+    requires(... and not_stoppable<Sndrs, Rcvr>)
+struct op_state<Rcvr, Sndrs...>
+    : error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
+      sub_op_state<op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>... {
+
+    template <typename S, typename R>
+    constexpr op_state(S &&s, R &&r)
+        : sub_op_state<op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>{std::forward<S>(
+              s)}...,
+          rcvr{std::forward<R>(r)} {}
+
+    auto notify() -> void {
+        if (--count == 0) {
+            complete();
+        }
+    }
+
+    template <typename... Args> auto notify_error(Args &&...args) -> void {
+        this->store_error(std::forward<Args>(args)...);
+        if (--count == 0) {
+            complete();
+        }
+    }
+
+    template <typename S>
+    using single_value_sender_t =
+        std::bool_constant<single_sender<S, set_value_t, env_of_t<Rcvr>>>;
+
+    auto complete() -> void {
+        if (this->release_error(rcvr)) {
+        } else {
+            using value_senders =
+                boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
+                                        single_value_sender_t>;
+            [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
+                set_value(
+                    rcvr,
+                    static_cast<sub_op_state<op_state, Rcvr, Ss> &&>(*this)
+                        .v.value()...);
+            }(value_senders{});
+        }
+    }
+
+    [[no_unique_address]] Rcvr rcvr;
+    std::atomic<std::size_t> count{};
+
+  private:
+    template <stdx::same_as_unqualified<op_state> O>
+    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
+        o.count = sizeof...(Sndrs);
+        (start(
+             static_cast<
+                 stdx::forward_like_t<O, sub_op_state<op_state, Rcvr, Sndrs>>>(
+                 o)
+                 .ops),
+         ...);
     }
 };
 

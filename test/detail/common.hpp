@@ -259,4 +259,37 @@ struct phase_control {
     std::condition_variable cv{};
     int phase{};
 };
+
+template <typename R> struct stoppable_just_op_state {
+    [[no_unique_address]] R receiver;
+
+  private:
+    template <stdx::same_as_unqualified<stoppable_just_op_state> O>
+    friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
+        if constexpr (not async::unstoppable_token<
+                          async::stop_token_of_t<async::env_of_t<R>>>) {
+            if (async::get_stop_token(async::get_env(o.receiver))
+                    .stop_requested()) {
+                async::set_stopped(std::move(o.receiver));
+                return;
+            }
+        }
+        async::set_value(std::move(o.receiver));
+    }
+};
+
+struct stoppable_just {
+    using is_sender = void;
+    using completion_signatures =
+        async::completion_signatures<async::set_value_t(),
+                                     async::set_stopped_t()>;
+
+  private:
+    template <async::receiver R>
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(async::connect_t, stoppable_just const &,
+               R &&r) -> stoppable_just_op_state<std::remove_cvref_t<R>> {
+        return {std::forward<R>(r)};
+    }
+};
 } // namespace

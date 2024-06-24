@@ -171,7 +171,7 @@ TEST_CASE("when_all cancellation (before start)", "[when_all]") {
 
     auto s =
         async::thread_scheduler::schedule() | async::then([&] { fail = true; });
-    auto const w = async::when_all(s, async::just()) |
+    auto const w = async::when_all(s, stoppable_just()) |
                    async::upon_stopped([&] { success = true; });
 
     auto r = stoppable_receiver{[&] { ctrl.advance(); }};
@@ -191,7 +191,7 @@ TEST_CASE("when_all cancellation (during operation)", "[when_all]") {
 
     auto s = async::thread_scheduler::schedule() |
              async::then([&] { ctrl.advance_and_wait(); });
-    auto const w = async::when_all(s, async::just()) |
+    auto const w = async::when_all(s, stoppable_just()) |
                    async::upon_stopped([&] { success = true; });
 
     auto r = stoppable_receiver{[&] { ctrl.advance(); }};
@@ -209,6 +209,7 @@ TEST_CASE("when_all with zero args completes immediately with set_value_t()",
           "[when_all]") {
     int value{};
     [[maybe_unused]] auto w = async::when_all();
+    static_assert(not async::stoppable_sender<decltype(w)>);
     static_assert(
         std::same_as<async::completion_signatures_of_t<decltype(w)>,
                      async::completion_signatures<async::set_value_t()>>);
@@ -223,6 +224,8 @@ TEST_CASE("when_all with zero args completes immediately when stopped",
     int value{};
     [[maybe_unused]] auto w = async::when_all();
     auto r = only_stoppable_receiver{[&] { value = 42; }};
+    static_assert(
+        async::stoppable_sender<decltype(w), async::env_of_t<decltype(r)>>);
     static_assert(
         std::same_as<async::completion_signatures_of_t<
                          decltype(w), async::env_of_t<decltype(r)>>,
