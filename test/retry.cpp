@@ -93,7 +93,7 @@ TEST_CASE("retry can be cancelled", "[retry]") {
                    }
                    return async::just_error(17);
                });
-    auto s = async::when_all(sub, async::just()) | async::retry();
+    auto s = async::when_all(sub, stoppable_just()) | async::retry();
     auto op = async::connect(s, r);
     async::start(op);
     CHECK(var == 44);

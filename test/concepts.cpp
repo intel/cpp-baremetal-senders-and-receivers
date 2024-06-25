@@ -183,3 +183,59 @@ TEST_CASE("single/multishot_sender", "[concepts]") {
     static_assert(async::multishot_sender<sender<>, receiver<>>);
     static_assert(async::singleshot_sender<singleshot_sender<>, receiver<>>);
 }
+
+namespace {
+struct stoppable_sender : async::sender_base {
+    using completion_signatures =
+        async::completion_signatures<async::set_value_t(),
+                                     async::set_stopped_t()>;
+
+    template <async::receiver_from<stoppable_sender> R>
+    friend auto tag_invoke(async::connect_t, stoppable_sender &&,
+                           R &&) -> op_state {
+        return {};
+    }
+};
+
+struct dependent_stoppable_sender : async::sender_base {
+    template <async::receiver_from<dependent_stoppable_sender> R>
+    friend auto tag_invoke(async::connect_t, dependent_stoppable_sender &&,
+                           R &&) -> op_state {
+        return {};
+    }
+
+    template <typename Env>
+    [[nodiscard]] friend constexpr auto tag_invoke(
+        async::get_completion_signatures_t, dependent_stoppable_sender const &,
+        Env const &) -> async::completion_signatures<async::set_value_t(),
+                                                     async::set_stopped_t()> {
+        return {};
+    }
+
+    template <typename Env>
+        requires async::unstoppable_token<async::stop_token_of_t<Env>>
+    [[nodiscard]] friend constexpr auto tag_invoke(
+        async::get_completion_signatures_t, dependent_stoppable_sender const &,
+        Env const &) -> async::completion_signatures<async::set_value_t()> {
+        return {};
+    }
+};
+
+struct stoppable_env {
+    async::inplace_stop_token stop_token;
+
+  private:
+    [[nodiscard, maybe_unused]] friend constexpr auto
+    tag_invoke(async::get_stop_token_t, stoppable_env const &self) {
+        return self.stop_token;
+    }
+};
+} // namespace
+
+TEST_CASE("stoppable sender", "[stop_token]") {
+    static_assert(not async::stoppable_sender<singleshot_sender<error, int>>);
+    static_assert(async::stoppable_sender<stoppable_sender>);
+    static_assert(not async::stoppable_sender<dependent_stoppable_sender>);
+    static_assert(
+        async::stoppable_sender<dependent_stoppable_sender, stoppable_env>);
+}

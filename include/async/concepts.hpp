@@ -2,6 +2,7 @@
 
 #include <async/completion_scheduler.hpp>
 #include <async/env.hpp>
+#include <async/stop_token.hpp>
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
@@ -162,4 +163,7 @@ template <typename S, typename R> CONSTEVAL auto check_connect() -> void {
             "Can't connect sender and receiver!");
     }
 }
+
+template <typename S, typename E = empty_env>
+concept stoppable_sender = sender_of<S, set_stopped_t(), E>;
 } // namespace async
