@@ -165,5 +165,5 @@ template <typename S, typename R> CONSTEVAL auto check_connect() -> void {
 }
 
 template <typename S, typename E = empty_env>
-concept stoppable_sender = sender_of<S, set_stopped_t(), E>;
+concept stoppable_sender = sends_stopped<S, E>;
 } // namespace async
