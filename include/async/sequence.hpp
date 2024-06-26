@@ -72,17 +72,10 @@ struct op_state {
 
 namespace detail {
 template <async::sender S> struct wrapper {
-    using eager_sender_t = S;
     [[no_unique_address]] S s;
     [[nodiscard]] constexpr auto operator()() && -> S { return std::move(s); }
 };
 template <typename S> wrapper(S) -> wrapper<S>;
-
-template <typename F>
-concept has_eager_sender = requires(F f) {
-    { std::move(f)() } -> std::same_as<typename F::eager_sender_t>;
-    { f.s } -> std::same_as<typename F::eager_sender_t &>;
-};
 } // namespace detail
 
 template <typename S, std::invocable F> struct sender {
