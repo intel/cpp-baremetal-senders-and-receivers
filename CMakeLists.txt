@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.25)
 
 project(
     baremetal-async
@@ -9,9 +9,10 @@ project(
 )
 
 include(cmake/get_cpm.cmake)
-cpmaddpackage("gh:intel/cicd-repo-infrastructure#main")
 if(PROJECT_IS_TOP_LEVEL)
-    update_versioned_package("gh:intel/cicd-repo-infrastructure#main")
+    cpmaddpackage("gh:intel/cicd-repo-infrastructure#dev")
+else()
+    cpmaddpackage("gh:intel/cicd-repo-infrastructure#3e2bef0")
 endif()
 
 add_versioned_package("gh:intel/cpp-std-extensions#6fe6ae9")
