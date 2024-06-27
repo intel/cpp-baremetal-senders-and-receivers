@@ -65,8 +65,8 @@ template <typename Tag, typename... Vs> struct sender {
         return {std::forward<R>(r), std::forward<Self>(self).values};
     }
 
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_env_t, sender const &) noexcept -> env {
+  public:
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
         return {};
     }
 };

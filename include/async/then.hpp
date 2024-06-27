@@ -101,6 +101,11 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
     [[no_unique_address]] R r;
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
+    [[nodiscard]] constexpr auto
+    query(get_env_t) const -> ::async::detail::forwarding_env<env_of_t<R>> {
+        return forward_env_of(r);
+    }
+
   private:
     template <stdx::same_as_unqualified<receiver> Self, typename... Args>
     friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
@@ -191,11 +196,6 @@ template <typename Tag, typename S, typename... Fs> class sender {
                            std::forward<R>(r), std::forward<Self>(self).fs});
     }
 
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   sender const &sndr) {
-        return forward_env_of(sndr.s);
-    }
-
     template <typename... Ts>
     using signatures =
         typename detail::to_signature<Tag, Fs...>::template type<Ts...>;
@@ -230,6 +230,10 @@ template <typename Tag, typename S, typename... Fs> class sender {
 
     [[no_unique_address]] S s;
     [[no_unique_address]] stdx::tuple<Fs...> fs;
+
+    [[nodiscard]] constexpr auto query(get_env_t) const {
+        return forward_env_of(s);
+    }
 };
 
 template <typename Tag, typename... Fs> struct pipeable {

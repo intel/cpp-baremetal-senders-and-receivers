@@ -121,14 +121,14 @@ concept sender_of =
 
 namespace detail {
 template <typename E = empty_env> struct universal_receiver : receiver_base {
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> E {
+        return {};
+    }
+
   private:
     friend constexpr auto tag_invoke(channel_tag auto,
                                      universal_receiver const &,
                                      auto &&...) -> void {}
-    friend constexpr auto tag_invoke(get_env_t,
-                                     universal_receiver const &) -> E {
-        return {};
-    }
 };
 
 template <typename S, typename R>

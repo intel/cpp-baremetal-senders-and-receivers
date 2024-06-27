@@ -76,6 +76,11 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
     using is_receiver = void;
     Ops *ops;
 
+    [[nodiscard]] constexpr auto
+    query(get_env_t) const -> ::async::detail::forwarding_env<env_of_t<Rcvr>> {
+        return forward_env_of(ops->rcvr);
+    }
+
   private:
     template <channel_tag OtherTag, typename... Args>
     friend auto tag_invoke(OtherTag, receiver const &self,
@@ -89,12 +94,6 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
     friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
         self.ops->template complete_first<Tag, Tag(Args...)>(
             std::forward<Args>(args)...);
-    }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   receiver const &r)
-        -> ::async::detail::forwarding_env<env_of_t<Rcvr>> {
-        return forward_env_of(r.ops->rcvr);
     }
 };
 
@@ -177,6 +176,13 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
     [[no_unique_address]] S s;
     [[no_unique_address]] F f;
 
+    [[nodiscard]] constexpr auto query(get_env_t) const & {
+        return forward_env_of(s);
+    }
+    [[nodiscard]] constexpr auto query(get_env_t) && {
+        return forward_env_of(std::move(s));
+    }
+
   private:
     template <typename E>
     using raw_completions =
@@ -223,12 +229,6 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
                           Tags...> {
         return {std::forward<Self>(self).s, std::forward<R>(r),
                 std::forward<Self>(self).f};
-    }
-
-    template <stdx::same_as_unqualified<sender> Self>
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   Self &&self) {
-        return forward_env_of(std::forward<Self>(self).s);
     }
 
     template <typename E>

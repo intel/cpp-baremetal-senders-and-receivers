@@ -33,6 +33,11 @@ template <typename V, typename RL> struct receiver {
     RL &loop;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept
+        -> env<decltype(std::declval<RL>().get_scheduler())> {
+        return {loop.get_scheduler()};
+    }
+
   private:
     template <typename... Args>
     friend auto tag_invoke(set_value_t, receiver const &r,
@@ -45,12 +50,6 @@ template <typename V, typename RL> struct receiver {
     }
     friend auto tag_invoke(set_stopped_t, receiver const &r) -> void {
         r.loop.finish();
-    }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                   receiver const &r) noexcept
-        -> env<decltype(std::declval<RL>().get_scheduler())> {
-        return {r.loop.get_scheduler()};
     }
 };
 

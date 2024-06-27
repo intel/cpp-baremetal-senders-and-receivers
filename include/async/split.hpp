@@ -39,6 +39,11 @@ template <typename S, typename Uniq> struct single_receiver {
             std::forward<Args>(args)...);
     }
 
+    [[nodiscard]] constexpr auto query(get_env_t) const
+        -> detail::singleton_env<get_stop_token_t, inplace_stop_token> {
+        return {op_state_t::stop_source.get_token()};
+    }
+
   private:
     template <typename... Args>
     friend auto tag_invoke(set_value_t, single_receiver const &,
@@ -67,12 +72,6 @@ template <typename S, typename Uniq> struct single_receiver {
             store_values<tuple_t>();
             op_state_t::linked_ops->notify();
         }
-    }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                   single_receiver const &)
-        -> detail::singleton_env<get_stop_token_t, inplace_stop_token> {
-        return {op_state_t::stop_source.get_token()};
     }
 };
 
@@ -180,8 +179,7 @@ template <typename Sndr, typename Uniq> struct sender {
         }
     }
 
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   sender const &) ->
+    [[nodiscard]] constexpr auto query(get_env_t) const ->
         typename op_state_t::env_t & {
         return *op_state_t::env;
     }

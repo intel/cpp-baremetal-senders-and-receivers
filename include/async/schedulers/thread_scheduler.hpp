@@ -44,12 +44,11 @@ class thread_scheduler {
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
-      private:
-        [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                       sender) noexcept -> env {
+        [[nodiscard]] constexpr static auto query(get_env_t) noexcept -> env {
             return {};
         }
 
+      private:
         template <stdx::same_as_unqualified<sender> S, receiver R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&,
                                                        R &&r) -> op_state<R> {

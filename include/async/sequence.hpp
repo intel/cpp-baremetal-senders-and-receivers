@@ -18,6 +18,11 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     Ops *ops;
 
+    [[nodiscard]] constexpr auto query(async::get_env_t) const
+        -> ::async::detail::forwarding_env<env_of_t<Rcvr>> {
+        return forward_env_of(ops->rcvr);
+    }
+
   private:
     friend auto tag_invoke(set_value_t, receiver const &self,
                            auto &&...) -> void {
@@ -27,12 +32,6 @@ template <typename Ops, typename Rcvr> struct receiver {
     template <channel_tag Tag, typename... Args>
     friend auto tag_invoke(Tag, receiver const &self, Args &&...args) -> void {
         Tag{}(self.ops->rcvr, std::forward<Args>(args)...);
-    }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   receiver const &r)
-        -> ::async::detail::forwarding_env<env_of_t<Rcvr>> {
-        return forward_env_of(r.ops->rcvr);
     }
 };
 
