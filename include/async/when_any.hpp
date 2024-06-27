@@ -31,18 +31,17 @@ template <typename SubOps> struct sub_receiver {
 
     SubOps *ops;
 
+    [[nodiscard]] constexpr auto query(get_env_t) const
+        -> detail::overriding_env<get_stop_token_t, inplace_stop_token,
+                                  typename SubOps::receiver_t> {
+        return override_env_with<get_stop_token_t>(ops->get_stop_token(),
+                                                   ops->get_receiver());
+    }
+
   private:
     template <channel_tag Tag, typename... Args>
     friend auto tag_invoke(Tag, sub_receiver const &r, Args &&...args) -> void {
         r.ops->template emplace<Tag>(std::forward<Args>(args)...);
-    }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                   sub_receiver const &self)
-        -> detail::overriding_env<get_stop_token_t, inplace_stop_token,
-                                  typename SubOps::receiver_t> {
-        return override_env_with<get_stop_token_t>(self.ops->get_stop_token(),
-                                                   self.ops->get_receiver());
     }
 };
 

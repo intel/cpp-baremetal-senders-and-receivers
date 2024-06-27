@@ -72,9 +72,9 @@ template <typename Uniq = decltype([] {})> class run_loop {
             using completion_signatures =
                 async::completion_signatures<set_value_t(), set_stopped_t()>;
 
-            [[nodiscard]] friend constexpr auto
-            tag_invoke(get_env_t, sender s) noexcept -> env {
-                return {s.loop};
+            [[nodiscard]] constexpr auto
+            query(get_env_t) const noexcept -> env {
+                return {loop};
             }
 
             template <stdx::same_as_unqualified<sender> S, receiver R>

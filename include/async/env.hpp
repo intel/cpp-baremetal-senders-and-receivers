@@ -12,14 +12,15 @@ struct empty_env {};
 constexpr inline struct get_env_t {
     template <typename T>
         requires true // more constrained
-    constexpr auto operator()(T &&t) const
-        noexcept(noexcept(tag_invoke(std::declval<get_env_t>(),
-                                     std::forward<T>(t))))
-            -> decltype(tag_invoke(*this, std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+    [[nodiscard]] constexpr auto operator()(T &&t) const
+        noexcept(noexcept(std::forward<T>(t).query(std::declval<get_env_t>())))
+            -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
-    constexpr auto operator()(auto &&) const -> empty_env { return {}; }
+    [[nodiscard]] constexpr auto operator()(auto &&) const -> empty_env {
+        return {};
+    }
 } get_env{};
 
 template <typename T> using env_of_t = decltype(get_env(std::declval<T>()));

@@ -101,6 +101,10 @@ class time_scheduler {
         using is_sender = void;
         [[no_unique_address]] Duration d{};
 
+        [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
+            return {d};
+        }
+
       private:
         template <stdx::same_as_unqualified<sender> S, receiver R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&s,
@@ -108,11 +112,6 @@ class time_scheduler {
             check_connect<S, R>();
             return timer_mgr::op_state<Domain, Duration, std::remove_cvref_t<R>,
                                        Task>{std::forward<R>(r), s.d};
-        }
-
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_env_t, sender s) noexcept -> env {
-            return {s.d};
         }
 
         template <typename Env>

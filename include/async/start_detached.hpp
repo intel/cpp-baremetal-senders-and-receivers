@@ -20,18 +20,17 @@ template <typename Ops> struct receiver {
 
     Ops *ops;
 
+    [[nodiscard]] constexpr auto query(get_env_t) const
+        -> detail::singleton_env<
+            get_stop_token_t,
+            decltype(std::declval<typename Ops::stop_source_t>().get_token())> {
+        return singleton_env<get_stop_token_t>(ops->stop_src.get_token());
+    }
+
   private:
     friend auto tag_invoke(channel_tag auto, receiver const &r,
                            auto &&...) -> void {
         r.ops->die();
-    }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                   receiver const &self)
-        -> detail::singleton_env<
-            get_stop_token_t,
-            decltype(std::declval<typename Ops::stop_source_t>().get_token())> {
-        return singleton_env<get_stop_token_t>(self.ops->stop_src.get_token());
     }
 };
 

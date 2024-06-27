@@ -69,11 +69,6 @@ template <typename Tag, std::invocable... Fs> class sender : public Fs... {
                 std::forward<R>(r)};
     }
 
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_env_t, sender const &) noexcept -> env {
-        return {};
-    }
-
     template <typename... Ts>
     using make_signature = async::completion_signatures<Tag(Ts...)>;
 
@@ -84,6 +79,10 @@ template <typename Tag, std::invocable... Fs> class sender : public Fs... {
         boost::mp11::mp_copy_if_q<
             async::completion_signatures<std::invoke_result_t<Fs>...>,
             boost::mp11::mp_not_fn<std::is_void>>>;
+
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
+        return {};
+    }
 };
 } // namespace _just_result_of
 

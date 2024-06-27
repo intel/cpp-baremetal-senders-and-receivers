@@ -19,8 +19,8 @@ TEST_CASE("non-empty env", "[env]") {
 
 namespace {
 struct test_receiver {
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_env_t, test_receiver const &) -> custom_env {
+    [[nodiscard]] constexpr static auto
+    query(async::get_env_t) noexcept -> custom_env {
         return {};
     }
 };

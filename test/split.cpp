@@ -147,8 +147,8 @@ struct test_sender {
     using completion_signatures =
         async::completion_signatures<async::set_value_t()>;
 
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_env_t, test_sender const &) -> custom_env {
+    [[nodiscard]] constexpr static auto
+    query(async::get_env_t) noexcept -> custom_env {
         return {};
     }
 

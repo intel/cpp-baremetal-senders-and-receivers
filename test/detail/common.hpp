@@ -97,12 +97,11 @@ template <typename F> struct stoppable_receiver : F {
         }
     };
 
-  private:
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_env_t, stoppable_receiver const &) -> env {
+    [[nodiscard]] constexpr auto query(async::get_env_t) const -> env {
         return {stop_source<stoppable_receiver>->get_token()};
     }
 
+  private:
     template <stdx::same_as_unqualified<stoppable_receiver> R>
     friend constexpr auto tag_invoke(async::channel_tag auto, R &&r,
                                      auto &&...) -> void {
@@ -153,12 +152,12 @@ class singleshot_scheduler {
         using completion_signatures =
             async::completion_signatures<async::set_value_t()>;
 
-      private:
-        [[nodiscard, maybe_unused]] friend constexpr auto
-        tag_invoke(async::get_env_t, sender) noexcept -> env {
+        [[nodiscard, maybe_unused]] constexpr static auto
+        query(async::get_env_t) noexcept -> env {
             return {};
         }
 
+      private:
         template <async::receiver_from<sender> R>
         [[nodiscard]] friend constexpr auto
         tag_invoke(async::connect_t, sender &&, R &&r) -> op_state<R> {
@@ -218,8 +217,8 @@ struct custom_sender {
     using completion_signatures =
         async::completion_signatures<async::set_value_t()>;
 
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_env_t, custom_sender const &) -> custom_env {
+    [[nodiscard]] constexpr static auto
+    query(async::get_env_t) noexcept -> custom_env {
         return {};
     }
 

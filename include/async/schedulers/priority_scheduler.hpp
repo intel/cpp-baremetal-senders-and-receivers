@@ -62,17 +62,16 @@ class fixed_priority_scheduler {
     struct sender {
         using is_sender = void;
 
+        [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
+            return {};
+        }
+
       private:
         template <stdx::same_as_unqualified<sender> S, receiver R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r) {
             check_connect<S, R>();
             return task_mgr::op_state<P, std::remove_cvref_t<R>, Task>{
                 std::forward<R>(r)};
-        }
-
-        [[nodiscard]] friend constexpr auto tag_invoke(get_env_t,
-                                                       sender) noexcept -> env {
-            return {};
         }
 
         template <typename Env>

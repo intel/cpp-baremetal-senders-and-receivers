@@ -22,6 +22,11 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     Ops *ops;
 
+    [[nodiscard]] constexpr auto
+    query(get_env_t) const -> detail::forwarding_env<env_of_t<Rcvr>> {
+        return forward_env_of(ops->rcvr);
+    }
+
   private:
     template <typename... Args>
     friend constexpr auto tag_invoke(set_value_t, receiver const &r,
@@ -35,12 +40,6 @@ template <typename Ops, typename Rcvr> struct receiver {
     }
     friend constexpr auto tag_invoke(set_stopped_t, receiver const &r) -> void {
         set_stopped(r.ops->rcvr);
-    }
-
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_env_t,
-               receiver const &self) -> detail::forwarding_env<env_of_t<Rcvr>> {
-        return forward_env_of(self.ops->rcvr);
     }
 };
 
@@ -110,6 +109,10 @@ template <typename Sndr, typename Pred> struct sender {
     [[no_unique_address]] Sndr sndr;
     [[no_unique_address]] Pred p;
 
+    [[nodiscard]] constexpr auto query(async::get_env_t) const {
+        return forward_env_of(sndr);
+    }
+
   private:
     template <typename...> using signatures = completion_signatures<>;
 
@@ -123,11 +126,6 @@ template <typename Sndr, typename Pred> struct sender {
         } else {
             return completion_signatures_of_t<Sndr, Env>{};
         }
-    }
-
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_env_t,
-                                                   sender const &self) {
-        return forward_env_of(self.sndr);
     }
 
     template <stdx::same_as_unqualified<sender> Self, receiver_from<Sndr> R>

@@ -44,8 +44,7 @@ class inline_scheduler {
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_env_t, sender_base) noexcept -> env {
+        [[nodiscard]] static constexpr auto query(get_env_t) noexcept -> env {
             return {};
         }
     };
