@@ -90,10 +90,9 @@ template <typename F> struct stoppable_receiver : F {
     struct env {
         async::inplace_stop_token stop_token;
 
-      private:
-        [[nodiscard]] friend constexpr auto tag_invoke(async::get_stop_token_t,
-                                                       env const &self) {
-            return self.stop_token;
+        [[nodiscard]] constexpr auto
+        query(async::get_stop_token_t) const -> async::inplace_stop_token {
+            return stop_token;
         }
     };
 

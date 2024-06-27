@@ -26,7 +26,10 @@ constexpr inline struct get_env_t {
 template <typename T> using env_of_t = decltype(get_env(std::declval<T>()));
 
 namespace detail {
-template <typename Tag, typename T> struct singleton_env {
+template <typename Tag, typename T, typename E = empty_env>
+struct singleton_env : E {
+    [[nodiscard]] constexpr auto query(Tag) const -> T { return value; }
+
     [[nodiscard]] friend constexpr auto
     tag_invoke(Tag, singleton_env const &self) -> T {
         return self.value;
@@ -35,6 +38,12 @@ template <typename Tag, typename T> struct singleton_env {
 };
 
 template <typename E> struct forwarding_env {
+    template <typename ForwardTag>
+        requires(forwarding_query(ForwardTag{}))
+    [[nodiscard]] constexpr auto query(ForwardTag tag) const -> decltype(auto) {
+        return tag(child_env);
+    }
+
     template <typename ForwardTag>
         requires(forwarding_query(ForwardTag{}))
     [[nodiscard]] friend constexpr auto
@@ -47,13 +56,13 @@ template <typename E> struct forwarding_env {
 template <typename E> forwarding_env(E) -> forwarding_env<E>;
 
 template <typename Tag, typename T, typename Q>
-struct overriding_env : singleton_env<Tag, T>, forwarding_env<env_of_t<Q>> {};
+struct overriding_env : singleton_env<Tag, T, forwarding_env<env_of_t<Q>>> {};
 } // namespace detail
 
 template <typename Tag, typename T>
 constexpr auto
 singleton_env(T &&t) -> detail::singleton_env<Tag, std::remove_cvref_t<T>> {
-    return {std::forward<T>(t)};
+    return {{}, std::forward<T>(t)};
 }
 
 template <typename Q>
@@ -65,6 +74,6 @@ template <typename Tag, typename T, typename Q>
 constexpr auto override_env_with(T &&t, Q &&q)
     -> detail::overriding_env<Tag, std::remove_cvref_t<T>,
                               std::remove_cvref_t<Q>> {
-    return {std::forward<T>(t), get_env(std::forward<Q>(q))};
+    return {get_env(std::forward<Q>(q)), std::forward<T>(t)};
 }
 } // namespace async
