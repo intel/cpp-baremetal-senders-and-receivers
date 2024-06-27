@@ -215,6 +215,7 @@ struct op_state
 
     template <typename Tag, typename... Args>
     auto emplace(Args &&...args) -> void {
+        [[maybe_unused]] auto x = env_t{}.query(get_stop_token_t{});
         StopPolicy::template emplace<mutex, Tag>(completions, stop_source,
                                                  std::forward<Args>(args)...);
         if (--count == 0) {

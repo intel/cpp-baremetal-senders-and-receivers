@@ -192,11 +192,10 @@ template <typename F> struct inplace_stop_callback final : stop_callback_base {
 struct get_stop_token_t : forwarding_query_t {
     template <typename T>
         requires true // more constrained
-    constexpr auto operator()(T &&t) const
-        noexcept(noexcept(tag_invoke(std::declval<get_stop_token_t>(),
-                                     std::forward<T>(t))))
-            -> decltype(tag_invoke(*this, std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+    constexpr auto operator()(T &&t) const noexcept(
+        noexcept(std::forward<T>(t).query(std::declval<get_stop_token_t>())))
+        -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     constexpr auto operator()(auto &&) const -> never_stop_token { return {}; }

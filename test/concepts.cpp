@@ -224,10 +224,9 @@ struct dependent_stoppable_sender : async::sender_base {
 struct stoppable_env {
     async::inplace_stop_token stop_token;
 
-  private:
-    [[nodiscard, maybe_unused]] friend constexpr auto
-    tag_invoke(async::get_stop_token_t, stoppable_env const &self) {
-        return self.stop_token;
+    [[nodiscard, maybe_unused]] constexpr auto
+    query(async::get_stop_token_t) const -> async::inplace_stop_token {
+        return stop_token;
     }
 };
 } // namespace
