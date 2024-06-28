@@ -5,7 +5,7 @@ An important mechanism for customization is the idea of an _environment_.
 Environments are usually associated with receivers and the framework looks up
 values in the environment by using https://wg21.link/p1895[tag_invoke]. In particular, the
 framework calls `R::query(get_env_t)` to find the environment of a receiver type
-`R`, and `tag_invoke(get_stop_token_t, E)` to find the stop token of an environment
+`R`, and `E::query(get_stop_token_t)` to find the stop token of an environment
 type E. `async::get_env_t` and `async::get_stop_token_t` are the tag types used for this
 purpose.
 
@@ -20,9 +20,9 @@ struct custom_receiver {
   friend auto tag_invoke(async::set_stopped_t) { ... }
 
   struct env {
-    [[nodiscard]] friend constexpr auto tag_invoke(async::get_stop_token_t,
-                                                   env const& e) -> async::inplace_stop_token {
-      return e.token;
+    [[nodiscard]] constexpr auto query(async::get_stop_token_t) const
+        -> async::inplace_stop_token {
+      return token;
     }
     async::inplace_stop_token token;
   };

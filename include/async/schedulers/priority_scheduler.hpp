@@ -51,10 +51,10 @@ struct op_state final : Task {
 
 template <priority_t P, typename Task = priority_task>
 class fixed_priority_scheduler {
-    class env {
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>,
-                   env) noexcept -> fixed_priority_scheduler {
+    struct env {
+        [[nodiscard]] constexpr static auto
+        query(get_completion_scheduler_t<set_value_t>) noexcept
+            -> fixed_priority_scheduler {
             return {};
         }
     };

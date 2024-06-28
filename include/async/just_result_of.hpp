@@ -44,9 +44,9 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
 };
 
 template <typename Tag, std::invocable... Fs> class sender : public Fs... {
-    class env {
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_allocator_t, env) noexcept -> stack_allocator {
+    struct env {
+        [[nodiscard]] constexpr static auto
+        query(get_allocator_t) noexcept -> stack_allocator {
             return {};
         }
     };

@@ -6,8 +6,8 @@ namespace {
 struct query1 {};
 
 struct query2 {
-    [[nodiscard]] friend constexpr auto tag_invoke(async::forwarding_query_t,
-                                                   query2) -> bool {
+    [[nodiscard]] constexpr static auto
+    query(async::forwarding_query_t) -> bool {
         return true;
     }
 };
@@ -19,7 +19,7 @@ TEST_CASE("non-forwarding", "[forwarding_query]") {
     static_assert(not async::forwarding_query(query1{}));
 }
 
-TEST_CASE("forwarding by tag_invoke", "[forwarding_query]") {
+TEST_CASE("forwarding by query", "[forwarding_query]") {
     static_assert(async::forwarding_query(query2{}));
 }
 

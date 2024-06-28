@@ -25,11 +25,10 @@ template <auto> class test_scheduler {
         }
     };
 
-    class env {
+    struct env {
         template <typename Tag>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(async::get_completion_scheduler_t<Tag>,
-                   env) noexcept -> test_scheduler {
+        [[nodiscard]] constexpr static auto query(
+            async::get_completion_scheduler_t<Tag>) noexcept -> test_scheduler {
             return {};
         }
     };

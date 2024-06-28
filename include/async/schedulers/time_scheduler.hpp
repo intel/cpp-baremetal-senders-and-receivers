@@ -88,10 +88,10 @@ template <typename Domain, typename Duration,
           typename Task = timer_task<timer_mgr::time_point_for_t<Duration>>>
 class time_scheduler {
     struct env {
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>,
-                   env e) noexcept -> time_scheduler {
-            return {e.d};
+        [[nodiscard]] constexpr auto
+        query(get_completion_scheduler_t<set_value_t>) const noexcept
+            -> time_scheduler {
+            return {d};
         }
 
         [[no_unique_address]] Duration d{};

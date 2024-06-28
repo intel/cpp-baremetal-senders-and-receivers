@@ -7,10 +7,10 @@
 namespace async {
 constexpr inline struct forwarding_query_t {
     template <typename T>
-    constexpr auto operator()(T &&t) const
-        -> decltype(tag_invoke(std::declval<forwarding_query_t>(),
-                               std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+    constexpr auto operator()(T &&t) const noexcept(
+        noexcept(std::forward<T>(t).query(std::declval<forwarding_query_t>())))
+        -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     template <typename T> constexpr auto operator()(T const &) const -> bool {

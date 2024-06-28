@@ -31,10 +31,10 @@ class thread_scheduler {
         }
     };
 
-    class env {
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_scheduler_t<set_value_t>,
-                   env) noexcept -> thread_scheduler {
+    struct env {
+        [[nodiscard]] constexpr static auto
+        query(get_completion_scheduler_t<set_value_t>) noexcept
+            -> thread_scheduler {
             return {};
         }
     };
