@@ -17,9 +17,9 @@ namespace async {
 namespace _sync_wait {
 
 template <typename Sched> struct env {
-    [[nodiscard]] friend constexpr auto tag_invoke(get_scheduler_t,
-                                                   env e) noexcept -> Sched {
-        return e.s;
+    [[nodiscard]] constexpr auto
+    query(get_scheduler_t) const noexcept -> Sched {
+        return s;
     }
 
     Sched s;

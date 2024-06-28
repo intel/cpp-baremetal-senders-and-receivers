@@ -41,9 +41,9 @@ template <typename Tag, typename... Vs> struct sender {
     [[no_unique_address]] stdx::tuple<Vs...> values;
 
   private:
-    class env {
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_allocator_t, env) noexcept -> stack_allocator {
+    struct env {
+        [[nodiscard]] constexpr static auto
+        query(get_allocator_t) noexcept -> stack_allocator {
             return {};
         }
     };

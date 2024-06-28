@@ -137,11 +137,11 @@ class singleshot_scheduler {
         }
     };
 
-    class env {
+    struct env {
         template <typename Tag>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(async::get_completion_scheduler_t<Tag>,
-                   env) noexcept -> singleshot_scheduler {
+        [[nodiscard]] static constexpr auto
+        query(async::get_completion_scheduler_t<Tag>) noexcept
+            -> singleshot_scheduler {
             return {};
         }
     };

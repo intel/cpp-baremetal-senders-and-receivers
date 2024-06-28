@@ -59,10 +59,10 @@ template <typename Uniq = decltype([] {})> class run_loop {
 
     struct scheduler {
         struct env {
-            [[nodiscard]] friend constexpr auto
-            tag_invoke(get_completion_scheduler_t<set_value_t>,
-                       env e) noexcept -> scheduler {
-                return e.loop->get_scheduler();
+            [[nodiscard]] constexpr auto
+            query(get_completion_scheduler_t<set_value_t>) const noexcept
+                -> scheduler {
+                return loop->get_scheduler();
             }
             run_loop *loop;
         };

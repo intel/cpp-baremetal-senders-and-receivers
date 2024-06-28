@@ -89,18 +89,17 @@ constexpr inline struct start_t {
 struct get_scheduler_t : forwarding_query_t {
     template <typename T>
         requires true
-    constexpr auto operator()(T &&t) const
-        noexcept(noexcept(tag_invoke(std::declval<get_scheduler_t>(),
-                                     std::forward<T>(t))))
-            -> decltype(tag_invoke(*this, std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+    constexpr auto operator()(T &&t) const noexcept(
+        noexcept(std::forward<T>(t).query(std::declval<get_scheduler_t>())))
+        -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     template <typename T>
     constexpr auto operator()(T &&) const -> failure_t<T> {
         static_assert(stdx::always_false_v<T>,
                       "No function call for get_scheduler: does the argument "
-                      "provide a tag_invoke(get_scheduler_t)?");
+                      "provide a get_scheduler_t query?");
         return {};
     }
 };

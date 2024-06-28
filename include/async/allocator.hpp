@@ -28,10 +28,10 @@ concept allocator = std::is_empty_v<T> and requires(
 constexpr inline struct get_allocator_t : forwarding_query_t {
     template <typename T>
         requires true // more constrained
-    constexpr auto operator()(T &&t) const
-        -> decltype(tag_invoke(std::declval<get_allocator_t>(),
-                               std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+    constexpr auto operator()(T &&t) const noexcept(
+        noexcept(std::forward<T>(t).query(std::declval<get_allocator_t>())))
+        -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     constexpr auto operator()(auto &&) const -> static_allocator { return {}; }

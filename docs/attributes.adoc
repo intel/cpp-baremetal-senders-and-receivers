@@ -23,8 +23,8 @@ auto sched = async::get_completion_scheduler(async::get_env(sndr));
 assert(sched == orig_sched);
 ----
 
-`get_completion_scheduler` uses `tag_invoke(get_completion_scheduler_t, S)` to
-find the completion scheduler for a sender type `S`.
+`get_completion_scheduler` uses `A::query(get_completion_scheduler_t)` to
+find the completion scheduler for a sender's attributes type `A`.
 
 === allocator
 
@@ -37,6 +37,9 @@ auto sched = /* some scheduler */;
 auto sndr = orig_sched.schedule();
 auto alloc = async::get_allocator(async::get_env(sndr));
 ----
+Similarly, `get_allocator` uses `A::query(get_allocator_t)` to
+find the allocator for a sender's attributes type `A`.
+
 Given a class `T`, an `allocator` supports two operations:
 
 [source,cpp]
