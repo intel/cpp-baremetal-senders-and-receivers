@@ -1,6 +1,7 @@
 #pragma once
 
 #include <async/allocator.hpp>
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/stack_allocator.hpp>
 #include <async/tags.hpp>
@@ -35,19 +36,24 @@ template <typename Tag, typename R, typename... Vs> struct op_state {
     }
 };
 
+struct env {
+    [[nodiscard]] constexpr static auto
+    query(get_allocator_t) noexcept -> stack_allocator {
+        return {};
+    }
+
+    [[nodiscard]] constexpr static auto
+    query(completes_synchronously_t) noexcept -> bool {
+        return true;
+    }
+};
+
 template <typename Tag, typename... Vs> struct sender {
     using is_sender = void;
     using completion_signatures = async::completion_signatures<Tag(Vs...)>;
     [[no_unique_address]] stdx::tuple<Vs...> values;
 
   private:
-    struct env {
-        [[nodiscard]] constexpr static auto
-        query(get_allocator_t) noexcept -> stack_allocator {
-            return {};
-        }
-    };
-
     template <receiver R>
     [[nodiscard]] friend constexpr auto
     tag_invoke(connect_t, sender &&self,

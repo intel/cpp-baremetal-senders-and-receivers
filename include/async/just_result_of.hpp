@@ -1,6 +1,7 @@
 #pragma once
 
 #include <async/allocator.hpp>
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/stack_allocator.hpp>
 #include <async/tags.hpp>
@@ -43,13 +44,18 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
     }
 };
 
+struct env {
+    [[nodiscard]] constexpr static auto
+    query(get_allocator_t) noexcept -> stack_allocator {
+        return {};
+    }
+    [[nodiscard]] constexpr static auto
+    query(completes_synchronously_t) noexcept -> bool {
+        return true;
+    }
+};
+
 template <typename Tag, std::invocable... Fs> class sender : public Fs... {
-    struct env {
-        [[nodiscard]] constexpr static auto
-        query(get_allocator_t) noexcept -> stack_allocator {
-            return {};
-        }
-    };
 
     template <receiver R>
     [[nodiscard]] friend constexpr auto
