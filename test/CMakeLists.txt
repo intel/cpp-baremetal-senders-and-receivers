@@ -16,6 +16,7 @@ endfunction()
 
 add_tests(
     allocator
+    completes_synchronously
     concepts
     continue_on
     env

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <async/allocator.hpp>
+#include <async/completes_synchronously.hpp>
 #include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
@@ -36,6 +37,11 @@ class inline_scheduler {
         query(get_completion_scheduler_t<set_value_t>) noexcept
             -> inline_scheduler {
             return {};
+        }
+
+        [[nodiscard]] constexpr static auto
+        query(completes_synchronously_t) noexcept -> bool {
+            return true;
         }
     };
 
