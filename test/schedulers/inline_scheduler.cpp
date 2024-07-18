@@ -1,9 +1,9 @@
 #include "detail/common.hpp"
 
 #include <async/allocator.hpp>
-#include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
+#include <async/get_completion_scheduler.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/stack_allocator.hpp>
 

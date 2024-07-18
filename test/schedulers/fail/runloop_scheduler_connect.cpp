@@ -1,6 +1,6 @@
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/schedulers/runloop_scheduler.hpp>
-#include <async/tags.hpp>
 
 struct fail_receiver {
     using is_receiver = void;

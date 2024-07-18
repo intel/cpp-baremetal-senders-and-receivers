@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completion_tags.hpp>
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>

@@ -1,12 +1,12 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/let_value.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
-#include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 

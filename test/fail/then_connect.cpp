@@ -1,6 +1,6 @@
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/just.hpp>
-#include <async/tags.hpp>
 #include <async/then.hpp>
 
 // EXPECT: Can't connect sender and receiver

@@ -1,7 +1,7 @@
 #pragma once
 
+#include <async/connect.hpp>
 #include <async/env.hpp>
-#include <async/tags.hpp>
 
 #include <stdx/function_traits.hpp>
 #include <stdx/tuple.hpp>
@@ -14,6 +14,10 @@
 #include <utility>
 
 namespace async {
+struct set_value_t;
+struct set_error_t;
+struct set_stopped_t;
+
 template <typename...> struct completion_signatures {};
 
 constexpr inline struct get_completion_signatures_t {

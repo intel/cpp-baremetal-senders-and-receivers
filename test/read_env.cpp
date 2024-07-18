@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
@@ -9,7 +10,6 @@
 #include <async/start_on.hpp>
 #include <async/stop_token.hpp>
 #include <async/sync_wait.hpp>
-#include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/type_traits.hpp>
 

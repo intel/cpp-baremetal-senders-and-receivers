@@ -1,9 +1,9 @@
 #pragma once
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/schedulers/timer_manager_interface.hpp>
-#include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>

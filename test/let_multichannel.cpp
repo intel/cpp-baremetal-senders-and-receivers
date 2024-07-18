@@ -1,9 +1,9 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/just.hpp>
 #include <async/let.hpp>
-#include <async/tags.hpp>
 
 #include <stdx/type_traits.hpp>
 

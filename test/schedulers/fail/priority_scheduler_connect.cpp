@@ -1,7 +1,7 @@
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
-#include <async/tags.hpp>
 
 // EXPECT: Can't connect sender and receiver
 
