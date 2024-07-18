@@ -1,10 +1,10 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/sync_wait.hpp>
-#include <async/tags.hpp>
 #include <async/then.hpp>
 #include <async/type_traits.hpp>
 #include <async/when_any.hpp>

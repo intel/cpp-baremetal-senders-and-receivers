@@ -4,10 +4,10 @@
 #error async::thread_scheduler is unavailable: <thread> does not exist
 #endif
 
-#include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
-#include <async/tags.hpp>
+#include <async/get_completion_scheduler.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>

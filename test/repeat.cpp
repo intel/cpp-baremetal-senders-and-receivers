@@ -1,12 +1,12 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/just.hpp>
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/sequence.hpp>
 #include <async/start_on.hpp>
-#include <async/tags.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 

@@ -1,12 +1,12 @@
 #include "detail/common.hpp"
 
-#include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
+#include <async/get_completion_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/start_on.hpp>
-#include <async/tags.hpp>
 #include <async/when_all.hpp>
 
 #include <catch2/catch_test_macros.hpp>

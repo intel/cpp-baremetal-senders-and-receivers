@@ -3,8 +3,8 @@
 #include <async/allocator.hpp>
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/stack_allocator.hpp>
-#include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>

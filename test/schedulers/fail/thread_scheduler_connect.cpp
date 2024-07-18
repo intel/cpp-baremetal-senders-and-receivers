@@ -1,6 +1,6 @@
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
-#include <async/tags.hpp>
 
 // EXPECT: Can't connect sender and receiver
 

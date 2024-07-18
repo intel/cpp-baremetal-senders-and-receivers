@@ -6,11 +6,11 @@
 #define HAS_CONDITION_VARIABLE __has_include(<condition_variable>)
 #endif
 
-#include <async/completion_scheduler.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
+#include <async/get_completion_scheduler.hpp>
 #include <async/stop_token.hpp>
-#include <async/tags.hpp>
 #include <async/type_traits.hpp>
 #include <conc/concurrency.hpp>
 

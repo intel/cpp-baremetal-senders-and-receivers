@@ -1,11 +1,13 @@
 #pragma once
 
-#include <async/completion_scheduler.hpp>
+#include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
+#include <async/get_completion_scheduler.hpp>
+#include <async/start.hpp>
 #include <async/stop_token.hpp>
-#include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>

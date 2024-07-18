@@ -1,7 +1,7 @@
 #pragma once
 
 #include <async/concepts.hpp>
-#include <async/tags.hpp>
+#include <async/connect.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>

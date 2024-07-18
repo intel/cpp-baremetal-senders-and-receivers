@@ -1,13 +1,13 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/continue_on.hpp>
 #include <async/just_result_of.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
 #include <async/start_detached.hpp>
 #include <async/start_on.hpp>
-#include <async/tags.hpp>
 #include <async/then.hpp>
 
 #include <stdx/concepts.hpp>

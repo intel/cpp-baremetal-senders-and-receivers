@@ -2,9 +2,9 @@
 
 #include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
-#include <async/tags.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 

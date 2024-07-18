@@ -1,7 +1,7 @@
 #include "detail/common.hpp"
 
+#include <async/connect.hpp>
 #include <async/just.hpp>
-#include <async/tags.hpp>
 #include <async/variant_sender.hpp>
 
 #include <catch2/catch_test_macros.hpp>

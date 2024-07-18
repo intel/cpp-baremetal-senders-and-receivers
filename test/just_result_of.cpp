@@ -2,10 +2,10 @@
 
 #include <async/allocator.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/just_result_of.hpp>
 #include <async/stack_allocator.hpp>
-#include <async/tags.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 

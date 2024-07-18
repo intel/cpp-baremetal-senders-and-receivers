@@ -1,9 +1,11 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
+#include <async/get_scheduler.hpp>
 #include <async/stop_token.hpp>
-#include <async/tags.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
@@ -25,6 +27,13 @@ template <typename R, typename Tag> struct op_state {
     }
 };
 
+struct env {
+    [[nodiscard]] constexpr static auto
+    query(completes_synchronously_t) noexcept -> bool {
+        return true;
+    }
+};
+
 template <typename Tag> struct sender {
     using is_sender = void;
 
@@ -33,6 +42,10 @@ template <typename Tag> struct sender {
                                                    sender const &, Env const &)
         -> completion_signatures<
             set_value_t(decltype(std::declval<Tag>()(std::declval<Env>())))> {
+        return {};
+    }
+
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
         return {};
     }
 

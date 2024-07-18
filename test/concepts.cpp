@@ -1,5 +1,6 @@
+#include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
-#include <async/tags.hpp>
+#include <async/connect.hpp>
 
 #include <stdx/concepts.hpp>
 

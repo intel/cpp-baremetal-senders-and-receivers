@@ -2,6 +2,7 @@
 #include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
+#include <async/read_env.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/then.hpp>
@@ -21,6 +22,11 @@ TEST_CASE("just completes synchronously", "[completes_synchronously]") {
 TEST_CASE("just_result_of completes synchronously",
           "[completes_synchronously]") {
     constexpr auto s = async::just_result_of([] { return 42; });
+    static_assert(async::completes_synchronously(async::get_env(s)));
+}
+
+TEST_CASE("read_env completes synchronously", "[completes_synchronously]") {
+    constexpr auto s = async::get_stop_token();
     static_assert(async::completes_synchronously(async::get_env(s)));
 }
 

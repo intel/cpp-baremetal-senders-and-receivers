@@ -1,10 +1,10 @@
 #include "detail/common.hpp"
 
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
-#include <async/tags.hpp>
 #include <async/then.hpp>
 
 #include <catch2/catch_test_macros.hpp>

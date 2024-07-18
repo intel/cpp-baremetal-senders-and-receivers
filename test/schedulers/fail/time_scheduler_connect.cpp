@@ -1,7 +1,7 @@
 #include <async/concepts.hpp>
+#include <async/connect.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
-#include <async/tags.hpp>
 
 namespace {
 struct hal {
