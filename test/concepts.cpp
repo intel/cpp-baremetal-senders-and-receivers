@@ -13,9 +13,7 @@ TEST_CASE("queryable", "[concepts]") {
 
 namespace {
 struct op_state {
-  private:
-    [[maybe_unused]] friend auto tag_invoke(async::start_t,
-                                            op_state const &) noexcept {}
+    auto start() & noexcept {}
 };
 struct not_op_state {};
 } // namespace

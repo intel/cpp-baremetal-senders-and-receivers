@@ -46,14 +46,10 @@ struct op_state {
 
     auto die() { Alloc::template destruct<Uniq>(this); }
 
+    constexpr auto start() & -> void { async::start(ops); }
+
     [[no_unique_address]] stop_source_t stop_src;
     Ops ops;
-
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        start(std::forward<O>(o).ops);
-    }
 };
 
 template <typename Uniq, typename StopSource, sender S>
@@ -63,9 +59,9 @@ template <typename Uniq, typename StopSource, sender S>
     using O = op_state<Uniq, Sndr, A, StopSource>;
     stdx::optional<StopSource *> stop_src{};
     A::template construct<Uniq, O>(
-        [&](O &&ops) {
+        [&](O &ops) {
             stop_src = std::addressof(ops.stop_src);
-            async::start(std::move(ops));
+            async::start(ops);
         },
         std::forward<S>(s));
     return stop_src;

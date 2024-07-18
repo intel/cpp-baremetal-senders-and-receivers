@@ -49,7 +49,7 @@ TEST_CASE("move-only value", "[start_on]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              receiver{[&](auto mo) { value = mo.value; }});
-    async::start(std::move(op));
+    async::start(op);
     CHECK(value == 42);
 }
 

@@ -141,11 +141,13 @@ struct op_state {
 
         if constexpr (std::is_copy_constructible_v<
                           std::remove_cvref_t<decltype(sent_args)>>) {
-            start(std::move(make_op_state(sent_args)));
+            async::start(make_op_state(sent_args));
         } else {
-            start(std::move(make_op_state(std::move(sent_args))));
+            async::start(make_op_state(std::move(sent_args)));
         }
     }
+
+    constexpr auto start() & -> void { async::start(std::get<0>(state)); }
 
     template <typename Sig>
     using dependent_connect_result_t =
@@ -168,12 +170,6 @@ struct op_state {
     [[no_unique_address]] Func fn;
     results_t results;
     state_t state;
-
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        start(std::get<0>(std::forward<O>(o).state));
-    }
 };
 
 template <typename S, typename F, channel_tag... Tags> struct sender {

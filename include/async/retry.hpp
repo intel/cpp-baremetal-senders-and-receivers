@@ -73,10 +73,10 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
           pred{std::forward<P>(p)} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto restart() -> void {
+    constexpr auto start() & -> void {
         auto &op = state.emplace(stdx::with_result_of{
             [&] { return connect(sndr, receiver_t{this}); }});
-        start(std::move(op));
+        async::start(op);
     }
 
     template <typename... Args> auto retry(Args &&...args) -> void {
@@ -87,7 +87,7 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
                 return;
             }
         }
-        restart();
+        start();
     }
 
     [[no_unique_address]] Sndr sndr;
@@ -96,12 +96,6 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
 
     using state_t = async::connect_result_t<Sndr &, receiver_t>;
     std::optional<state_t> state{};
-
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        std::forward<O>(o).restart();
-    }
 };
 
 template <typename Sndr, typename Pred> struct sender {

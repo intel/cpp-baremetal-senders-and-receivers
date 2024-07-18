@@ -150,10 +150,8 @@ template <typename... Ops> struct op_state {
     using variant_t = boost::mp11::mp_unique<std::variant<Ops...>>;
     variant_t v;
 
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        std::visit([](auto &&ops) { start(FWD(ops)); }, std::forward<O>(o).v);
+    constexpr auto start() & -> void {
+        std::visit([](auto &&ops) { async::start(FWD(ops)); }, v);
     }
 };
 

@@ -192,17 +192,17 @@ template <typename Tag> struct channel_holder {
 
         template <typename R> auto operator()(R &&r) const & -> void {
             this->apply([&]<typename... Args>(Args &&...args) {
-                Tag{}(std::move(r), std::forward<Args>(args)...);
+                Tag{}(std::forward<R>(r), std::forward<Args>(args)...);
             });
         }
         template <typename R> auto operator()(R &&r) & -> void {
             this->apply([&]<typename... Args>(Args &&...args) {
-                Tag{}(std::move(r), std::forward<Args>(args)...);
+                Tag{}(std::forward<R>(r), std::forward<Args>(args)...);
             });
         }
         template <typename R> auto operator()(R &&r) && -> void {
             std::move(*this).apply([&]<typename... Args>(Args &&...args) {
-                Tag{}(std::move(r), std::forward<Args>(args)...);
+                Tag{}(std::forward<R>(r), std::forward<Args>(args)...);
             });
         }
     };

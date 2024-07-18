@@ -50,8 +50,10 @@ struct op_state {
     template <typename... Args> auto complete_first() -> void {
         auto &op = state.template emplace<1>(stdx::with_result_of{
             [&] { return connect(std::move(func)(), std::move(rcvr)); }});
-        start(std::move(op));
+        async::start(op);
     }
+
+    constexpr auto start() & -> void { async::start(std::get<0>(state)); }
 
     [[no_unique_address]] Func func;
     [[no_unique_address]] Rcvr rcvr;
@@ -60,12 +62,6 @@ struct op_state {
     using first_ops = connect_result_t<Sndr, first_rcvr>;
     using second_ops = connect_result_t<dependent_sender, Rcvr>;
     std::variant<first_ops, second_ops> state;
-
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        start(std::get<0>(std::forward<O>(o).state));
-    }
 };
 
 namespace detail {

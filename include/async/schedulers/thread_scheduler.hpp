@@ -22,10 +22,8 @@ class thread_scheduler {
     template <typename R> struct op_state {
         [[no_unique_address]] R receiver;
 
-      private:
-        template <stdx::same_as_unqualified<op_state> O>
-        friend auto tag_invoke(start_t, O &&o) -> void {
-            std::thread{[&] { set_value(std::move(o).receiver); }}.detach();
+        auto start() & -> void {
+            std::thread{[&] { set_value(std::move(receiver)); }}.detach();
         }
     };
 

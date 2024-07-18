@@ -95,7 +95,7 @@ TEST_CASE("move-only value", "[when_all]") {
     static_assert(async::singleshot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(
         std::move(w), receiver{[&](move_only<int> mo) { value = mo.value; }});
-    async::start(std::move(op));
+    async::start(op);
     CHECK(value == 42);
 }
 

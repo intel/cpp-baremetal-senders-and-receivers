@@ -78,7 +78,7 @@ template <typename T> std::optional<async::inplace_stop_source> stop_source{};
 template <typename F> struct stoppable_receiver {
     using is_receiver = void;
 
-    explicit stoppable_receiver(F &&f) : f{std::move(f)} {
+    explicit stoppable_receiver(F &&fn) : f{std::move(fn)} {
         stop_source<stoppable_receiver>.emplace();
     }
     ~stoppable_receiver() { stop_source<stoppable_receiver>.reset(); }
@@ -110,10 +110,8 @@ class singleshot_scheduler {
     template <typename R> struct op_state {
         [[no_unique_address]] R receiver;
 
-      private:
-        template <stdx::same_as_unqualified<op_state> O>
-        friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
-            async::set_value(std::move(o).receiver);
+        constexpr auto start() & -> void {
+            async::set_value(std::move(receiver));
         }
     };
 
@@ -241,18 +239,16 @@ struct phase_control {
 template <typename R> struct stoppable_just_op_state {
     [[no_unique_address]] R receiver;
 
-  private:
-    template <stdx::same_as_unqualified<stoppable_just_op_state> O>
-    friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
+    constexpr auto start() & -> void {
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<R>>>) {
-            if (async::get_stop_token(async::get_env(o.receiver))
+            if (async::get_stop_token(async::get_env(receiver))
                     .stop_requested()) {
-                async::set_stopped(std::move(o).receiver);
+                async::set_stopped(std::move(receiver));
                 return;
             }
         }
-        async::set_value(std::move(o).receiver);
+        async::set_value(std::move(receiver));
     }
 };
 

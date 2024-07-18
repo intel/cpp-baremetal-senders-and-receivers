@@ -155,13 +155,10 @@ struct test_sender {
     template <typename R> struct op_state {
         R r;
 
-      private:
-        template <stdx::same_as_unqualified<op_state> O>
-        friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
-            async::set_value(std::forward<O>(o).r);
-        }
+        constexpr auto start() & -> void { async::set_value(std::move(r)); }
     };
 
+  private:
     template <typename R>
     [[nodiscard]] friend constexpr auto
     tag_invoke(async::connect_t, test_sender &&,

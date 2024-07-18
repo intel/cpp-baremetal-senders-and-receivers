@@ -279,7 +279,7 @@ TEST_CASE("channel holder (values)", "[type_traits]") {
     int value{};
     auto r = receiver{[&](auto i) { value = i; }};
     auto h = async::value_holder<int>{42};
-    h(r);
+    h(std::move(r));
     CHECK(value == 42);
 }
 
@@ -287,7 +287,7 @@ TEST_CASE("channel holder (error)", "[type_traits]") {
     int value{};
     auto r = error_receiver{[&](auto i) { value = i; }};
     auto h = async::error_holder<int>{42};
-    h(r);
+    h(std::move(r));
     CHECK(value == 42);
 }
 
@@ -295,7 +295,7 @@ TEST_CASE("channel holder (stopped)", "[type_traits]") {
     int value{};
     auto r = stopped_receiver{[&] { value = 42; }};
     auto h = async::stopped_holder<>{};
-    h(r);
+    h(std::move(r));
     CHECK(value == 42);
 }
 

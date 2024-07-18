@@ -37,13 +37,9 @@ struct op_state<Domain, Duration, Rcvr, Task> final
     constexpr explicit(true) op_state(R &&r, Duration dur)
         : op_state_base<Rcvr, Task>{std::forward<R>(r)}, d{dur} {}
 
-    [[no_unique_address]] Duration d{};
+    constexpr auto start() & -> void { detail::run_after<Domain>(*this, d); }
 
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        detail::run_after<Domain>(o, o.d);
-    }
+    [[no_unique_address]] Duration d{};
 };
 
 template <typename Domain, typename Duration, typename Rcvr, typename Task>
@@ -55,7 +51,15 @@ struct op_state<Domain, Duration, Rcvr, Task> final
     constexpr explicit(true) op_state(R &&r, Duration dur)
         : op_state_base<Rcvr, Task>{std::forward<R>(r)}, d{dur} {}
 
-    [[no_unique_address]] Duration d{};
+    constexpr auto start() & -> void {
+        auto token = get_stop_token(get_env(this->rcvr));
+        if (token.stop_requested()) {
+            set_stopped(std::move(this->rcvr));
+        } else {
+            detail::run_after<Domain>(*this, d);
+            stop_cb.emplace(token, stop_callback_fn{this});
+        }
+    }
 
   private:
     struct stop_callback_fn {
@@ -66,20 +70,10 @@ struct op_state<Domain, Duration, Rcvr, Task> final
         }
         op_state *ops;
     };
-
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        auto token = get_stop_token(get_env(o.rcvr));
-        if (token.stop_requested()) {
-            set_stopped(std::move(o).rcvr);
-        } else {
-            detail::run_after<Domain>(o, o.d);
-            o.stop_cb.emplace(token, stop_callback_fn{std::addressof(o)});
-        }
-    }
-
     using stop_callback_t =
         stop_callback_for_t<stop_token_of_t<env_of_t<Rcvr>>, stop_callback_fn>;
+
+    [[no_unique_address]] Duration d{};
     std::optional<stop_callback_t> stop_cb{};
 };
 } // namespace timer_mgr
