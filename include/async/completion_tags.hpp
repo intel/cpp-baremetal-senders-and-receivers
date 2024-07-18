@@ -4,32 +4,29 @@
 
 namespace async {
 constexpr inline struct set_value_t {
-    template <typename... Ts>
-    constexpr auto operator()(Ts &&...ts) const
-        noexcept(noexcept(tag_invoke(std::declval<set_value_t>(),
-                                     std::forward<Ts>(ts)...)))
-            -> decltype(tag_invoke(*this, std::forward<Ts>(ts)...)) {
-        return tag_invoke(*this, std::forward<Ts>(ts)...);
+    template <typename R, typename... Ts>
+    constexpr auto operator()(R &&r, Ts &&...ts) const noexcept(
+        noexcept(std::forward<R>(r).set_value(std::forward<Ts>(ts)...)))
+        -> decltype(std::forward<R>(r).set_value(std::forward<Ts>(ts)...)) {
+        return std::forward<R>(r).set_value(std::forward<Ts>(ts)...);
     }
 } set_value{};
 
 constexpr inline struct set_error_t {
-    template <typename... Ts>
-    constexpr auto operator()(Ts &&...ts) const
-        noexcept(noexcept(tag_invoke(std::declval<set_error_t>(),
-                                     std::forward<Ts>(ts)...)))
-            -> decltype(tag_invoke(*this, std::forward<Ts>(ts)...)) {
-        return tag_invoke(*this, std::forward<Ts>(ts)...);
+    template <typename R, typename... Ts>
+    constexpr auto operator()(R &&r, Ts &&...ts) const noexcept(
+        noexcept(std::forward<R>(r).set_error(std::forward<Ts>(ts)...)))
+        -> decltype(std::forward<R>(r).set_error(std::forward<Ts>(ts)...)) {
+        return std::forward<R>(r).set_error(std::forward<Ts>(ts)...);
     }
 } set_error{};
 
 constexpr inline struct set_stopped_t {
-    template <typename... Ts>
-    constexpr auto operator()(Ts &&...ts) const
-        noexcept(noexcept(tag_invoke(std::declval<set_stopped_t>(),
-                                     std::forward<Ts>(ts)...)))
-            -> decltype(tag_invoke(*this, std::forward<Ts>(ts)...)) {
-        return tag_invoke(*this, std::forward<Ts>(ts)...);
+    template <typename R>
+    constexpr auto operator()(R &&r) const
+        noexcept(noexcept(std::forward<R>(r).set_stopped()))
+            -> decltype(std::forward<R>(r).set_stopped()) {
+        return std::forward<R>(r).set_stopped();
     }
 } set_stopped{};
 } // namespace async

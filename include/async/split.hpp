@@ -45,10 +45,7 @@ template <typename S, typename Uniq> struct single_receiver {
         return {op_state_t::stop_source.get_token()};
     }
 
-  private:
-    template <typename... Args>
-    friend auto tag_invoke(set_value_t, single_receiver const &,
-                           Args &&...args) -> void {
+    template <typename... Args> static auto set_value(Args &&...args) -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = value_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -56,9 +53,7 @@ template <typename S, typename Uniq> struct single_receiver {
         }
     }
 
-    template <typename... Args>
-    friend auto tag_invoke(set_error_t, single_receiver const &,
-                           Args &&...args) -> void {
+    template <typename... Args> static auto set_error(Args &&...args) -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = error_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -66,8 +61,7 @@ template <typename S, typename Uniq> struct single_receiver {
         }
     }
 
-    template <typename... Args>
-    friend auto tag_invoke(set_stopped_t, single_receiver const &) -> void {
+    static auto set_stopped() -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = stopped_holder<>;
             store_values<tuple_t>();

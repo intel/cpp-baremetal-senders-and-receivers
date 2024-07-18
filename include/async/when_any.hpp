@@ -38,11 +38,13 @@ template <typename SubOps> struct sub_receiver {
                                                    ops->get_receiver());
     }
 
-  private:
-    template <channel_tag Tag, typename... Args>
-    friend auto tag_invoke(Tag, sub_receiver const &r, Args &&...args) -> void {
-        r.ops->template emplace<Tag>(std::forward<Args>(args)...);
+    template <typename... Args> auto set_value(Args &&...args) const -> void {
+        ops->template emplace<set_value_t>(std::forward<Args>(args)...);
     }
+    template <typename... Args> auto set_error(Args &&...args) const -> void {
+        ops->template emplace<set_error_t>(std::forward<Args>(args)...);
+    }
+    auto set_stopped() const -> void { ops->template emplace<set_stopped_t>(); }
 };
 
 template <typename Ops, typename R, typename S>

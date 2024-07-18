@@ -135,10 +135,9 @@ template <typename E = empty_env> struct universal_receiver : receiver_base {
         return {};
     }
 
-  private:
-    friend constexpr auto tag_invoke(channel_tag auto,
-                                     universal_receiver const &,
-                                     auto &&...) -> void {}
+    constexpr auto set_value(auto &&...) const noexcept -> void {}
+    constexpr auto set_error(auto &&...) const noexcept -> void {}
+    constexpr auto set_stopped() const noexcept -> void {}
 };
 
 template <typename S, typename R>

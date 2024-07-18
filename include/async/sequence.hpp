@@ -24,16 +24,11 @@ template <typename Ops, typename Rcvr> struct receiver {
         return forward_env_of(ops->rcvr);
     }
 
-  private:
-    friend auto tag_invoke(set_value_t, receiver const &self,
-                           auto &&...) -> void {
-        self.ops->complete_first();
+    auto set_value(auto &&...) -> void { ops->complete_first(); }
+    template <typename... Args> auto set_error(Args &&...args) -> void {
+        async::set_error(ops->rcvr, std::forward<Args>(args)...);
     }
-
-    template <channel_tag Tag, typename... Args>
-    friend auto tag_invoke(Tag, receiver const &self, Args &&...args) -> void {
-        Tag{}(self.ops->rcvr, std::forward<Args>(args)...);
-    }
+    auto set_stopped() -> void { async::set_stopped(ops->rcvr); }
 };
 
 template <typename Sndr, std::invocable Func, typename Rcvr>

@@ -34,55 +34,51 @@ struct non_moveable {
 
 using universal_receiver = async::detail::universal_receiver<>;
 
-template <typename F> struct receiver : F {
+template <typename F> struct receiver {
     using is_receiver = void;
 
-  private:
-    template <stdx::same_as_unqualified<receiver> R, typename... Args>
-    friend constexpr auto tag_invoke(async::set_value_t, R &&r,
-                                     Args &&...args) -> void {
-        std::forward<R>(r)(std::forward<Args>(args)...);
+    template <typename... Args>
+    constexpr auto set_value(Args &&...args) const -> void {
+        f(std::forward<Args>(args)...);
     }
-    friend constexpr auto tag_invoke(async::channel_tag auto, receiver const &,
-                                     auto &&...) -> void {}
+    constexpr auto set_error(auto &&...) const -> void {}
+    constexpr auto set_stopped() const -> void {}
+
+    F f;
 };
 template <typename F> receiver(F) -> receiver<F>;
 
-template <typename F> struct error_receiver : F {
+template <typename F> struct error_receiver {
     using is_receiver = void;
 
-  private:
-    template <stdx::same_as_unqualified<error_receiver> R, typename... Args>
-    friend constexpr auto tag_invoke(async::set_error_t, R &&r,
-                                     Args &&...args) -> void {
-        std::forward<R>(r)(std::forward<Args>(args)...);
+    constexpr auto set_value(auto &&...) const -> void {}
+    template <typename... Args>
+    constexpr auto set_error(Args &&...args) const -> void {
+        f(std::forward<Args>(args)...);
     }
-    friend constexpr auto tag_invoke(async::channel_tag auto,
-                                     error_receiver const &,
-                                     auto &&...) -> void {}
+    constexpr auto set_stopped() const -> void {}
+
+    F f;
 };
 template <typename F> error_receiver(F) -> error_receiver<F>;
 
-template <typename F> struct stopped_receiver : F {
+template <typename F> struct stopped_receiver {
     using is_receiver = void;
 
-  private:
-    template <stdx::same_as_unqualified<stopped_receiver> R>
-    friend constexpr auto tag_invoke(async::set_stopped_t, R &&r) -> void {
-        std::forward<R>(r)();
-    }
-    friend constexpr auto tag_invoke(async::channel_tag auto,
-                                     stopped_receiver const &,
-                                     auto &&...) -> void {}
+    constexpr auto set_value(auto &&...) const -> void {}
+    constexpr auto set_error(auto &&...) const -> void {}
+    constexpr auto set_stopped() const -> void { f(); }
+
+    F f;
 };
 template <typename F> stopped_receiver(F) -> stopped_receiver<F>;
 
 template <typename T> std::optional<async::inplace_stop_source> stop_source{};
 
-template <typename F> struct stoppable_receiver : F {
+template <typename F> struct stoppable_receiver {
     using is_receiver = void;
 
-    explicit stoppable_receiver(F &&f) : F{std::move(f)} {
+    explicit stoppable_receiver(F &&f) : f{std::move(f)} {
         stop_source<stoppable_receiver>.emplace();
     }
     ~stoppable_receiver() { stop_source<stoppable_receiver>.reset(); }
@@ -102,12 +98,12 @@ template <typename F> struct stoppable_receiver : F {
         return {stop_source<stoppable_receiver>->get_token()};
     }
 
+    constexpr auto set_value(auto &&...) const -> void { f(); }
+    constexpr auto set_error(auto &&...) const -> void { f(); }
+    constexpr auto set_stopped() const -> void { f(); }
+
   private:
-    template <stdx::same_as_unqualified<stoppable_receiver> R>
-    friend constexpr auto tag_invoke(async::channel_tag auto, R &&r,
-                                     auto &&...) -> void {
-        std::forward<R>(r)();
-    }
+    F f;
 };
 template <typename F> stoppable_receiver(F) -> stoppable_receiver<F>;
 

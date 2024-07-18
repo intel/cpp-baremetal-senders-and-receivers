@@ -81,19 +81,25 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
         return forward_env_of(ops->rcvr);
     }
 
-  private:
-    template <channel_tag OtherTag, typename... Args>
-    friend auto tag_invoke(OtherTag, receiver const &self,
-                           Args &&...args) -> void {
-        OtherTag{}(self.ops->rcvr, std::forward<Args>(args)...);
+    template <typename... Args>
+    constexpr auto set_value(Args &&...args) -> void {
+        handle<set_value_t>(std::forward<Args>(args)...);
     }
+    template <typename... Args>
+    constexpr auto set_error(Args &&...args) -> void {
+        handle<set_error_t>(std::forward<Args>(args)...);
+    }
+    constexpr auto set_stopped() -> void { handle<set_stopped_t>(); }
 
-    template <channel_tag Tag, stdx::same_as_unqualified<receiver> Self,
-              typename... Args>
-        requires(... or std::same_as<Tag, Tags>)
-    friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
-        self.ops->template complete_first<Tag, Tag(Args...)>(
-            std::forward<Args>(args)...);
+  private:
+    template <channel_tag T, typename... Args>
+    auto handle(Args &&...args) -> void {
+        if constexpr ((... or std::same_as<T, Tags>)) {
+            ops->template complete_first<T, T(Args...)>(
+                std::forward<Args>(args)...);
+        } else {
+            T{}(ops->rcvr, std::forward<Args>(args)...);
+        }
     }
 };
 

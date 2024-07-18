@@ -30,20 +30,13 @@ template <typename Ops, typename Rcvr> struct receiver {
         return forward_env_of(ops->rcvr);
     }
 
-  private:
-    template <typename... Args>
-    friend constexpr auto tag_invoke(set_value_t, receiver const &r,
-                                     Args &&...args) -> void {
-        set_value(r.ops->rcvr, std::forward<Args>(args)...);
+    template <typename... Args> auto set_value(Args &&...args) const -> void {
+        async::set_value(ops->rcvr, std::forward<Args>(args)...);
     }
-    template <typename... Args>
-    friend constexpr auto tag_invoke(set_error_t, receiver const &r,
-                                     Args &&...args) -> void {
-        r.ops->retry(std::forward<Args>(args)...);
+    template <typename... Args> auto set_error(Args &&...args) const -> void {
+        ops->retry(std::forward<Args>(args)...);
     }
-    friend constexpr auto tag_invoke(set_stopped_t, receiver const &r) -> void {
-        set_stopped(r.ops->rcvr);
-    }
+    auto set_stopped() const -> void { async::set_stopped(ops->rcvr); }
 };
 
 constexpr auto never_stop = [](auto &&...) { return false; };

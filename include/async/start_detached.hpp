@@ -27,11 +27,9 @@ template <typename Ops> struct receiver {
         return singleton_env<get_stop_token_t>(ops->stop_src.get_token());
     }
 
-  private:
-    friend auto tag_invoke(channel_tag auto, receiver const &r,
-                           auto &&...) -> void {
-        r.ops->die();
-    }
+    constexpr auto set_value(auto &&...) const -> void { ops->die(); }
+    constexpr auto set_error(auto &&...) const -> void { ops->die(); }
+    constexpr auto set_stopped() const -> void { ops->die(); }
 };
 
 template <typename Uniq, typename Sndr, typename Alloc, typename StopSource>

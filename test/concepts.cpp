@@ -44,13 +44,9 @@ struct error {};
 
 template <typename E = error, typename... Ts>
 struct receiver : async::receiver_base {
-  private:
-    friend auto tag_invoke(async::set_value_t, receiver const &,
-                           std::same_as<Ts> auto...) -> void {}
-    friend auto tag_invoke(async::set_error_t, receiver const &,
-                           std::same_as<E> auto) -> void {}
-    template <std::same_as<receiver> R>
-    friend auto tag_invoke(async::set_stopped_t, R const &) -> void {}
+    constexpr auto set_value(std::same_as<Ts> auto...) const -> void {}
+    constexpr auto set_error(std::same_as<E> auto) const -> void {}
+    constexpr auto set_stopped() const -> void {}
 };
 } // namespace
 
@@ -131,11 +127,8 @@ struct sender : async::sender_base {
 };
 
 template <typename... Ts> struct value_receiver : async::receiver_base {
-  private:
-    template <std::same_as<value_receiver> R>
-    friend auto tag_invoke(async::set_value_t, R const &, Ts...) -> void {}
-    friend auto tag_invoke(async::set_error_t, value_receiver const &,
-                           auto) -> void {}
+    constexpr auto set_value(Ts...) const -> void {}
+    constexpr auto set_error(auto) const -> void {}
 };
 } // namespace
 
