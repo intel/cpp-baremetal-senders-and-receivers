@@ -1,6 +1,7 @@
 #pragma once
 
 #include <async/concepts.hpp>
+#include <async/get_scheduler.hpp>
 #include <async/schedulers/runloop_scheduler.hpp>
 #include <async/tags.hpp>
 #include <async/type_traits.hpp>
