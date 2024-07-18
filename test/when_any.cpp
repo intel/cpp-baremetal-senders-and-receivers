@@ -263,7 +263,7 @@ TEST_CASE("when_any with zero args can be stopped (before start)",
           "[when_any]") {
     int value{};
     [[maybe_unused]] auto w = async::when_any();
-    auto r = only_stoppable_receiver{[&] { value = 42; }};
+    auto r = stoppable_receiver{[&] { value = 42; }};
     static_assert(
         std::same_as<async::completion_signatures_of_t<
                          decltype(w), async::env_of_t<decltype(r)>>,
@@ -279,7 +279,7 @@ TEST_CASE("when_any with zero args can be stopped (after start)",
           "[when_any]") {
     int value{};
     [[maybe_unused]] auto w = async::when_any();
-    auto r = only_stoppable_receiver{[&] { value = 42; }};
+    auto r = stoppable_receiver{[&] { value = 42; }};
     static_assert(
         std::same_as<async::completion_signatures_of_t<
                          decltype(w), async::env_of_t<decltype(r)>>,

@@ -44,9 +44,9 @@ struct error {};
 
 template <typename E = error, typename... Ts>
 struct receiver : async::receiver_base {
-    constexpr auto set_value(std::same_as<Ts> auto...) const -> void {}
-    constexpr auto set_error(std::same_as<E> auto) const -> void {}
-    constexpr auto set_stopped() const -> void {}
+    constexpr auto set_value(std::same_as<Ts> auto...) const && -> void {}
+    constexpr auto set_error(std::same_as<E> auto) const && -> void {}
+    constexpr auto set_stopped() const && -> void {}
 };
 } // namespace
 
@@ -127,8 +127,8 @@ struct sender : async::sender_base {
 };
 
 template <typename... Ts> struct value_receiver : async::receiver_base {
-    constexpr auto set_value(Ts...) const -> void {}
-    constexpr auto set_error(auto) const -> void {}
+    constexpr auto set_value(Ts...) const && -> void {}
+    constexpr auto set_error(auto) const && -> void {}
 };
 } // namespace
 

@@ -71,7 +71,7 @@ struct op_state<Domain, Duration, Rcvr, Task> final
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         auto token = get_stop_token(get_env(o.rcvr));
         if (token.stop_requested()) {
-            set_stopped(std::forward<O>(o).rcvr);
+            set_stopped(std::move(o).rcvr);
         } else {
             detail::run_after<Domain>(o, o.d);
             o.stop_cb.emplace(token, stop_callback_fn{std::addressof(o)});

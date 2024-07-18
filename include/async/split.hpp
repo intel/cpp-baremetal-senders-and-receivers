@@ -126,7 +126,7 @@ struct op_state : op_state_base<S, Uniq> {
         std::visit(
             [&]<typename T>(T const &t) -> void {
                 if constexpr (not std::is_same_v<T, std::monostate>) {
-                    t(rcvr);
+                    t(std::move(rcvr));
                 }
             },
             op_state_t::values);
@@ -143,7 +143,7 @@ struct op_state : op_state_base<S, Uniq> {
             get_stop_token(get_env(o.rcvr)),
             stop_callback_fn{std::addressof(o.stop_source)});
         if (o.stop_source.stop_requested()) {
-            set_stopped(std::forward<O>(o).rcvr);
+            set_stopped(std::move(o).rcvr);
             return;
         }
 

@@ -114,7 +114,7 @@ TEST_CASE("split cancellation (stopped by source)", "[split]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto spl = async::split(std::move(s));
 
-    auto r1 = only_stoppable_receiver{[&] { ++stopped; }};
+    auto r1 = stoppable_receiver{[&] { ++stopped; }};
     auto r2 = stopped_receiver{[&] { ++stopped; }};
     auto op1 = async::connect(spl, r1);
     auto op2 = async::connect(spl, r2);

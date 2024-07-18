@@ -107,14 +107,14 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
     }
 
     template <typename... Args>
-    constexpr auto set_value(Args &&...args) -> void {
+    constexpr auto set_value(Args &&...args) && -> void {
         handle<set_value_t>(std::forward<Args>(args)...);
     }
     template <typename... Args>
-    constexpr auto set_error(Args &&...args) -> void {
+    constexpr auto set_error(Args &&...args) && -> void {
         handle<set_error_t>(std::forward<Args>(args)...);
     }
-    constexpr auto set_stopped() -> void { handle<set_stopped_t>(); }
+    constexpr auto set_stopped() && -> void { handle<set_stopped_t>(); }
 
   private:
     template <typename T, typename... Args>

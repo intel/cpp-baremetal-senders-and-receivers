@@ -21,7 +21,7 @@ template <auto> class test_scheduler {
       private:
         template <stdx::same_as_unqualified<op_state> O>
         friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
-            async::set_value(std::forward<O>(o).receiver);
+            async::set_value(std::move(o).receiver);
         }
     };
 

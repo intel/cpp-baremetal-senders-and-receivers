@@ -39,13 +39,15 @@ template <typename SubOps> struct sub_receiver {
                                                    ops->get_receiver());
     }
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
+    template <typename... Args>
+    auto set_value(Args &&...args) const && -> void {
         ops->emplace_value(std::forward<Args>(args)...);
     }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
+    template <typename... Args>
+    auto set_error(Args &&...args) const && -> void {
         ops->emplace_error(std::forward<Args>(args)...);
     }
-    auto set_stopped() const -> void { ops->emplace_stopped(); }
+    auto set_stopped() const && -> void { ops->emplace_stopped(); }
 };
 
 template <typename S, typename Tag, typename E>
@@ -193,16 +195,16 @@ struct op_state
 
     auto complete() -> void {
         stop_cb.reset();
-        if (this->release_error(rcvr)) {
+        if (this->release_error(std::move(rcvr))) {
         } else if (stop_source.stop_requested()) {
-            set_stopped(rcvr);
+            set_stopped(std::move(rcvr));
         } else {
             using value_senders =
                 boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
                                         single_value_sender_t>;
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
                 set_value(
-                    rcvr,
+                    std::move(rcvr),
                     static_cast<sub_op_state<op_state, Rcvr, Ss> &&>(*this)
                         .v.value()...);
             }(value_senders{});
@@ -223,7 +225,7 @@ struct op_state
         o.stop_cb.emplace(get_stop_token(get_env(o.rcvr)),
                           stop_callback_fn{std::addressof(o.stop_source)});
         if (o.stop_source.stop_requested()) {
-            set_stopped(std::forward<O>(o).rcvr);
+            set_stopped(std::move(o).rcvr);
         } else {
             o.count = sizeof...(Sndrs);
             (start(static_cast<stdx::forward_like_t<
@@ -267,14 +269,14 @@ struct op_state<Rcvr, Sndrs...>
         std::bool_constant<single_sender<S, set_value_t, env_of_t<Rcvr>>>;
 
     auto complete() -> void {
-        if (this->release_error(rcvr)) {
+        if (this->release_error(std::move(rcvr))) {
         } else {
             using value_senders =
                 boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
                                         single_value_sender_t>;
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
                 set_value(
-                    rcvr,
+                    std::move(rcvr),
                     static_cast<sub_op_state<op_state, Rcvr, Ss> &&>(*this)
                         .v.value()...);
             }(value_senders{});
@@ -349,11 +351,11 @@ template <typename Rcvr> struct op_state<Rcvr> {
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
             if (async::get_stop_token(async::get_env(o.rcvr))
                     .stop_requested()) {
-                set_stopped(std::forward<O>(o).rcvr);
+                set_stopped(std::move(o).rcvr);
                 return;
             }
         }
-        set_value(std::forward<O>(o).rcvr);
+        set_value(std::move(o).rcvr);
     }
 };
 

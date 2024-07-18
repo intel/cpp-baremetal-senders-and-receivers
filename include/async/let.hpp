@@ -82,14 +82,14 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
     }
 
     template <typename... Args>
-    constexpr auto set_value(Args &&...args) -> void {
+    constexpr auto set_value(Args &&...args) && -> void {
         handle<set_value_t>(std::forward<Args>(args)...);
     }
     template <typename... Args>
-    constexpr auto set_error(Args &&...args) -> void {
+    constexpr auto set_error(Args &&...args) && -> void {
         handle<set_error_t>(std::forward<Args>(args)...);
     }
-    constexpr auto set_stopped() -> void { handle<set_stopped_t>(); }
+    constexpr auto set_stopped() && -> void { handle<set_stopped_t>(); }
 
   private:
     template <channel_tag T, typename... Args>
@@ -98,7 +98,7 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
             ops->template complete_first<T, T(Args...)>(
                 std::forward<Args>(args)...);
         } else {
-            T{}(ops->rcvr, std::forward<Args>(args)...);
+            T{}(std::move(ops->rcvr), std::forward<Args>(args)...);
         }
     }
 };

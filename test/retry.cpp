@@ -85,7 +85,7 @@ TEST_CASE("retry_until retries on error", "[retry]") {
 
 TEST_CASE("retry can be cancelled", "[retry]") {
     int var{};
-    only_stoppable_receiver r{[&] { var += 42; }};
+    stoppable_receiver r{[&] { var += 42; }};
 
     auto sub = async::just() | async::sequence([&] {
                    if (++var == 2) {

@@ -32,7 +32,7 @@ template <typename Tag, typename R, typename... Vs> struct op_state {
         requires(... and std::copy_constructible<Vs>)
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
         std::forward<O>(o).values.apply([&]<typename... Ts>(Ts &&...ts) {
-            Tag{}(std::forward<O>(o).receiver, std::forward<Ts>(ts)...);
+            Tag{}(std::move(o).receiver, std::forward<Ts>(ts)...);
         });
     }
 };

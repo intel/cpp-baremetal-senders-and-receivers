@@ -38,13 +38,17 @@ template <typename SubOps> struct sub_receiver {
                                                    ops->get_receiver());
     }
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
+    template <typename... Args>
+    auto set_value(Args &&...args) const && -> void {
         ops->template emplace<set_value_t>(std::forward<Args>(args)...);
     }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
+    template <typename... Args>
+    auto set_error(Args &&...args) const && -> void {
         ops->template emplace<set_error_t>(std::forward<Args>(args)...);
     }
-    auto set_stopped() const -> void { ops->template emplace<set_stopped_t>(); }
+    auto set_stopped() const && -> void {
+        ops->template emplace<set_stopped_t>();
+    }
 };
 
 template <typename Ops, typename R, typename S>
@@ -230,18 +234,19 @@ struct op_state
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
             if (async::get_stop_token(async::get_env(rcvr)).stop_requested()) {
-                set_stopped(rcvr);
+                set_stopped(std::move(rcvr));
                 return;
             }
         }
-        std::visit(stdx::overload{
-                       [&]<typename T>(T &&t) {
-                           std::forward<T>(t).apply(
-                               [&]<typename... Args>(auto tag, Args &&...args) {
-                                   tag(rcvr, std::forward<Args>(args)...);
-                               });
-                       },
-                       [](std::monostate) {}},
+        std::visit(stdx::overload{[&]<typename T>(T &&t) {
+                                      std::forward<T>(t).apply(
+                                          [&]<typename... Args>(
+                                              auto tag, Args &&...args) {
+                                              tag(std::move(rcvr),
+                                                  std::forward<Args>(args)...);
+                                          });
+                                  },
+                                  [](std::monostate) {}},
                    std::move(completions));
     }
 
@@ -260,7 +265,7 @@ struct op_state
         o.stop_cb.emplace(get_stop_token(get_env(o.rcvr)),
                           stop_callback_fn{std::addressof(o.stop_source)});
         if (o.stop_source.stop_requested()) {
-            set_stopped(std::forward<O>(o).rcvr);
+            set_stopped(std::move(o).rcvr);
         } else {
             o.count = sizeof...(Sndrs);
             (start(static_cast<stdx::forward_like_t<
@@ -307,7 +312,7 @@ template <typename StopPolicy, typename Rcvr>
 struct op_state<StopPolicy, Rcvr> {
     struct stop_callback_fn {
         auto operator()() -> void {
-            set_stopped(ops->rcvr);
+            set_stopped(std::move(ops->rcvr));
             ops->stop_cb.reset();
         }
         op_state *ops;

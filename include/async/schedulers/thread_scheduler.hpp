@@ -25,9 +25,7 @@ class thread_scheduler {
       private:
         template <stdx::same_as_unqualified<op_state> O>
         friend auto tag_invoke(start_t, O &&o) -> void {
-            std::thread{[&] {
-                set_value(std::forward<O>(o).receiver);
-            }}.detach();
+            std::thread{[&] { set_value(std::move(o).receiver); }}.detach();
         }
     };
 

@@ -38,7 +38,7 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
         }(boost::mp11::mp_front<split_returns>{});
 
         [&]<typename... Ts>(boost::mp11::mp_list<Ts...>) {
-            Tag{}(std::forward<O>(o).receiver,
+            Tag{}(std::move(o).receiver,
                   static_cast<stdx::forward_like_t<O, Ts>>(o)()...);
         }(boost::mp11::mp_back<split_returns>{});
     }

@@ -24,11 +24,14 @@ template <typename Ops, typename Rcvr> struct receiver {
         return forward_env_of(ops->rcvr);
     }
 
-    auto set_value(auto &&...) -> void { ops->complete_first(); }
-    template <typename... Args> auto set_error(Args &&...args) -> void {
-        async::set_error(ops->rcvr, std::forward<Args>(args)...);
+    auto set_value(auto &&...) const && -> void { ops->complete_first(); }
+    template <typename... Args>
+    auto set_error(Args &&...args) const && -> void {
+        async::set_error(std::move(ops->rcvr), std::forward<Args>(args)...);
     }
-    auto set_stopped() -> void { async::set_stopped(ops->rcvr); }
+    auto set_stopped() const && -> void {
+        async::set_stopped(std::move(ops->rcvr));
+    }
 };
 
 template <typename Sndr, std::invocable Func, typename Rcvr>

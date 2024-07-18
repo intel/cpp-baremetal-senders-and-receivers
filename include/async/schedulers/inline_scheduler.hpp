@@ -23,7 +23,7 @@ class inline_scheduler {
       private:
         template <stdx::same_as_unqualified<op_state> O>
         friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-            set_value(std::forward<O>(o).receiver);
+            set_value(std::move(o).receiver);
         }
     };
 

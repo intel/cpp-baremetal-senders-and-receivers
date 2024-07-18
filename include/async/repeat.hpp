@@ -28,13 +28,17 @@ template <typename Ops, typename Rcvr> struct receiver {
         return forward_env_of(ops->rcvr);
     }
 
-    template <typename... Args> auto set_value(Args &&...args) const -> void {
+    template <typename... Args>
+    auto set_value(Args &&...args) const && -> void {
         ops->repeat(std::forward<Args>(args)...);
     }
-    template <typename... Args> auto set_error(Args &&...args) const -> void {
-        async::set_error(ops->rcvr, std::forward<Args>(args)...);
+    template <typename... Args>
+    auto set_error(Args &&...args) const && -> void {
+        async::set_error(std::move(ops->rcvr), std::forward<Args>(args)...);
     }
-    auto set_stopped() const -> void { async::set_stopped(ops->rcvr); }
+    auto set_stopped() const && -> void {
+        async::set_stopped(std::move(ops->rcvr));
+    }
 };
 
 constexpr auto never_stop = [](auto &&...) { return false; };
@@ -77,7 +81,7 @@ template <typename Sndr, typename Rcvr, stdx::callable Pred> struct op_state {
         if constexpr (not std::same_as<
                           Pred, std::remove_cvref_t<decltype(never_stop)>>) {
             if (pred(args...)) {
-                set_value(rcvr, std::forward<Args>(args)...);
+                set_value(std::move(rcvr), std::forward<Args>(args)...);
                 return;
             }
         }

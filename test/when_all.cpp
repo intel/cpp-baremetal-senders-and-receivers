@@ -223,7 +223,7 @@ TEST_CASE("when_all with zero args completes immediately when stopped",
           "[when_all]") {
     int value{};
     [[maybe_unused]] auto w = async::when_all();
-    auto r = only_stoppable_receiver{[&] { value = 42; }};
+    auto r = stoppable_receiver{[&] { value = 42; }};
     static_assert(
         async::stoppable_sender<decltype(w), async::env_of_t<decltype(r)>>);
     static_assert(

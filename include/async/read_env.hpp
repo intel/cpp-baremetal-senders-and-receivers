@@ -23,7 +23,7 @@ template <typename R, typename Tag> struct op_state {
   private:
     template <stdx::same_as_unqualified<op_state> O>
     friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        set_value(std::forward<O>(o).receiver, Tag{}(get_env(o.receiver)));
+        set_value(std::move(o).receiver, Tag{}(get_env(o.receiver)));
     }
 };
 

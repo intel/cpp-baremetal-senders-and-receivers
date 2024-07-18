@@ -41,12 +41,12 @@ template <typename V, typename RL> struct receiver {
     }
 
     template <typename... Args>
-    constexpr auto set_value(Args &&...args) const -> void {
+    constexpr auto set_value(Args &&...args) const && -> void {
         values.emplace(stdx::make_tuple(std::forward<Args>(args)...));
         loop.finish();
     }
-    constexpr auto set_error(auto &&...) const -> void { loop.finish(); }
-    constexpr auto set_stopped() const -> void { loop.finish(); }
+    constexpr auto set_error(auto &&...) const && -> void { loop.finish(); }
+    constexpr auto set_stopped() const && -> void { loop.finish(); }
 };
 
 namespace detail {

@@ -112,7 +112,7 @@ TEST_CASE("repeat_until is pipeable", "[repeat]") {
 
 TEST_CASE("repeat can be cancelled", "[repeat]") {
     int var{};
-    only_stoppable_receiver r{[&] { var += 42; }};
+    stoppable_receiver r{[&] { var += 42; }};
 
     auto sub = async::just() | async::sequence([&] {
                    if (++var == 2) {
