@@ -20,11 +20,7 @@ class inline_scheduler {
     template <typename R> struct op_state {
         [[no_unique_address]] R receiver;
 
-      private:
-        template <stdx::same_as_unqualified<op_state> O>
-        friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-            set_value(std::forward<O>(o).receiver);
-        }
+        constexpr auto start() & -> void { set_value(std::move(receiver)); }
     };
 
     struct env {

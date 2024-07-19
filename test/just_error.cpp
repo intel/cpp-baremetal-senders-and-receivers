@@ -30,7 +30,7 @@ TEST_CASE("move-only value", "[just_error]") {
     auto op = async::connect(
         std::move(s),
         error_receiver{[&](move_only<int> mo) { value = mo.value; }});
-    async::start(std::move(op));
+    async::start(op);
     CHECK(value == 42);
 }
 

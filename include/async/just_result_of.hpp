@@ -26,20 +26,17 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
 
     [[no_unique_address]] R receiver;
 
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend auto tag_invoke(start_t, O &&o) -> void {
+    auto start() & -> void {
         using split_returns =
             boost::mp11::mp_partition<boost::mp11::mp_list<Fs...>,
                                       has_void_result>;
 
         [&]<typename... Ts>(boost::mp11::mp_list<Ts...>) {
-            (static_cast<stdx::forward_like_t<O, Ts>>(o)(), ...);
+            (static_cast<Ts &>(*this)(), ...);
         }(boost::mp11::mp_front<split_returns>{});
 
         [&]<typename... Ts>(boost::mp11::mp_list<Ts...>) {
-            Tag{}(std::forward<O>(o).receiver,
-                  static_cast<stdx::forward_like_t<O, Ts>>(o)()...);
+            Tag{}(std::move(receiver), static_cast<Ts &>(*this)()...);
         }(boost::mp11::mp_back<split_returns>{});
     }
 };

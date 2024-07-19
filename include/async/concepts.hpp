@@ -30,8 +30,8 @@ concept queryable = std::destructible<T>;
 
 template <typename O>
 concept operation_state =
-    queryable<O> and std::is_object_v<O> and requires(O &&o) {
-        { start(std::move(o)) } -> std::same_as<void>;
+    queryable<O> and std::is_object_v<O> and requires(O &o) {
+        { start(o) } -> std::same_as<void>;
     };
 
 namespace detail {
@@ -135,10 +135,9 @@ template <typename E = empty_env> struct universal_receiver : receiver_base {
         return {};
     }
 
-  private:
-    friend constexpr auto tag_invoke(channel_tag auto,
-                                     universal_receiver const &,
-                                     auto &&...) -> void {}
+    constexpr auto set_value(auto &&...) const && noexcept -> void {}
+    constexpr auto set_error(auto &&...) const && noexcept -> void {}
+    constexpr auto set_stopped() const && noexcept -> void {}
 };
 
 template <typename S, typename R>

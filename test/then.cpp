@@ -223,7 +223,7 @@ TEST_CASE("move-only value (to then) (variadic)", "[then]") {
              async::then([](auto i) { return i.value; }, [](auto) {});
     static_assert(async::sender_of<decltype(s), async::set_value_t(int)>);
     auto op = async::connect(std::move(s), receiver{[&](auto i) { x = i; }});
-    async::start(std::move(op));
+    async::start(op);
     CHECK(x == 2);
 }
 

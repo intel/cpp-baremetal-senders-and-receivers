@@ -28,19 +28,16 @@ template <typename Ops, typename Rcvr> struct receiver {
         return forward_env_of(ops->rcvr);
     }
 
-  private:
     template <typename... Args>
-    friend constexpr auto tag_invoke(set_value_t, receiver const &r,
-                                     Args &&...args) -> void {
-        r.ops->repeat(std::forward<Args>(args)...);
+    auto set_value(Args &&...args) const && -> void {
+        ops->repeat(std::forward<Args>(args)...);
     }
     template <typename... Args>
-    friend constexpr auto tag_invoke(set_error_t, receiver const &r,
-                                     Args &&...args) -> void {
-        set_error(r.ops->rcvr, std::forward<Args>(args)...);
+    auto set_error(Args &&...args) const && -> void {
+        async::set_error(std::move(ops->rcvr), std::forward<Args>(args)...);
     }
-    friend constexpr auto tag_invoke(set_stopped_t, receiver const &r) -> void {
-        set_stopped(r.ops->rcvr);
+    auto set_stopped() const && -> void {
+        async::set_stopped(std::move(ops->rcvr));
     }
 };
 
@@ -74,21 +71,21 @@ template <typename Sndr, typename Rcvr, stdx::callable Pred> struct op_state {
           pred{std::forward<P>(p)} {}
     constexpr op_state(op_state &&) = delete;
 
-    auto restart() -> void {
+    constexpr auto start() & -> void {
         auto &op = state.emplace(stdx::with_result_of{
             [&] { return connect(sndr, receiver_t{this}); }});
-        start(std::move(op));
+        async::start(op);
     }
 
     template <typename... Args> auto repeat(Args &&...args) -> void {
         if constexpr (not std::same_as<
                           Pred, std::remove_cvref_t<decltype(never_stop)>>) {
             if (pred(args...)) {
-                set_value(rcvr, std::forward<Args>(args)...);
+                set_value(std::move(rcvr), std::forward<Args>(args)...);
                 return;
             }
         }
-        restart();
+        start();
     }
 
     [[no_unique_address]] Sndr sndr;
@@ -97,12 +94,6 @@ template <typename Sndr, typename Rcvr, stdx::callable Pred> struct op_state {
 
     using state_t = async::connect_result_t<Sndr &, receiver_t>;
     std::optional<state_t> state{};
-
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        std::forward<O>(o).restart();
-    }
 };
 
 template <typename Sndr, typename Pred> struct sender {

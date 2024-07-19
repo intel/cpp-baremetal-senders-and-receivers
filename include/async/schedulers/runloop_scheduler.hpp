@@ -47,14 +47,10 @@ template <typename Uniq = decltype([] {})> class run_loop {
             }
         }
 
+        constexpr auto start() & -> void { loop->push_back(this); }
+
         run_loop *loop{};
         [[no_unique_address]] Rcvr rcvr;
-
-      private:
-        template <stdx::same_as_unqualified<op_state> O>
-        friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-            std::forward<O>(o).loop->push_back(std::addressof(o));
-        }
     };
 
     struct scheduler {

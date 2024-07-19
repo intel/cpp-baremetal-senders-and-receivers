@@ -106,36 +106,43 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
         return forward_env_of(r);
     }
 
-  private:
-    template <stdx::same_as_unqualified<receiver> Self, typename... Args>
-    friend auto tag_invoke(Tag, Self &&self, Args &&...args) -> void {
-        using arities =
-            typename detail::args<Args &&...>::template arities_t<Fs...>;
-        using offsets = typename detail::offsets_t<arities, Fs...>;
-
-        auto arg_tuple = stdx::tuple<Args &&...>{std::forward<Args>(args)...};
-        auto const invoke = [&]<typename F, typename Offset, typename Arity>(
-                                F &&func, Offset, Arity) -> decltype(auto) {
-            return detail::invoke<Offset::value>(
-                std::forward<F>(func), std::move(arg_tuple),
-                std::make_index_sequence<Arity::value>{});
-        };
-        auto results = stdx::transform(invoke, std::forward<Self>(self).fs,
-                                       offsets{}, arities{});
-        auto filtered_results =
-            stdx::filter<detail::nonvoid_result_t>(std::move(results));
-
-        std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
-            Tag{}(std::forward<Self>(self).r, std::forward<Ts>(ts)...);
-        });
+    template <typename... Args>
+    constexpr auto set_value(Args &&...args) && -> void {
+        handle<set_value_t>(std::forward<Args>(args)...);
     }
+    template <typename... Args>
+    constexpr auto set_error(Args &&...args) && -> void {
+        handle<set_error_t>(std::forward<Args>(args)...);
+    }
+    constexpr auto set_stopped() && -> void { handle<set_stopped_t>(); }
 
-    template <typename T, stdx::same_as_unqualified<receiver> Self,
-              typename... Args>
-    friend auto tag_invoke(T, Self &&self, Args &&...args)
-        -> decltype(T{}(std::forward<Self>(self).r,
-                        std::forward<Args>(args)...)) {
-        return T{}(std::forward<Self>(self).r, std::forward<Args>(args)...);
+  private:
+    template <typename T, typename... Args>
+    auto handle(Args &&...args) -> void {
+        if constexpr (std::same_as<Tag, T>) {
+            using arities =
+                typename detail::args<Args &&...>::template arities_t<Fs...>;
+            using offsets = typename detail::offsets_t<arities, Fs...>;
+
+            auto arg_tuple =
+                stdx::tuple<Args &&...>{std::forward<Args>(args)...};
+            auto const invoke =
+                [&]<typename F, typename Offset, typename Arity>(
+                    F &&func, Offset, Arity) -> decltype(auto) {
+                return detail::invoke<Offset::value>(
+                    std::forward<F>(func), std::move(arg_tuple),
+                    std::make_index_sequence<Arity::value>{});
+            };
+            auto results = stdx::transform(invoke, fs, offsets{}, arities{});
+            auto filtered_results =
+                stdx::filter<detail::nonvoid_result_t>(std::move(results));
+
+            std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
+                Tag{}(std::move(r), std::forward<Ts>(ts)...);
+            });
+        } else {
+            T{}(std::move(r), std::forward<Args>(args)...);
+        }
     }
 };
 

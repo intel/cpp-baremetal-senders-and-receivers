@@ -27,11 +27,9 @@ template <typename Ops> struct receiver {
         return singleton_env<get_stop_token_t>(ops->stop_src.get_token());
     }
 
-  private:
-    friend auto tag_invoke(channel_tag auto, receiver const &r,
-                           auto &&...) -> void {
-        r.ops->die();
-    }
+    constexpr auto set_value(auto &&...) const && -> void { ops->die(); }
+    constexpr auto set_error(auto &&...) const && -> void { ops->die(); }
+    constexpr auto set_stopped() const && -> void { ops->die(); }
 };
 
 template <typename Uniq, typename Sndr, typename Alloc, typename StopSource>
@@ -48,14 +46,10 @@ struct op_state {
 
     auto die() { Alloc::template destruct<Uniq>(this); }
 
+    constexpr auto start() & -> void { async::start(ops); }
+
     [[no_unique_address]] stop_source_t stop_src;
     Ops ops;
-
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        start(std::forward<O>(o).ops);
-    }
 };
 
 template <typename Uniq, typename StopSource, sender S>
@@ -65,9 +59,9 @@ template <typename Uniq, typename StopSource, sender S>
     using O = op_state<Uniq, Sndr, A, StopSource>;
     stdx::optional<StopSource *> stop_src{};
     A::template construct<Uniq, O>(
-        [&](O &&ops) {
+        [&](O &ops) {
             stop_src = std::addressof(ops.stop_src);
-            async::start(std::move(ops));
+            async::start(ops);
         },
         std::forward<S>(s));
     return stop_src;

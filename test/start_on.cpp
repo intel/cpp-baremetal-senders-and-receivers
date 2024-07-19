@@ -49,7 +49,7 @@ TEST_CASE("move-only value", "[start_on]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              receiver{[&](auto mo) { value = mo.value; }});
-    async::start(std::move(op));
+    async::start(op);
     CHECK(value == 42);
 }
 
@@ -70,7 +70,7 @@ TEST_CASE("start_on advertises what it sends according to the receiver",
         async::start_on(async::inline_scheduler{}, async::when_all());
     static_assert(not async::sender_of<decltype(s), async::set_stopped_t()>);
 
-    [[maybe_unused]] auto r = only_stoppable_receiver{[] {}};
+    [[maybe_unused]] auto r = stoppable_receiver{[] {}};
     static_assert(async::sender_of<decltype(s), async::set_stopped_t(),
                                    async::env_of_t<decltype(r)>>);
 }

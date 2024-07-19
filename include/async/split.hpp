@@ -45,10 +45,7 @@ template <typename S, typename Uniq> struct single_receiver {
         return {op_state_t::stop_source.get_token()};
     }
 
-  private:
-    template <typename... Args>
-    friend auto tag_invoke(set_value_t, single_receiver const &,
-                           Args &&...args) -> void {
+    template <typename... Args> static auto set_value(Args &&...args) -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = value_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -56,9 +53,7 @@ template <typename S, typename Uniq> struct single_receiver {
         }
     }
 
-    template <typename... Args>
-    friend auto tag_invoke(set_error_t, single_receiver const &,
-                           Args &&...args) -> void {
+    template <typename... Args> static auto set_error(Args &&...args) -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = error_holder<Args...>;
             store_values<tuple_t>(std::forward<Args>(args)...);
@@ -66,8 +61,7 @@ template <typename S, typename Uniq> struct single_receiver {
         }
     }
 
-    template <typename... Args>
-    friend auto tag_invoke(set_stopped_t, single_receiver const &) -> void {
+    static auto set_stopped() -> void {
         if (op_state_t::linked_ops) {
             using tuple_t = stopped_holder<>;
             store_values<tuple_t>();
@@ -126,38 +120,35 @@ struct op_state : op_state_base<S, Uniq> {
         }
     }
 
+    constexpr auto start() & -> void {
+        if (op_state_t::values.index() != 0) {
+            complete();
+            return;
+        }
+
+        stop_cb.emplace(get_stop_token(get_env(rcvr)),
+                        stop_callback_fn{std::addressof(this->stop_source)});
+        if (this->stop_source.stop_requested()) {
+            set_stopped(std::move(rcvr));
+            return;
+        }
+
+        if (next_ops = std::exchange(op_state_t::linked_ops, this);
+            not next_ops) {
+            async::start(*op_state_t::single_ops);
+        }
+    }
+
   private:
     auto complete() -> void {
         stop_cb.reset();
         std::visit(
-            [&]<typename T>(T const &t) -> void {
+            [&]<typename T>(T &t) -> void {
                 if constexpr (not std::is_same_v<T, std::monostate>) {
-                    t(rcvr);
+                    std::move(t)(std::move(rcvr));
                 }
             },
             op_state_t::values);
-    }
-
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        if (op_state_t::values.index() != 0) {
-            std::forward<O>(o).complete();
-            return;
-        }
-
-        std::forward<O>(o).stop_cb.emplace(
-            get_stop_token(get_env(o.rcvr)),
-            stop_callback_fn{std::addressof(o.stop_source)});
-        if (o.stop_source.stop_requested()) {
-            set_stopped(std::forward<O>(o).rcvr);
-            return;
-        }
-
-        if (o.next_ops =
-                std::exchange(op_state_t::linked_ops, std::addressof(o));
-            not o.next_ops) {
-            start(std::move(*op_state_t::single_ops));
-        }
     }
 
     using stop_callback_t =

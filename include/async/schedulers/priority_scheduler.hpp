@@ -27,6 +27,12 @@ struct op_state final : Task {
         }
     }
 
+    constexpr auto start() & -> void {
+        if (not check_stopped()) {
+            detail::enqueue_task(*this, P);
+        }
+    }
+
     [[no_unique_address]] Rcvr rcvr;
 
   private:
@@ -38,13 +44,6 @@ struct op_state final : Task {
             }
         }
         return false;
-    }
-
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        if (not std::forward<O>(o).check_stopped()) {
-            detail::enqueue_task(o, P);
-        }
     }
 };
 } // namespace task_mgr

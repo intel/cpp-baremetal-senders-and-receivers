@@ -121,21 +121,45 @@ TEST_CASE("let_value with variant", "[let_value]") {
 
     auto r = receiver{[&](auto i) { value = i; }};
     value = 6;
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 3);
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 10);
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 5);
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 16);
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 8);
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 4);
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 2);
-    async::start(async::connect(s, r));
+    {
+        auto o = async::connect(s, r);
+        async::start(o);
+    }
     CHECK(value == 1);
 }
 

@@ -114,7 +114,7 @@ TEST_CASE("split cancellation (stopped by source)", "[split]") {
     static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
     auto spl = async::split(std::move(s));
 
-    auto r1 = only_stoppable_receiver{[&] { ++stopped; }};
+    auto r1 = stoppable_receiver{[&] { ++stopped; }};
     auto r2 = stopped_receiver{[&] { ++stopped; }};
     auto op1 = async::connect(spl, r1);
     auto op2 = async::connect(spl, r2);
@@ -155,13 +155,10 @@ struct test_sender {
     template <typename R> struct op_state {
         R r;
 
-      private:
-        template <stdx::same_as_unqualified<op_state> O>
-        friend constexpr auto tag_invoke(async::start_t, O &&o) -> void {
-            async::set_value(std::forward<O>(o).r);
-        }
+        constexpr auto start() & -> void { async::set_value(std::move(r)); }
     };
 
+  private:
     template <typename R>
     [[nodiscard]] friend constexpr auto
     tag_invoke(async::connect_t, test_sender &&,

@@ -18,12 +18,9 @@ namespace async {
 namespace _read_env {
 template <typename R, typename Tag> struct op_state {
     [[no_unique_address]] R receiver;
-    [[no_unique_address]] Tag t;
 
-  private:
-    template <stdx::same_as_unqualified<op_state> O>
-    friend constexpr auto tag_invoke(start_t, O &&o) -> void {
-        set_value(std::forward<O>(o).receiver, Tag{}(get_env(o.receiver)));
+    constexpr auto start() & -> void {
+        set_value(std::move(receiver), Tag{}(get_env(receiver)));
     }
 };
 
@@ -49,31 +46,19 @@ template <typename Tag> struct sender {
         return {};
     }
 
-    [[no_unique_address]] Tag t;
-
   private:
-    template <receiver R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, sender &&self,
-               R &&r) -> op_state<std::remove_cvref_t<R>, Tag> {
-        check_connect<sender &&, R>();
-        return {std::forward<R>(r), std::move(self).t};
-    }
-
     template <stdx::same_as_unqualified<sender> Self, receiver R>
-        requires std::copy_constructible<Tag>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, Self &&self,
-               R &&r) -> op_state<std::remove_cvref_t<R>, Tag> {
+    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&, R &&r)
+        -> op_state<std::remove_cvref_t<R>, Tag> {
         check_connect<Self, R>();
-        return {std::forward<R>(r), std::forward<Self>(self).t};
+        return {std::forward<R>(r)};
     }
 };
 } // namespace _read_env
 
 template <typename Tag>
-[[nodiscard]] constexpr auto read_env(Tag &&t) -> sender auto {
-    return _read_env::sender<Tag>{{std::forward<Tag>(t)}};
+[[nodiscard]] constexpr auto read_env(Tag) -> sender auto {
+    return _read_env::sender<Tag>{};
 }
 
 [[nodiscard]] constexpr auto get_stop_token() -> sender auto {

@@ -92,7 +92,7 @@ TEST_CASE("move-only first sender", "[sequence]") {
     static_assert(async::singleshot_sender<decltype(s)>);
     auto op =
         async::connect(std::move(s), receiver{[&](auto i) { value = i; }});
-    async::start(std::move(op));
+    async::start(op);
     CHECK(value == 42);
 }
 

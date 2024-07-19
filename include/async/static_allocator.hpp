@@ -56,7 +56,11 @@ struct static_allocator {
         auto &a =
             detail::static_allocator_v<Name, T, static_allocation_limit<Name>>;
         if (auto t = a.construct(std::forward<Args>(args)...); t != nullptr) {
-            std::forward<F>(f)(std::move(*t));
+            if constexpr (requires { std::forward<F>(f)(std::move(*t)); }) {
+                std::forward<F>(f)(std::move(*t));
+            } else {
+                std::forward<F>(f)(*t);
+            }
             return true;
         }
         return false;
