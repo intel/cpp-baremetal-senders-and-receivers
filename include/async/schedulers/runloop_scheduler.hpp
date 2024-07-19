@@ -73,11 +73,11 @@ template <typename Uniq = decltype([] {})> class run_loop {
                 return {loop};
             }
 
-            template <stdx::same_as_unqualified<sender> S, receiver R>
-            [[nodiscard]] friend constexpr auto
-            tag_invoke(connect_t, S &&s, R &&r) -> op_state<R> {
-                check_connect<S, R>();
-                return {s.loop, std::forward<R>(r)};
+            template <receiver R>
+            [[nodiscard]] constexpr auto
+            connect(R &&r) const -> op_state<std::remove_cvref_t<R>> {
+                check_connect<sender, R>();
+                return {loop, std::forward<R>(r)};
             }
 
             run_loop *loop;

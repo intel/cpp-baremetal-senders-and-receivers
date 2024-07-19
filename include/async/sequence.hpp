@@ -83,25 +83,6 @@ template <typename S, std::invocable F> struct sender {
     static_assert(async::sender<dependent_sender>,
                   "The function passed to sequence must return a sender");
 
-    template <async::receiver R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, sender &&self,
-               R &&r) -> op_state<S, F, std::remove_cvref_t<R>> {
-        check_connect<sender &&, R>();
-        return {std::move(self).s, std::move(self).f, std::forward<R>(r)};
-    }
-
-    template <stdx::same_as_unqualified<sender> Self, async::receiver R>
-        requires multishot_sender<S> and std::copy_constructible<S> and
-                     std::copy_constructible<F>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, Self &&self,
-               R &&r) -> op_state<S, F, std::remove_cvref_t<R>> {
-        check_connect<Self, R>();
-        return {std::forward<Self>(self).s, std::forward<Self>(self).f,
-                std::forward<R>(r)};
-    }
-
     template <typename Env>
     using dependent_completions =
         completion_signatures_of_t<dependent_sender, Env>;
@@ -112,6 +93,22 @@ template <typename S, std::invocable F> struct sender {
                                stopped_signatures_of_t<S, Env>>;
 
   public:
+    template <async::receiver R>
+    [[nodiscard]] constexpr auto
+    connect(R &&r) && -> op_state<S, F, std::remove_cvref_t<R>> {
+        check_connect<sender &&, R>();
+        return {std::move(s), std::move(f), std::forward<R>(r)};
+    }
+
+    template <async::receiver R>
+        requires multishot_sender<S> and std::copy_constructible<S> and
+                     std::copy_constructible<F>
+    [[nodiscard]] constexpr auto
+    connect(R &&r) const & -> op_state<S, F, std::remove_cvref_t<R>> {
+        check_connect<sender, R>();
+        return {s, f, std::forward<R>(r)};
+    }
+
     template <typename Env>
     [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> boost::mp11::mp_unique<boost::mp11::mp_append<

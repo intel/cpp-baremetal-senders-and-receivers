@@ -183,31 +183,27 @@ template <typename Tag, typename... Fs> struct to_signature {
 };
 } // namespace detail
 
-template <typename Tag, typename S, typename... Fs> class sender {
+template <typename Tag, typename S, typename... Fs> struct sender {
     template <async::receiver R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
-                                                   R &&r) {
+    [[nodiscard]] constexpr auto connect(R &&r) && {
         check_connect<sender &&, R>();
-        return connect(std::move(self).s,
-                       receiver<Tag, std::remove_cvref_t<R>, Fs...>{
-                           std::forward<R>(r), std::move(self).fs});
+        return async::connect(std::move(s),
+                              receiver<Tag, std::remove_cvref_t<R>, Fs...>{
+                                  std::forward<R>(r), std::move(fs)});
     }
 
-    template <stdx::same_as_unqualified<sender> Self, async::receiver R>
+    template <async::receiver R>
         requires multishot_sender<S> and (... and std::copy_constructible<Fs>)
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
-                                                   R &&r) {
-        check_connect<Self, R>();
-        return connect(std::forward<Self>(self).s,
-                       receiver<Tag, std::remove_cvref_t<R>, Fs...>{
-                           std::forward<R>(r), std::forward<Self>(self).fs});
+    [[nodiscard]] constexpr auto connect(R &&r) const & {
+        check_connect<sender const &, R>();
+        return async::connect(s, receiver<Tag, std::remove_cvref_t<R>, Fs...>{
+                                     std::forward<R>(r), fs});
     }
 
     template <typename... Ts>
     using signatures =
         typename detail::to_signature<Tag, Fs...>::template type<Ts...>;
 
-  public:
     template <typename Env>
         requires std::same_as<Tag, set_value_t>
     [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {

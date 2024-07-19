@@ -158,11 +158,9 @@ struct test_sender {
         constexpr auto start() & -> void { async::set_value(std::move(r)); }
     };
 
-  private:
     template <typename R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::connect_t, test_sender &&,
-               R &&r) -> op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr auto
+    connect(R &&r) && -> op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };

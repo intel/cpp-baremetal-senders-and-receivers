@@ -113,13 +113,11 @@ class time_scheduler {
             return {};
         }
 
-      private:
-        template <stdx::same_as_unqualified<sender> S, receiver R>
-        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&s,
-                                                       R &&r) {
-            check_connect<S, R>();
+        template <receiver R>
+        [[nodiscard]] constexpr auto connect(R &&r) const & {
+            check_connect<sender, R>();
             return timer_mgr::op_state<Domain, Duration, std::remove_cvref_t<R>,
-                                       Task>{std::forward<R>(r), s.d};
+                                       Task>{std::forward<R>(r), d};
         }
     };
 

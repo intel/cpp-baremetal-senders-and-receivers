@@ -134,10 +134,9 @@ class singleshot_scheduler {
             return {};
         }
 
-      private:
         template <async::receiver_from<sender> R>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(async::connect_t, sender &&, R &&r) -> op_state<R> {
+        [[nodiscard]] constexpr auto
+        connect(R &&r) && -> op_state<std::remove_cvref_t<R>> {
             return {std::forward<R>(r)};
         }
     };
@@ -197,9 +196,8 @@ struct custom_sender {
     };
 
     template <typename R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::connect_t, custom_sender &&,
-               R &&r) -> op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr static auto
+    connect(R &&r) -> op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };
@@ -250,11 +248,9 @@ struct stoppable_just {
         async::completion_signatures<async::set_value_t(),
                                      async::set_stopped_t()>;
 
-  private:
     template <async::receiver R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::connect_t, stoppable_just const &,
-               R &&r) -> stoppable_just_op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr static auto
+    connect(R &&r) -> stoppable_just_op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };

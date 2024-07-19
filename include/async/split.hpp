@@ -184,18 +184,16 @@ template <typename Sndr, typename Uniq> struct sender {
         return {};
     }
 
-  private:
-    template <stdx::same_as_unqualified<sender> Self, receiver R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, Self &&self,
-               R &&r) -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
-        check_connect<Self, R>();
+    template <receiver R>
+    [[nodiscard]] constexpr auto
+    connect(R &&r) -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
+        check_connect<sender, R>();
         if (not op_state_t::single_ops) {
             op_state_t::single_ops.emplace(stdx::with_result_of{
                 [&]()
                     -> connect_result_t<Sndr &&, single_receiver<Sndr, Uniq>> {
-                    return connect(std::move(self.sndr),
-                                   single_receiver<Sndr, Uniq>{});
+                    return async::connect(std::move(sndr),
+                                          single_receiver<Sndr, Uniq>{});
                 }});
         }
         return op_state<Sndr, std::remove_cvref_t<R>, Uniq>{std::forward<R>(r)};
