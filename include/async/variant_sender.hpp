@@ -165,6 +165,17 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
         return {};
     }
 
+    template <receiver_from<sender> R>
+    [[nodiscard]] constexpr auto connect(R &&r) && {
+        return connect_impl(std::move(*this), std::forward<R>(r));
+    }
+
+    template <receiver_from<sender> R>
+        requires(... and multishot_sender<Sndrs, R>)
+    [[nodiscard]] constexpr auto connect(R &&r) const & {
+        return connect_impl(*this, std::forward<R>(r));
+    }
+
   private:
     template <typename R>
     using ops_t = op_state<connect_result_t<Sndrs, std::remove_cvref_t<R>>...>;
@@ -178,24 +189,11 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
                 using O = connect_result_t<S, R>;
                 constexpr auto I = boost::mp11::mp_find<V, O>::value;
                 return {V{std::in_place_index<I>, stdx::with_result_of{[&] {
-                              return connect(std::forward<S>(s),
-                                             std::forward<R>(r));
+                              return async::connect(std::forward<S>(s),
+                                                    std::forward<R>(r));
                           }}}};
             },
             std::forward<Sndr>(sndr));
-    }
-
-    template <receiver_from<sender> R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
-                                                   R &&r) {
-        return connect_impl(std::move(self), std::forward<R>(r));
-    }
-
-    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
-        requires(... and multishot_sender<Sndrs, R>)
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
-                                                   R &&r) {
-        return connect_impl(std::forward<Self>(self), std::forward<R>(r));
     }
 };
 } // namespace _variant

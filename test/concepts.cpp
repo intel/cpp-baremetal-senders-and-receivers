@@ -116,8 +116,8 @@ struct sender : async::sender_base {
         async::completion_signatures<async::set_value_t(Ts...),
                                      async::set_error_t(E)>;
 
-    template <stdx::same_as_unqualified<sender> S, async::receiver_from<S> R>
-    friend auto tag_invoke(async::connect_t, S &&, R &&) -> op_state {
+    template <async::receiver_from<sender> R>
+    constexpr auto connect(R &&) -> op_state {
         return {};
     }
 };
@@ -162,8 +162,7 @@ struct singleshot_sender : async::sender_base {
                                      async::set_error_t(E)>;
 
     template <async::receiver_from<singleshot_sender> R>
-    friend auto tag_invoke(async::connect_t, singleshot_sender &&,
-                           R &&) -> op_state {
+    constexpr auto connect(R &&) && -> op_state {
         return {};
     }
 };
@@ -181,16 +180,14 @@ struct stoppable_sender : async::sender_base {
                                      async::set_stopped_t()>;
 
     template <async::receiver_from<stoppable_sender> R>
-    friend auto tag_invoke(async::connect_t, stoppable_sender &&,
-                           R &&) -> op_state {
+    constexpr auto connect(R &&) -> op_state {
         return {};
     }
 };
 
 struct dependent_stoppable_sender : async::sender_base {
     template <async::receiver_from<dependent_stoppable_sender> R>
-    friend auto tag_invoke(async::connect_t, dependent_stoppable_sender &&,
-                           R &&) -> op_state {
+    constexpr auto connect(R &&) -> op_state {
         return {};
     }
 

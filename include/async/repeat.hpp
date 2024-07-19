@@ -118,14 +118,11 @@ template <typename Sndr, typename Pred> struct sender {
         }
     }
 
-  private:
-    template <stdx::same_as_unqualified<sender> Self, receiver_from<Sndr> R>
+    template <receiver_from<Sndr> R>
         requires multishot_sender<Sndr, R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, Self &&self,
-               R &&r) -> op_state<Sndr, std::remove_cvref_t<R>, Pred> {
-        return {std::forward<Self>(self).sndr, std::forward<R>(r),
-                std::forward<Self>(self).p};
+    [[nodiscard]] constexpr auto
+    connect(R &&r) const & -> op_state<Sndr, std::remove_cvref_t<R>, Pred> {
+        return {sndr, std::forward<R>(r), p};
     }
 };
 

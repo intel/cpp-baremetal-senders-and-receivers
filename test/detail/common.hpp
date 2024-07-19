@@ -134,10 +134,9 @@ class singleshot_scheduler {
             return {};
         }
 
-      private:
         template <async::receiver_from<sender> R>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(async::connect_t, sender &&, R &&r) -> op_state<R> {
+        [[nodiscard]] constexpr auto
+        connect(R &&r) && -> op_state<std::remove_cvref_t<R>> {
             return {std::forward<R>(r)};
         }
     };
@@ -157,10 +156,9 @@ struct none {
 constexpr inline struct get_fwd_t : async::forwarding_query_t {
     template <typename T>
     constexpr auto operator()(T &&t) const
-        noexcept(noexcept(tag_invoke(std::declval<get_fwd_t>(),
-                                     std::forward<T>(t))))
-            -> decltype(tag_invoke(*this, std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+        noexcept(noexcept(std::forward<T>(t).query(std::declval<get_fwd_t>())))
+            -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     constexpr auto operator()(...) const { return none{}; }
@@ -168,25 +166,18 @@ constexpr inline struct get_fwd_t : async::forwarding_query_t {
 
 constexpr inline struct get_nofwd_t {
     template <typename T>
-    constexpr auto operator()(T &&t) const
-        noexcept(noexcept(tag_invoke(std::declval<get_nofwd_t>(),
-                                     std::forward<T>(t))))
-            -> decltype(tag_invoke(*this, std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+    constexpr auto operator()(T &&t) const noexcept(
+        noexcept(std::forward<T>(t).query(std::declval<get_nofwd_t>())))
+        -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     constexpr auto operator()(...) const { return none{}; }
 } get_nofwd{};
 
 struct custom_env {
-    [[nodiscard]] friend constexpr auto tag_invoke(get_fwd_t,
-                                                   custom_env const &) -> int {
-        return 42;
-    }
-    [[nodiscard]] friend constexpr auto tag_invoke(get_nofwd_t,
-                                                   custom_env const &) -> int {
-        return 17;
-    }
+    [[nodiscard]] constexpr static auto query(get_fwd_t) -> int { return 42; }
+    [[nodiscard]] constexpr static auto query(get_nofwd_t) -> int { return 17; }
 };
 
 struct custom_sender {
@@ -205,9 +196,8 @@ struct custom_sender {
     };
 
     template <typename R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::connect_t, custom_sender &&,
-               R &&r) -> op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr static auto
+    connect(R &&r) -> op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };
@@ -258,11 +248,9 @@ struct stoppable_just {
         async::completion_signatures<async::set_value_t(),
                                      async::set_stopped_t()>;
 
-  private:
     template <async::receiver R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::connect_t, stoppable_just const &,
-               R &&r) -> stoppable_just_op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr static auto
+    connect(R &&r) -> stoppable_just_op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };

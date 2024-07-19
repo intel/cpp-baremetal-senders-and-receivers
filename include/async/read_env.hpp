@@ -41,15 +41,14 @@ template <typename Tag> struct sender {
         return {};
     }
 
-    [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept -> env {
         return {};
     }
 
-  private:
-    template <stdx::same_as_unqualified<sender> Self, receiver R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&, R &&r)
-        -> op_state<std::remove_cvref_t<R>, Tag> {
-        check_connect<Self, R>();
+    template <receiver R>
+    [[nodiscard]] constexpr static auto
+    connect(R &&r) -> op_state<std::remove_cvref_t<R>, Tag> {
+        check_connect<sender, R>();
         return {std::forward<R>(r)};
     }
 };

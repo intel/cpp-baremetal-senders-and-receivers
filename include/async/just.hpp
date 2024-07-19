@@ -45,25 +45,21 @@ template <typename Tag, typename... Vs> struct sender {
     using completion_signatures = async::completion_signatures<Tag(Vs...)>;
     [[no_unique_address]] stdx::tuple<Vs...> values;
 
-  private:
     template <receiver R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, sender &&self,
-               R &&r) -> op_state<Tag, std::remove_cvref_t<R>, Vs...> {
+    [[nodiscard]] constexpr auto
+    connect(R &&r) && -> op_state<Tag, std::remove_cvref_t<R>, Vs...> {
         check_connect<sender &&, R>();
-        return {std::forward<R>(r), std::move(self).values};
+        return {std::forward<R>(r), std::move(values)};
     }
 
-    template <stdx::same_as_unqualified<sender> Self, receiver R>
+    template <receiver R>
         requires std::copy_constructible<decltype(values)>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, Self &&self,
-               R &&r) -> op_state<Tag, std::remove_cvref_t<R>, Vs...> {
-        check_connect<Self, R>();
-        return {std::forward<R>(r), std::forward<Self>(self).values};
+    [[nodiscard]] constexpr auto
+    connect(R &&r) const & -> op_state<Tag, std::remove_cvref_t<R>, Vs...> {
+        check_connect<sender const &, R>();
+        return {std::forward<R>(r), values};
     }
 
-  public:
     [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
         return {};
     }

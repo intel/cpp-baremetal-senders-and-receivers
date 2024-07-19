@@ -44,11 +44,10 @@ class thread_scheduler {
             return {};
         }
 
-      private:
-        template <stdx::same_as_unqualified<sender> S, receiver R>
-        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&,
-                                                       R &&r) -> op_state<R> {
-            check_connect<S, R>();
+        template <receiver R>
+        [[nodiscard]] constexpr static auto
+        connect(R &&r) -> op_state<std::remove_cvref_t<R>> {
+            check_connect<sender, R>();
             return {std::forward<R>(r)};
         }
     };

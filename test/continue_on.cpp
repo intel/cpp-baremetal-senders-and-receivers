@@ -41,11 +41,9 @@ template <auto> class test_scheduler {
             return {};
         }
 
-      private:
-        template <stdx::same_as_unqualified<sender> S,
-                  async::receiver_from<sender> R>
-        [[nodiscard]] friend constexpr auto tag_invoke(async::connect_t, S &&,
-                                                       R &&r) -> op_state<R> {
+        template <async::receiver_from<sender> R>
+        [[nodiscard]] constexpr static auto
+        connect(R &&r) -> op_state<std::remove_cvref_t<R>> {
             return {std::forward<R>(r)};
         }
     };

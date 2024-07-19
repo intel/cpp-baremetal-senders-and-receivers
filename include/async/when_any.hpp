@@ -283,24 +283,21 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
         return {};
     }
 
-  private:
     template <receiver_from<sender> R>
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
-                                                   R &&r)
-        -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
-        return {std::move(self), std::forward<R>(r)};
+    [[nodiscard]] constexpr auto connect(
+        R &&r) && -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        return {std::move(*this), std::forward<R>(r)};
     }
 
-    template <stdx::same_as_unqualified<sender> Self, receiver_from<sender> R>
+    template <receiver_from<sender> R>
         requires(... and multishot_sender<
                              typename Sndrs::sender_t,
                              detail::universal_receiver<detail::overriding_env<
                                  get_stop_token_t, inplace_stop_token,
                                  std::remove_cvref_t<R>>>>)
-    [[nodiscard]] friend constexpr auto tag_invoke(connect_t, Self &&self,
-                                                   R &&r)
-        -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
-        return {std::forward<Self>(self), std::forward<R>(r)};
+    [[nodiscard]] constexpr auto connect(R &&r)
+        const & -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        return {*this, std::forward<R>(r)};
     }
 };
 
@@ -342,11 +339,9 @@ template <typename StopPolicy> struct sender<StopPolicy> {
         return {};
     }
 
-  private:
     template <receiver_from<sender> R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, sender const &,
-               R &&r) -> op_state<StopPolicy, std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr auto
+    connect(R &&r) const -> op_state<StopPolicy, std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };
