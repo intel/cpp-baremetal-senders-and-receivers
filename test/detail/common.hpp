@@ -157,10 +157,9 @@ struct none {
 constexpr inline struct get_fwd_t : async::forwarding_query_t {
     template <typename T>
     constexpr auto operator()(T &&t) const
-        noexcept(noexcept(tag_invoke(std::declval<get_fwd_t>(),
-                                     std::forward<T>(t))))
-            -> decltype(tag_invoke(*this, std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+        noexcept(noexcept(std::forward<T>(t).query(std::declval<get_fwd_t>())))
+            -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     constexpr auto operator()(...) const { return none{}; }
@@ -168,25 +167,18 @@ constexpr inline struct get_fwd_t : async::forwarding_query_t {
 
 constexpr inline struct get_nofwd_t {
     template <typename T>
-    constexpr auto operator()(T &&t) const
-        noexcept(noexcept(tag_invoke(std::declval<get_nofwd_t>(),
-                                     std::forward<T>(t))))
-            -> decltype(tag_invoke(*this, std::forward<T>(t))) {
-        return tag_invoke(*this, std::forward<T>(t));
+    constexpr auto operator()(T &&t) const noexcept(
+        noexcept(std::forward<T>(t).query(std::declval<get_nofwd_t>())))
+        -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
     }
 
     constexpr auto operator()(...) const { return none{}; }
 } get_nofwd{};
 
 struct custom_env {
-    [[nodiscard]] friend constexpr auto tag_invoke(get_fwd_t,
-                                                   custom_env const &) -> int {
-        return 42;
-    }
-    [[nodiscard]] friend constexpr auto tag_invoke(get_nofwd_t,
-                                                   custom_env const &) -> int {
-        return 17;
-    }
+    [[nodiscard]] constexpr static auto query(get_fwd_t) -> int { return 42; }
+    [[nodiscard]] constexpr static auto query(get_nofwd_t) -> int { return 17; }
 };
 
 struct custom_sender {
