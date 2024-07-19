@@ -95,9 +95,8 @@ TEST_CASE("typed completion signatures by channel", "[type_traits]") {
 
 namespace {
 struct queryable_sender1 {
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_completion_signatures_t, queryable_sender1 const &,
-               auto &&) noexcept
+    [[nodiscard]] constexpr static auto
+    get_completion_signatures(auto &&) noexcept
         -> async::completion_signatures<async::set_value_t(int),
                                         async::set_error_t(float),
                                         async::set_stopped_t()> {
@@ -106,9 +105,8 @@ struct queryable_sender1 {
 };
 
 struct queryable_sender2 {
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_completion_signatures_t, queryable_sender2 const &,
-               auto &&) noexcept -> async::completion_signatures<> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(
+        auto &&) noexcept -> async::completion_signatures<> {
         return {};
     }
 
@@ -150,9 +148,8 @@ template <typename T> struct dependent_env {
 
 struct queryable_sender3 {
     template <typename Env>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_completion_signatures_t, queryable_sender3 const &,
-               Env const &) noexcept
+    [[nodiscard]] constexpr static auto
+    get_completion_signatures(Env const &) noexcept
         -> async::completion_signatures<
             async::set_value_t(typename Env::type)> {
         return {};

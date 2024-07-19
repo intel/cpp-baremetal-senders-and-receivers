@@ -3,6 +3,7 @@
 #include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
+#include <async/get_completion_signatures.hpp>
 #include <async/start.hpp>
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>

@@ -44,8 +44,7 @@ struct just_42_or_stopped_sender {
 };
 ----
 
-Another way that senders can advertise their completions is through a query, which uses
-https://wg21.link/p1895[tag_invoke]. It looks like this:
+Another way that senders can advertise their completions is through a query. It looks like this:
 
 [source,cpp]
 ----
@@ -54,9 +53,7 @@ struct just_42_sender {
   // ...
   // the only way it completes is by successfully sending an int
   template <typename Env>
-  [[nodiscard]] friend constexpr auto tag_invoke(async::get_completion_signatures_t,
-                                                 just_42_sender const &,
-                                                 Env const &)
+  [[nodiscard]] constexpr auto get_completion_signatures(Env const &)
     -> async::completion_signatures<async::set_value_t(int)> {
     return {};
   }

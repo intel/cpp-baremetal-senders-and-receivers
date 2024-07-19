@@ -207,18 +207,17 @@ template <typename Tag, typename S, typename... Fs> class sender {
     using signatures =
         typename detail::to_signature<Tag, Fs...>::template type<Ts...>;
 
+  public:
     template <typename Env>
         requires std::same_as<Tag, set_value_t>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &, Env const &) {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
         return transform_completion_signatures_of<
             S, Env, completion_signatures<>, signatures>{};
     }
 
     template <typename Env>
         requires std::same_as<Tag, set_error_t>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &, Env const &) {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
         return transform_completion_signatures_of<
             S, Env, completion_signatures<>, ::async::detail::default_set_value,
             signatures>{};
@@ -226,13 +225,11 @@ template <typename Tag, typename S, typename... Fs> class sender {
 
     template <typename Env>
         requires std::same_as<Tag, set_stopped_t>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &,
-               Env const &) -> transform_completion_signatures_of<S, Env> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> transform_completion_signatures_of<S, Env> {
         return {};
     }
 
-  public:
     using is_sender = void;
 
     [[no_unique_address]] S s;

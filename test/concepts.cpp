@@ -86,9 +86,8 @@ TEST_CASE("sender", "[concepts]") {
 
 namespace {
 struct queryable_sender1 : async::sender_base {
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(async::get_completion_signatures_t, queryable_sender1 const &,
-               auto &&) noexcept -> async::completion_signatures<> {
+    [[nodiscard]] constexpr auto get_completion_signatures(auto &&) noexcept
+        -> async::completion_signatures<> {
         return {};
     }
 };
@@ -96,8 +95,7 @@ struct queryable_sender1 : async::sender_base {
 struct dependent_env {};
 
 struct queryable_sender2 : async::sender_base {
-    [[nodiscard, maybe_unused]] friend constexpr auto tag_invoke(
-        async::get_completion_signatures_t, queryable_sender2 const &,
+    [[nodiscard, maybe_unused]] constexpr auto get_completion_signatures(
         dependent_env const &) noexcept -> async::completion_signatures<> {
         return {};
     }
@@ -197,18 +195,16 @@ struct dependent_stoppable_sender : async::sender_base {
     }
 
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(
-        async::get_completion_signatures_t, dependent_stoppable_sender const &,
-        Env const &) -> async::completion_signatures<async::set_value_t(),
-                                                     async::set_stopped_t()> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> async::completion_signatures<async::set_value_t(),
+                                        async::set_stopped_t()> {
         return {};
     }
 
     template <typename Env>
         requires async::unstoppable_token<async::stop_token_of_t<Env>>
-    [[nodiscard]] friend constexpr auto tag_invoke(
-        async::get_completion_signatures_t, dependent_stoppable_sender const &,
-        Env const &) -> async::completion_signatures<async::set_value_t()> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> async::completion_signatures<async::set_value_t()> {
         return {};
     }
 };

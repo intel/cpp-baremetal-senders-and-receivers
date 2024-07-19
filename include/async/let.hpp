@@ -238,9 +238,9 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
         boost::mp11::mp_flatten<boost::mp11::mp_transform_q<
             detail::completions_of<E>, dependent_senders<E>>>;
 
+  public:
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> boost::mp11::mp_unique<boost::mp11::mp_append<
             unchanged_completions<Env>, dependent_completions<Env>>> {
         return {};
