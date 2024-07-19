@@ -99,6 +99,20 @@ class time_scheduler {
             return {d};
         }
 
+        template <typename Env>
+        [[nodiscard]] constexpr static auto
+        get_completion_signatures(Env const &) noexcept
+            -> completion_signatures<set_value_t(), set_stopped_t()> {
+            return {};
+        }
+
+        template <typename Env>
+            requires unstoppable_token<stop_token_of_t<Env>>
+        [[nodiscard]] constexpr static auto get_completion_signatures(
+            Env const &) noexcept -> completion_signatures<set_value_t()> {
+            return {};
+        }
+
       private:
         template <stdx::same_as_unqualified<sender> S, receiver R>
         [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&s,
@@ -106,21 +120,6 @@ class time_scheduler {
             check_connect<S, R>();
             return timer_mgr::op_state<Domain, Duration, std::remove_cvref_t<R>,
                                        Task>{std::forward<R>(r), s.d};
-        }
-
-        template <typename Env>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_signatures_t, sender, Env const &) noexcept
-            -> completion_signatures<set_value_t(), set_stopped_t()> {
-            return {};
-        }
-
-        template <typename Env>
-            requires unstoppable_token<stop_token_of_t<Env>>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_signatures_t, sender, Env const &) noexcept
-            -> completion_signatures<set_value_t()> {
-            return {};
         }
     };
 

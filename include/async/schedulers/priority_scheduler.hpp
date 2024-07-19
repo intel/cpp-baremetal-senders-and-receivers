@@ -65,27 +65,26 @@ class fixed_priority_scheduler {
             return {};
         }
 
-      private:
-        template <stdx::same_as_unqualified<sender> S, receiver R>
-        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r) {
-            check_connect<S, R>();
-            return task_mgr::op_state<P, std::remove_cvref_t<R>, Task>{
-                std::forward<R>(r)};
-        }
-
         template <typename Env>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_signatures_t, sender, Env const &) noexcept
+        [[nodiscard]] constexpr static auto
+        get_completion_signatures(Env const &) noexcept
             -> completion_signatures<set_value_t(), set_stopped_t()> {
             return {};
         }
 
         template <typename Env>
             requires unstoppable_token<stop_token_of_t<Env>>
-        [[nodiscard]] friend constexpr auto
-        tag_invoke(get_completion_signatures_t, sender, Env const &) noexcept
-            -> completion_signatures<set_value_t()> {
+        [[nodiscard]] constexpr static auto get_completion_signatures(
+            Env const &) noexcept -> completion_signatures<set_value_t()> {
             return {};
+        }
+
+      private:
+        template <stdx::same_as_unqualified<sender> S, receiver R>
+        [[nodiscard]] friend constexpr auto tag_invoke(connect_t, S &&, R &&r) {
+            check_connect<S, R>();
+            return task_mgr::op_state<P, std::remove_cvref_t<R>, Task>{
+                std::forward<R>(r)};
         }
     };
 

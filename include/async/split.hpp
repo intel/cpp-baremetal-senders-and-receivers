@@ -178,14 +178,13 @@ template <typename Sndr, typename Uniq> struct sender {
 
     [[no_unique_address]] Sndr sndr;
 
-  private:
     template <typename Env>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &,
-               Env const &) -> completion_signatures_of_t<Sndr, Env> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> completion_signatures_of_t<Sndr, Env> {
         return {};
     }
 
+  private:
     template <stdx::same_as_unqualified<sender> Self, receiver R>
     [[nodiscard]] friend constexpr auto
     tag_invoke(connect_t, Self &&self,

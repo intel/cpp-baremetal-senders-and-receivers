@@ -294,6 +294,23 @@ struct op_state<Rcvr, Sndrs...>
 template <typename... Sndrs> struct sender : Sndrs... {
     using is_sender = void;
 
+    template <typename... Ts>
+    using as_value_signature = completion_signatures<set_value_t(Ts...)>;
+
+    template <typename E>
+    using signatures = boost::mp11::mp_unique<boost::mp11::mp_append<
+        boost::mp11::mp_apply<as_value_signature,
+                              boost::mp11::mp_append<typename sub_op_storage<
+                                  E, Sndrs>::values_t...>>,
+        typename error_op_state<E, error_senders<E, Sndrs...>>::signatures,
+        detail::default_set_stopped<Sndrs, E>...>>;
+
+    template <typename Env>
+    [[nodiscard]] constexpr static auto
+    get_completion_signatures(Env const &) -> signatures<Env> {
+        return {};
+    }
+
   private:
     template <receiver_from<sender> R>
     [[nodiscard]] friend constexpr auto
@@ -312,24 +329,6 @@ template <typename... Sndrs> struct sender : Sndrs... {
     tag_invoke(connect_t, Self &&self,
                R &&r) -> op_state<std::remove_cvref_t<R>, Sndrs...> {
         return {std::forward<Self>(self), std::forward<R>(r)};
-    }
-
-    template <typename... Ts>
-    using as_value_signature = completion_signatures<set_value_t(Ts...)>;
-
-    template <typename E>
-    using signatures = boost::mp11::mp_unique<boost::mp11::mp_append<
-        boost::mp11::mp_apply<as_value_signature,
-                              boost::mp11::mp_append<typename sub_op_storage<
-                                  E, Sndrs>::values_t...>>,
-        typename error_op_state<E, error_senders<E, Sndrs...>>::signatures,
-        detail::default_set_stopped<Sndrs, E>...>>;
-
-    template <typename Env>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &,
-               Env const &) -> signatures<Env> {
-        return {};
     }
 };
 
@@ -351,27 +350,25 @@ template <typename Rcvr> struct op_state<Rcvr> {
 template <> struct sender<> {
     using is_sender = void;
 
-  private:
-    template <receiver_from<sender> R>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(connect_t, sender const &,
-               R &&r) -> op_state<std::remove_cvref_t<R>> {
-        return {std::forward<R>(r)};
-    }
-
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> completion_signatures<set_value_t(), set_stopped_t()> {
         return {};
     }
 
     template <typename Env>
         requires unstoppable_token<stop_token_of_t<Env>>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &,
-               Env const &) -> completion_signatures<set_value_t()> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> completion_signatures<set_value_t()> {
         return {};
+    }
+
+  private:
+    template <receiver_from<sender> R>
+    [[nodiscard]] friend constexpr auto
+    tag_invoke(connect_t, sender const &,
+               R &&r) -> op_state<std::remove_cvref_t<R>> {
+        return {std::forward<R>(r)};
     }
 };
 } // namespace _when_all

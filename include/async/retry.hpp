@@ -107,12 +107,10 @@ template <typename Sndr, typename Pred> struct sender {
         return forward_env_of(sndr);
     }
 
-  private:
     template <typename...> using signatures = completion_signatures<>;
 
     template <typename Env>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &, Env const &) {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
         if constexpr (std::same_as<Pred,
                                    std::remove_cvref_t<decltype(never_stop)>>) {
             return transform_completion_signatures_of<
@@ -123,6 +121,7 @@ template <typename Sndr, typename Pred> struct sender {
         }
     }
 
+  private:
     template <stdx::same_as_unqualified<sender> Self, receiver_from<Sndr> R>
         requires multishot_sender<Sndr, R>
     [[nodiscard]] friend constexpr auto

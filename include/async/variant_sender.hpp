@@ -158,15 +158,14 @@ template <typename... Ops> struct op_state {
 template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
     using is_sender = void;
 
-  private:
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> boost::mp11::mp_unique<
             boost::mp11::mp_append<completion_signatures_of_t<Sndrs, Env>...>> {
         return {};
     }
 
+  private:
     template <typename R>
     using ops_t = op_state<connect_result_t<Sndrs, std::remove_cvref_t<R>>...>;
 

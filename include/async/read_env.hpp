@@ -35,8 +35,7 @@ template <typename Tag> struct sender {
     using is_sender = void;
 
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> completion_signatures<
             set_value_t(decltype(std::declval<Tag>()(std::declval<Env>())))> {
         return {};

@@ -111,9 +111,9 @@ template <typename S, std::invocable F> struct sender {
         boost::mp11::mp_append<error_signatures_of_t<S, Env>,
                                stopped_signatures_of_t<S, Env>>;
 
+  public:
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> boost::mp11::mp_unique<boost::mp11::mp_append<
             unchanged_completions<Env>, dependent_completions<Env>>> {
         return {};

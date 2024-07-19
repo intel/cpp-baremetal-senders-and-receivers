@@ -276,15 +276,14 @@ struct op_state
 template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
     using is_sender = void;
 
-  private:
     template <typename Env>
-    [[nodiscard]] friend constexpr auto tag_invoke(get_completion_signatures_t,
-                                                   sender const &, Env const &)
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> boost::mp11::mp_unique<
             boost::mp11::mp_append<completion_signatures_of_t<Sndrs, Env>...>> {
         return {};
     }
 
+  private:
     template <receiver_from<sender> R>
     [[nodiscard]] friend constexpr auto tag_invoke(connect_t, sender &&self,
                                                    R &&r)
@@ -330,27 +329,25 @@ struct op_state<StopPolicy, Rcvr> {
 template <typename StopPolicy> struct sender<StopPolicy> {
     using is_sender = void;
 
+    template <typename Env>
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> completion_signatures<set_stopped_t()> {
+        return {};
+    }
+
+    template <typename Env>
+        requires unstoppable_token<stop_token_of_t<Env>>
+    [[nodiscard]] constexpr static auto
+    get_completion_signatures(Env const &) -> completion_signatures<> {
+        return {};
+    }
+
   private:
     template <receiver_from<sender> R>
     [[nodiscard]] friend constexpr auto
     tag_invoke(connect_t, sender const &,
                R &&r) -> op_state<StopPolicy, std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
-    }
-
-    template <typename Env>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &,
-               Env const &) -> completion_signatures<set_stopped_t()> {
-        return {};
-    }
-
-    template <typename Env>
-        requires unstoppable_token<stop_token_of_t<Env>>
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(get_completion_signatures_t, sender const &,
-               Env const &) -> completion_signatures<> {
-        return {};
     }
 };
 

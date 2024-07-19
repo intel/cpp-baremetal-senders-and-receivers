@@ -2,6 +2,7 @@
 
 #include <async/connect.hpp>
 #include <async/env.hpp>
+#include <async/get_completion_signatures.hpp>
 
 #include <stdx/function_traits.hpp>
 #include <stdx/tuple.hpp>
@@ -19,27 +20,6 @@ struct set_error_t;
 struct set_stopped_t;
 
 template <typename...> struct completion_signatures {};
-
-constexpr inline struct get_completion_signatures_t {
-    template <typename S, typename E>
-    constexpr auto operator()(S &&sender, E &&env) const noexcept(
-        noexcept(tag_invoke(std::declval<get_completion_signatures_t>(),
-                            std::forward<S>(sender), std::forward<E>(env))))
-        -> decltype(tag_invoke(*this, std::forward<S>(sender),
-                               std::forward<E>(env))) {
-        return tag_invoke(*this, std::forward<S>(sender), std::forward<E>(env));
-    }
-
-    template <typename S, typename E>
-    constexpr auto operator()(S const &, E const &) const noexcept ->
-        typename std::remove_cvref_t<S>::completion_signatures {
-        return {};
-    }
-} get_completion_signatures{};
-
-template <typename S, typename E = empty_env>
-using completion_signatures_of_t =
-    std::invoke_result_t<get_completion_signatures_t, S, E>;
 
 namespace detail {
 template <typename... Tags> struct with_any_tag {
