@@ -30,10 +30,6 @@ template <typename Tag, typename T, typename E = empty_env>
 struct singleton_env : E {
     [[nodiscard]] constexpr auto query(Tag) const -> T { return value; }
 
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(Tag, singleton_env const &self) -> T {
-        return self.value;
-    }
     [[no_unique_address]] T value{};
 };
 
@@ -42,13 +38,6 @@ template <typename E> struct forwarding_env {
         requires(forwarding_query(ForwardTag{}))
     [[nodiscard]] constexpr auto query(ForwardTag tag) const -> decltype(auto) {
         return tag(child_env);
-    }
-
-    template <typename ForwardTag>
-        requires(forwarding_query(ForwardTag{}))
-    [[nodiscard]] friend constexpr auto
-    tag_invoke(ForwardTag tag, forwarding_env const &self) -> decltype(auto) {
-        return tag(self.child_env);
     }
 
     [[no_unique_address]] E child_env;
