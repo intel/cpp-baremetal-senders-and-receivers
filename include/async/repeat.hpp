@@ -24,7 +24,7 @@ template <typename Ops, typename Rcvr> struct receiver {
     Ops *ops;
 
     [[nodiscard]] constexpr auto
-    query(get_env_t) const -> detail::forwarding_env<env_of_t<Rcvr>> {
+    query(get_env_t) const -> forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(ops->rcvr);
     }
 

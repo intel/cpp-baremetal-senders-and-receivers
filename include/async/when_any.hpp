@@ -32,8 +32,8 @@ template <typename SubOps> struct sub_receiver {
     SubOps *ops;
 
     [[nodiscard]] constexpr auto query(get_env_t) const
-        -> detail::overriding_env<get_stop_token_t, inplace_stop_token,
-                                  typename SubOps::receiver_t> {
+        -> overriding_env<get_stop_token_t, inplace_stop_token,
+                          typename SubOps::receiver_t> {
         return override_env_with<get_stop_token_t>(ops->get_stop_token(),
                                                    ops->get_receiver());
     }
@@ -205,8 +205,7 @@ struct op_state
     template <typename Tag, typename L>
     using apply_tag = boost::mp11::mp_transform_q<prepend<Tag>, L>;
 
-    using env_t =
-        detail::overriding_env<get_stop_token_t, inplace_stop_token, Rcvr>;
+    using env_t = overriding_env<get_stop_token_t, inplace_stop_token, Rcvr>;
 
     using completions_t = boost::mp11::mp_unique<boost::mp11::mp_append<
         std::variant<std::monostate>,
@@ -290,11 +289,11 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
     }
 
     template <receiver_from<sender> R>
-        requires(... and multishot_sender<
-                             typename Sndrs::sender_t,
-                             detail::universal_receiver<detail::overriding_env<
-                                 get_stop_token_t, inplace_stop_token,
-                                 std::remove_cvref_t<R>>>>)
+        requires(... and
+                 multishot_sender<typename Sndrs::sender_t,
+                                  detail::universal_receiver<overriding_env<
+                                      get_stop_token_t, inplace_stop_token,
+                                      std::remove_cvref_t<R>>>>)
     [[nodiscard]] constexpr auto connect(R &&r)
         const & -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
         return {*this, std::forward<R>(r)};

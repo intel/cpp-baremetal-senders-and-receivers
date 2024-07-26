@@ -102,7 +102,7 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
     [[nodiscard]] constexpr auto
-    query(get_env_t) const -> ::async::detail::forwarding_env<env_of_t<R>> {
+    query(get_env_t) const -> forwarding_env<env_of_t<R>> {
         return forward_env_of(r);
     }
 
