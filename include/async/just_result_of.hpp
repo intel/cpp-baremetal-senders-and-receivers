@@ -4,6 +4,7 @@
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/env.hpp>
 #include <async/stack_allocator.hpp>
 #include <async/type_traits.hpp>
 
@@ -41,17 +42,6 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
     }
 };
 
-struct env {
-    [[nodiscard]] constexpr static auto
-    query(get_allocator_t) noexcept -> stack_allocator {
-        return {};
-    }
-    [[nodiscard]] constexpr static auto
-    query(completes_synchronously_t) noexcept -> bool {
-        return true;
-    }
-};
-
 template <typename Tag, std::invocable... Fs> struct sender : Fs... {
     template <receiver R>
     [[nodiscard]] constexpr auto
@@ -78,8 +68,9 @@ template <typename Tag, std::invocable... Fs> struct sender : Fs... {
             async::completion_signatures<std::invoke_result_t<Fs>...>,
             boost::mp11::mp_not_fn<std::is_void>>>;
 
-    [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
-        return {};
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+        return env{prop{get_allocator_t{}, stack_allocator{}},
+                   prop{completes_synchronously_t{}, true}};
     }
 };
 } // namespace _just_result_of

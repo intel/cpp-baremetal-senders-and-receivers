@@ -20,6 +20,24 @@ template <typename Query, typename Value> struct prop {
 template <typename Query, typename Value>
 prop(Query, Value) -> prop<Query, Value>;
 
+template <template <typename> typename Query, typename Value, typename... Ts>
+struct template_prop {
+    template <typename T>
+        requires(... or std::same_as<T, Ts>)
+    [[nodiscard]] constexpr auto
+    query(Query<T>) const noexcept -> Value const & {
+        return value;
+    }
+
+    [[no_unique_address]] Value value{};
+};
+
+template <template <typename> typename Query, typename... Ts>
+constexpr auto make_template_prop = []<typename Value>(Value &&v) {
+    return template_prop<Query, std::remove_cvref_t<Value>, Ts...>{
+        std::forward<Value>(v)};
+};
+
 namespace detail {
 template <typename Query, typename Env>
 concept valid_query_for = requires(Env const &e) { e.query(Query{}); };

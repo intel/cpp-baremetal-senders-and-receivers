@@ -27,21 +27,14 @@ class thread_scheduler {
         }
     };
 
-    struct env {
-        [[nodiscard]] constexpr static auto
-        query(get_completion_scheduler_t<set_value_t>) noexcept
-            -> thread_scheduler {
-            return {};
-        }
-    };
-
     struct sender {
         using is_sender = void;
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
-        [[nodiscard]] constexpr static auto query(get_env_t) noexcept -> env {
-            return {};
+        [[nodiscard]] static constexpr auto query(get_env_t) noexcept {
+            return prop{get_completion_scheduler<set_value_t>,
+                        thread_scheduler{}};
         }
 
         template <receiver R>

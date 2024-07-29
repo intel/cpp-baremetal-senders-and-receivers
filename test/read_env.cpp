@@ -21,7 +21,7 @@ TEST_CASE("read_env advertises what it sends", "[read_env]") {
     using ST = async::stop_token_of_t<E>;
     static_assert(
         async::sender_of<decltype(async::read_env(async::get_stop_token_t{})),
-                         async::set_value_t(ST), E>);
+                         async::set_value_t(ST const &), E>);
     static_assert(std::is_same_v<
                   async::completion_signatures_of_t<decltype(async::read_env(
                       async::get_stop_token_t{}))>,

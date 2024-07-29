@@ -23,31 +23,16 @@ class inline_scheduler {
         constexpr auto start() & -> void { set_value(std::move(receiver)); }
     };
 
-    struct env {
-        [[nodiscard]] constexpr static auto
-        query(get_allocator_t) noexcept -> stack_allocator {
-            return {};
-        }
-
-        [[nodiscard]] constexpr static auto
-        query(get_completion_scheduler_t<set_value_t>) noexcept
-            -> inline_scheduler {
-            return {};
-        }
-
-        [[nodiscard]] constexpr static auto
-        query(completes_synchronously_t) noexcept -> bool {
-            return true;
-        }
-    };
-
     struct sender_base {
         using is_sender = void;
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
-        [[nodiscard]] static constexpr auto query(get_env_t) noexcept -> env {
-            return {};
+        [[nodiscard]] static constexpr auto query(get_env_t) noexcept {
+            return env{prop{get_allocator_t{}, stack_allocator{}},
+                       prop{completes_synchronously_t{}, true},
+                       prop{get_completion_scheduler<set_value_t>,
+                            inline_scheduler{}}};
         }
     };
 

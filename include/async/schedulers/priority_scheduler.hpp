@@ -50,19 +50,12 @@ struct op_state final : Task {
 
 template <priority_t P, typename Task = priority_task>
 class fixed_priority_scheduler {
-    struct env {
-        [[nodiscard]] constexpr static auto
-        query(get_completion_scheduler_t<set_value_t>) noexcept
-            -> fixed_priority_scheduler {
-            return {};
-        }
-    };
-
     struct sender {
         using is_sender = void;
 
-        [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
-            return {};
+        [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+            return prop{get_completion_scheduler_t<set_value_t>{},
+                        fixed_priority_scheduler{}};
         }
 
         template <typename Env>

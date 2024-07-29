@@ -81,22 +81,13 @@ struct op_state<Domain, Duration, Rcvr, Task> final
 template <typename Domain, typename Duration,
           typename Task = timer_task<timer_mgr::time_point_for_t<Duration>>>
 class time_scheduler {
-    struct env {
-        [[nodiscard]] constexpr auto
-        query(get_completion_scheduler_t<set_value_t>) const noexcept
-            -> time_scheduler {
-            return {d};
-        }
-
-        [[no_unique_address]] Duration d{};
-    };
-
     struct sender {
         using is_sender = void;
         [[no_unique_address]] Duration d{};
 
-        [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
-            return {d};
+        [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+            return prop{get_completion_scheduler_t<set_value_t>{},
+                        time_scheduler{d}};
         }
 
         template <typename Env>

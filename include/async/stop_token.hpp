@@ -201,10 +201,12 @@ struct get_stop_token_t : forwarding_query_t {
     constexpr auto operator()(auto &&) const -> never_stop_token { return {}; }
 };
 
-template <typename E> auto get_stop_token(E &&e) {
+template <typename E>
+auto get_stop_token(E &&e) -> decltype(get_stop_token_t{}(std::forward<E>(e))) {
     return get_stop_token_t{}(std::forward<E>(e));
 }
 
 template <typename T>
-using stop_token_of_t = decltype(get_stop_token(std::declval<T>()));
+using stop_token_of_t =
+    std::remove_cvref_t<decltype(get_stop_token(std::declval<T>()))>;
 } // namespace async
