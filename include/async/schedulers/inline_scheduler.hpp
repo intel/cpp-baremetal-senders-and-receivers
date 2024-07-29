@@ -30,7 +30,7 @@ class inline_scheduler {
 
         [[nodiscard]] static constexpr auto query(get_env_t) noexcept {
             return env{prop{get_allocator_t{}, stack_allocator{}},
-                       prop{completes_synchronously_t{}, true},
+                       prop{completes_synchronously_t{}, std::true_type{}},
                        prop{get_completion_scheduler<set_value_t>,
                             inline_scheduler{}}};
         }

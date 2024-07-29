@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
@@ -233,19 +234,15 @@ struct op_state
     std::optional<stop_callback_t> stop_cb{};
 };
 
-template <typename S, typename R>
-concept not_stoppable = not stoppable_sender<S, env_of_t<R>>;
-
 template <typename Rcvr, typename... Sndrs>
-    requires(... and not_stoppable<Sndrs, Rcvr>)
-struct op_state<Rcvr, Sndrs...>
+struct nostop_op_state
     : error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
-      sub_op_state<op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>... {
+      sub_op_state<nostop_op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>... {
 
     template <typename S, typename R>
-    constexpr op_state(S &&s, R &&r)
-        : sub_op_state<op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>{std::forward<S>(
-              s)}...,
+    constexpr nostop_op_state(S &&s, R &&r)
+        : sub_op_state<nostop_op_state<Rcvr, Sndrs...>, Rcvr,
+                       Sndrs>{std::forward<S>(s)}...,
           rcvr{std::forward<R>(r)} {}
 
     auto notify() -> void {
@@ -274,7 +271,8 @@ struct op_state<Rcvr, Sndrs...>
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
                 set_value(
                     std::move(rcvr),
-                    static_cast<sub_op_state<op_state, Rcvr, Ss> &&>(*this)
+                    static_cast<sub_op_state<nostop_op_state, Rcvr, Ss> &&>(
+                        *this)
                         .v.value()...);
             }(value_senders{});
         }
@@ -283,13 +281,80 @@ struct op_state<Rcvr, Sndrs...>
     constexpr auto start() & -> void {
         count = sizeof...(Sndrs);
         (async::start(
-             static_cast<sub_op_state<op_state, Rcvr, Sndrs> &>(*this).ops),
+             static_cast<sub_op_state<nostop_op_state, Rcvr, Sndrs> &>(*this)
+                 .ops),
          ...);
     }
 
     [[no_unique_address]] Rcvr rcvr;
     std::atomic<std::size_t> count{};
 };
+
+template <typename Rcvr, typename... Sndrs>
+struct sync_op_state
+    : error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
+      sub_op_state<sync_op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>... {
+
+    template <typename S, typename R>
+    constexpr sync_op_state(S &&s, R &&r)
+        : sub_op_state<sync_op_state<Rcvr, Sndrs...>, Rcvr,
+                       Sndrs>{std::forward<S>(s)}...,
+          rcvr{std::forward<R>(r)} {}
+
+    auto notify() -> void {}
+
+    template <typename... Args> auto notify_error(Args &&...args) -> void {
+        this->store_error(std::forward<Args>(args)...);
+    }
+
+    template <typename S>
+    using single_value_sender_t =
+        std::bool_constant<single_sender<S, set_value_t, env_of_t<Rcvr>>>;
+
+    auto complete() -> void {
+        if (this->release_error(std::move(rcvr))) {
+        } else {
+            using value_senders =
+                boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
+                                        single_value_sender_t>;
+            [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
+                set_value(
+                    std::move(rcvr),
+                    static_cast<sub_op_state<sync_op_state, Rcvr, Ss> &&>(*this)
+                        .v.value()...);
+            }(value_senders{});
+        }
+    }
+
+    constexpr auto start() & -> void {
+        (async::start(
+             static_cast<sub_op_state<sync_op_state, Rcvr, Sndrs> &>(*this)
+                 .ops),
+         ...);
+        complete();
+    }
+
+    [[no_unique_address]] Rcvr rcvr;
+};
+
+template <typename S>
+concept sync_sender = static_cast<bool>(completes_synchronously(env_of_t<S>{}));
+
+template <typename S, typename R>
+concept not_stoppable = not stoppable_sender<S, env_of_t<R>>;
+
+template <typename Rcvr, typename... Sndrs> constexpr auto select_op_state() {
+    if constexpr ((... and sync_sender<Sndrs>)) {
+        return std::type_identity<sync_op_state<Rcvr, Sndrs...>>{};
+    } else if constexpr ((... and not_stoppable<Sndrs, Rcvr>)) {
+        return std::type_identity<nostop_op_state<Rcvr, Sndrs...>>{};
+    } else {
+        return std::type_identity<op_state<Rcvr, Sndrs...>>{};
+    }
+}
+
+template <typename Rcvr, typename... Sndrs>
+using op_state_t = typename decltype(select_op_state<Rcvr, Sndrs...>())::type;
 
 template <typename... Sndrs> struct sender : Sndrs... {
     using is_sender = void;
@@ -313,7 +378,7 @@ template <typename... Sndrs> struct sender : Sndrs... {
 
     template <receiver_from<sender> R>
     [[nodiscard]] constexpr auto
-    connect(R &&r) && -> op_state<std::remove_cvref_t<R>, Sndrs...> {
+    connect(R &&r) && -> op_state_t<std::remove_cvref_t<R>, Sndrs...> {
         return {std::move(*this), std::forward<R>(r)};
     }
 
@@ -324,7 +389,7 @@ template <typename... Sndrs> struct sender : Sndrs... {
                                       get_stop_token_t, inplace_stop_token,
                                       std::remove_cvref_t<R>>>>)
     [[nodiscard]] constexpr auto
-    connect(R &&r) const & -> op_state<std::remove_cvref_t<R>, Sndrs...> {
+    connect(R &&r) const & -> op_state_t<std::remove_cvref_t<R>, Sndrs...> {
         return {*this, std::forward<R>(r)};
     }
 };

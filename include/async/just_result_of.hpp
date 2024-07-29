@@ -70,7 +70,7 @@ template <typename Tag, std::invocable... Fs> struct sender : Fs... {
 
     [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
         return env{prop{get_allocator_t{}, stack_allocator{}},
-                   prop{completes_synchronously_t{}, true}};
+                   prop{completes_synchronously_t{}, std::true_type{}}};
     }
 };
 } // namespace _just_result_of
