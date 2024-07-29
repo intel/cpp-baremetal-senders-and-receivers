@@ -21,10 +21,10 @@ template <typename Ops> struct receiver {
     Ops *ops;
 
     [[nodiscard]] constexpr auto query(get_env_t) const
-        -> detail::singleton_env<
+        -> prop<
             get_stop_token_t,
             decltype(std::declval<typename Ops::stop_source_t>().get_token())> {
-        return singleton_env<get_stop_token_t>(ops->stop_src.get_token());
+        return prop{get_stop_token_t{}, ops->stop_src.get_token()};
     }
 
     constexpr auto set_value(auto &&...) const && -> void { ops->die(); }

@@ -33,8 +33,8 @@ template <typename SubOps> struct sub_receiver {
     SubOps *ops;
 
     [[nodiscard]] constexpr auto query(get_env_t) const
-        -> detail::overriding_env<get_stop_token_t, inplace_stop_token,
-                                  typename SubOps::receiver_t> {
+        -> overriding_env<get_stop_token_t, inplace_stop_token,
+                          typename SubOps::receiver_t> {
         return override_env_with<get_stop_token_t>(ops->get_stop_token(),
                                                    ops->get_receiver());
     }
@@ -318,11 +318,11 @@ template <typename... Sndrs> struct sender : Sndrs... {
     }
 
     template <receiver_from<sender> R>
-        requires(... and multishot_sender<
-                             typename Sndrs::sender_t,
-                             detail::universal_receiver<detail::overriding_env<
-                                 get_stop_token_t, inplace_stop_token,
-                                 std::remove_cvref_t<R>>>>)
+        requires(... and
+                 multishot_sender<typename Sndrs::sender_t,
+                                  detail::universal_receiver<overriding_env<
+                                      get_stop_token_t, inplace_stop_token,
+                                      std::remove_cvref_t<R>>>>)
     [[nodiscard]] constexpr auto
     connect(R &&r) const & -> op_state<std::remove_cvref_t<R>, Sndrs...> {
         return {*this, std::forward<R>(r)};

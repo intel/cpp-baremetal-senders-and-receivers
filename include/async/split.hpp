@@ -40,9 +40,9 @@ template <typename S, typename Uniq> struct single_receiver {
             std::forward<Args>(args)...);
     }
 
-    [[nodiscard]] constexpr auto query(get_env_t) const
-        -> detail::singleton_env<get_stop_token_t, inplace_stop_token> {
-        return {op_state_t::stop_source.get_token()};
+    [[nodiscard]] constexpr auto
+    query(get_env_t) const -> prop<get_stop_token_t, inplace_stop_token> {
+        return prop{get_stop_token_t{}, op_state_t::stop_source.get_token()};
     }
 
     template <typename... Args> static auto set_value(Args &&...args) -> void {
