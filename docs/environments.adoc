@@ -19,16 +19,8 @@ struct custom_receiver {
   auto set_error(auto&&) { ... }
   auto set_stopped() { ... }
 
-  struct env {
-    [[nodiscard]] constexpr auto query(async::get_stop_token_t) const
-        -> async::inplace_stop_token {
-      return token;
-    }
-    async::inplace_stop_token token;
-  };
-
-  [[nodiscard]] constexpr auto query(async::get_env_t) const -> env {
-    return {stop_source->get_token()};
+  [[nodiscard]] constexpr auto query(async::get_env_t) const {
+    return async::prop{async::get_stop_token_t{}, stop_source->get_token()};
   }
 
   inplace_stop_source* stop_source;
@@ -44,3 +36,45 @@ propagate through the sender-receiver chain.
 
 NOTE: Remember that a receiver should not own a stop_source: receivers must
 be movable, and in general a stop_source is not.
+
+=== Constructing and composing environments
+
+An environment is conceptually a key-value store through which a receiver (or a
+sender) provides properties to algorithms (sender adaptors) to customize the way
+they work.
+
+Some of the facilities for environment handling are covered in https://wg21.link/p3325[P3325].
+
+A `prop` is a single key-value pair. Construct one with a query and the value
+that will be returned for that query.
+
+[source,cpp]
+----
+auto e = async::prop{async::get_stop_token_t{}, stop_source->get_token()};
+----
+
+NOTE: A `prop` _is_ an environment. A small one, but it models the
+concepts required.
+
+`env` is how we compose multiple properties, or multiple environments:
+
+[source,cpp]
+----
+auto e = async::env{
+           async::prop{async::get_stop_token_t{}, stop_source->get_token()},
+           async::prop{async::get_allocator_t{}, async::stack_allocator{}}};
+----
+
+This allows us to use an existing environment and extend it with new properties,
+or override existing ones.
+
+[source,cpp]
+----
+auto old_e = /* existing environment */;
+auto e = async::env{
+           async::prop{async::get_stop_token_t{}, stop_source->get_token()},
+           old_e};
+----
+
+In this case, whether or not `get_stop_token` is a valid query on `old_e`,
+calling it on `e` will return the newly-provided stop token.

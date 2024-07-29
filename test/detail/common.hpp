@@ -85,17 +85,9 @@ template <typename F> struct stoppable_receiver {
 
     auto request_stop() { stop_source<stoppable_receiver>->request_stop(); }
 
-    struct env {
-        async::inplace_stop_token stop_token;
-
-        [[nodiscard]] constexpr auto
-        query(async::get_stop_token_t) const -> async::inplace_stop_token {
-            return stop_token;
-        }
-    };
-
-    [[nodiscard]] constexpr auto query(async::get_env_t) const -> env {
-        return {stop_source<stoppable_receiver>->get_token()};
+    [[nodiscard]] constexpr auto query(async::get_env_t) const {
+        return async::prop{async::get_stop_token_t{},
+                           stop_source<stoppable_receiver>->get_token()};
     }
 
     constexpr auto set_value(auto &&...) const && -> void { f(); }
@@ -115,23 +107,17 @@ class singleshot_scheduler {
         }
     };
 
-    struct env {
-        template <typename Tag>
-        [[nodiscard]] static constexpr auto
-        query(async::get_completion_scheduler_t<Tag>) noexcept
-            -> singleshot_scheduler {
-            return {};
-        }
-    };
-
     struct sender {
         using is_sender = void;
         using completion_signatures =
             async::completion_signatures<async::set_value_t()>;
 
         [[nodiscard, maybe_unused]] constexpr static auto
-        query(async::get_env_t) noexcept -> env {
-            return {};
+        query(async::get_env_t) noexcept {
+            return async::make_template_prop<
+                async::get_completion_scheduler_t, async::set_value_t,
+                async::set_error_t, async::set_stopped_t>(
+                singleshot_scheduler{});
         }
 
         template <async::receiver_from<sender> R>

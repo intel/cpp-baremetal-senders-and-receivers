@@ -54,23 +54,15 @@ template <typename Uniq = decltype([] {})> class run_loop {
     };
 
     struct scheduler {
-        struct env {
-            [[nodiscard]] constexpr auto
-            query(get_completion_scheduler_t<set_value_t>) const noexcept
-                -> scheduler {
-                return loop->get_scheduler();
-            }
-            run_loop *loop;
-        };
-
         struct sender {
             using is_sender = void;
             using completion_signatures =
                 async::completion_signatures<set_value_t(), set_stopped_t()>;
 
-            [[nodiscard]] constexpr auto
-            query(get_env_t) const noexcept -> env {
-                return {loop};
+            [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+                return make_template_prop<get_completion_scheduler_t,
+                                          set_value_t, set_stopped_t>(
+                    loop->get_scheduler());
             }
 
             template <receiver R>

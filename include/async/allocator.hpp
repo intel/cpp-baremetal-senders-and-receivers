@@ -38,5 +38,6 @@ constexpr inline struct get_allocator_t : forwarding_query_t {
 } get_allocator;
 
 template <typename T>
-using allocator_of_t = decltype(get_allocator(std::declval<T>()));
+using allocator_of_t =
+    std::remove_cvref_t<decltype(get_allocator(std::declval<T>()))>;
 } // namespace async

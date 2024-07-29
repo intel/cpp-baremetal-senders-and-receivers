@@ -5,6 +5,7 @@
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/env.hpp>
 #include <async/stack_allocator.hpp>
 #include <async/type_traits.hpp>
 
@@ -28,18 +29,6 @@ template <typename Tag, typename R, typename... Vs> struct op_state {
     }
 };
 
-struct env {
-    [[nodiscard]] constexpr static auto
-    query(get_allocator_t) noexcept -> stack_allocator {
-        return {};
-    }
-
-    [[nodiscard]] constexpr static auto
-    query(completes_synchronously_t) noexcept -> bool {
-        return true;
-    }
-};
-
 template <typename Tag, typename... Vs> struct sender {
     using is_sender = void;
     using completion_signatures = async::completion_signatures<Tag(Vs...)>;
@@ -60,8 +49,9 @@ template <typename Tag, typename... Vs> struct sender {
         return {std::forward<R>(r), values};
     }
 
-    [[nodiscard]] constexpr auto query(get_env_t) const noexcept -> env {
-        return {};
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+        return env{prop{get_allocator_t{}, stack_allocator{}},
+                   prop{completes_synchronously_t{}, true}};
     }
 };
 } // namespace _just

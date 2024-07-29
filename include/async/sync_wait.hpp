@@ -3,6 +3,7 @@
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/env.hpp>
 #include <async/get_scheduler.hpp>
 #include <async/schedulers/runloop_scheduler.hpp>
 #include <async/type_traits.hpp>
@@ -18,15 +19,6 @@
 namespace async {
 namespace _sync_wait {
 
-template <typename Sched> struct env {
-    [[nodiscard]] constexpr auto
-    query(get_scheduler_t) const noexcept -> Sched {
-        return s;
-    }
-
-    Sched s;
-};
-
 template <typename V, typename RL> struct receiver {
     using is_receiver = void;
 
@@ -35,9 +27,8 @@ template <typename V, typename RL> struct receiver {
     RL &loop;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
-    [[nodiscard]] constexpr auto query(get_env_t) const noexcept
-        -> env<decltype(std::declval<RL>().get_scheduler())> {
-        return {loop.get_scheduler()};
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+        return prop{get_scheduler_t{}, loop.get_scheduler()};
     }
 
     template <typename... Args>
@@ -60,9 +51,9 @@ using sync_wait_type = value_types_of_t<S, E, decayed_tuple, std::optional>;
 template <typename Uniq, sender S> auto wait(S &&s) {
     run_loop<Uniq> rl{};
     auto sched = rl.get_scheduler();
-    env<decltype(sched)> e{sched};
+    using E = prop<get_scheduler_t, decltype(sched)>;
 
-    using V = detail::sync_wait_type<decltype(e), S>;
+    using V = detail::sync_wait_type<E, S>;
     V values{};
     auto r = receiver<V, decltype(rl)>{values, rl};
 

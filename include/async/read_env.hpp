@@ -24,13 +24,6 @@ template <typename R, typename Tag> struct op_state {
     }
 };
 
-struct env {
-    [[nodiscard]] constexpr static auto
-    query(completes_synchronously_t) noexcept -> bool {
-        return true;
-    }
-};
-
 template <typename Tag> struct sender {
     using is_sender = void;
 
@@ -41,8 +34,8 @@ template <typename Tag> struct sender {
         return {};
     }
 
-    [[nodiscard]] constexpr static auto query(get_env_t) noexcept -> env {
-        return {};
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously, true};
     }
 
     template <receiver R>

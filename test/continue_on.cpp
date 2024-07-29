@@ -3,6 +3,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/continue_on.hpp>
+#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/let_stopped.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
@@ -23,22 +24,15 @@ template <auto> class test_scheduler {
         }
     };
 
-    struct env {
-        template <typename Tag>
-        [[nodiscard]] constexpr static auto query(
-            async::get_completion_scheduler_t<Tag>) noexcept -> test_scheduler {
-            return {};
-        }
-    };
-
     struct sender {
         using is_sender = void;
         using completion_signatures =
             async::completion_signatures<async::set_value_t()>;
 
-        [[nodiscard]] constexpr auto
-        query(async::get_env_t) const noexcept -> env {
-            return {};
+        [[nodiscard]] constexpr static auto query(async::get_env_t) noexcept {
+            return async::make_template_prop<
+                async::get_completion_scheduler_t, async::set_value_t,
+                async::set_error_t, async::set_stopped_t>(test_scheduler{});
         }
 
         template <async::receiver_from<sender> R>
