@@ -1,6 +1,8 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/forwarding_query.hpp>
+#include <async/stack_allocator.hpp>
 #include <async/static_allocator.hpp>
 
 #include <type_traits>
@@ -34,7 +36,13 @@ constexpr inline struct get_allocator_t : forwarding_query_t {
         return std::forward<T>(t).query(*this);
     }
 
-    constexpr auto operator()(auto &&) const -> static_allocator { return {}; }
+    template <typename T> constexpr auto operator()(T &&) const {
+        if constexpr (completes_synchronously(T{})) {
+            return stack_allocator{};
+        } else {
+            return static_allocator{};
+        }
+    }
 } get_allocator;
 
 template <typename T>
