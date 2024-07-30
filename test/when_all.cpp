@@ -1,5 +1,6 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/just.hpp>
@@ -247,4 +248,20 @@ TEST_CASE("when_all with one arg is a no-op", "[when_all]") {
     auto s = async::just(42);
     [[maybe_unused]] auto w = async::when_all(s);
     static_assert(std::same_as<decltype(s), decltype(w)>);
+}
+
+TEST_CASE("nullary when_all has a stack allocator", "[when_all]") {
+    static_assert(
+        std::is_same_v<
+            async::allocator_of_t<async::env_of_t<decltype(async::when_all())>>,
+            async::stack_allocator>);
+}
+
+TEST_CASE("when_all has a stack allocator when all its subsenders do",
+          "[when_all]") {
+    static_assert(
+        std::is_same_v<
+            async::allocator_of_t<async::env_of_t<decltype(async::when_all(
+                async::just(42), async::just(17)))>>,
+            async::stack_allocator>);
 }

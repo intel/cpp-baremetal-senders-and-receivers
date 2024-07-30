@@ -1,10 +1,12 @@
 #pragma once
 
+#include <async/allocator.hpp>
 #include <async/completes_synchronously.hpp>
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/env.hpp>
+#include <async/stack_allocator.hpp>
 #include <async/stop_token.hpp>
 
 #include <stdx/concepts.hpp>
@@ -392,6 +394,15 @@ template <typename... Sndrs> struct sender : Sndrs... {
     connect(R &&r) const & -> op_state_t<std::remove_cvref_t<R>, Sndrs...> {
         return {*this, std::forward<R>(r)};
     }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) {
+        if constexpr ((... and sync_sender<Sndrs>)) {
+            return env{prop{get_allocator_t{}, stack_allocator{}},
+                       prop{completes_synchronously_t{}, std::true_type{}}};
+        } else {
+            return empty_env{};
+        }
+    }
 };
 
 template <typename Rcvr> struct op_state<Rcvr> {
@@ -429,6 +440,11 @@ template <> struct sender<> {
     [[nodiscard]] constexpr static auto
     connect(R &&r) -> op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
+    }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return env{prop{get_allocator_t{}, stack_allocator{}},
+                   prop{completes_synchronously_t{}, std::true_type{}}};
     }
 };
 } // namespace _when_all
