@@ -1,9 +1,13 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
+#include <async/env.hpp>
 #include <async/just_result_of.hpp>
+#include <async/read_env.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
 #include <async/start_detached.hpp>
+#include <async/static_allocator.hpp>
 #include <async/then.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -101,4 +105,53 @@ TEST_CASE("start_detached_unstoppable has no cancellation",
     stop_src.value()->request_stop();
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
+}
+
+namespace {
+struct custom_allocator {
+    template <typename N, typename T, typename F, typename... Args>
+        requires std::is_constructible_v<T, Args...>
+    static auto construct(F &&f, Args &&...args) -> bool {
+        ++alloc_count;
+        return async::static_allocator::template construct<N, T>(
+            std::forward<F>(f), std::forward<Args>(args)...);
+    }
+
+    template <typename, typename T> static auto destruct(T const *) -> void {
+        ++destroy_count;
+    }
+
+    static inline std::size_t alloc_count{};
+    static inline std::size_t destroy_count{};
+};
+} // namespace
+
+TEST_CASE("start_detached can use a custom environment", "[start_detached]") {
+    custom_allocator::alloc_count = 0;
+    custom_allocator::destroy_count = 0;
+    int var{};
+    using S = async::fixed_priority_scheduler<0>;
+    auto s = S::schedule() | async::then([&] { var = 42; });
+    CHECK(async::start_detached(
+        s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
+    CHECK(custom_allocator::alloc_count == 1);
+    async::task_mgr::service_tasks<0>();
+    CHECK(var == 42);
+    CHECK(custom_allocator::destroy_count == 1);
+}
+
+TEST_CASE("start_detached passes the custom env to the sender chain",
+          "[start_detached]") {
+    auto s =
+        async::read_env(async::get_allocator) | async::then([]<typename T>(T) {
+            static_assert(std::is_same_v<T, custom_allocator>);
+        });
+    CHECK(async::start_detached(
+        s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
+}
+
+TEST_CASE("start_detached allows state in the custom env", "[start_detached]") {
+    auto s =
+        async::read_env(get_fwd) | async::then([](int x) { CHECK(x == 17); });
+    CHECK(async::start_detached(s, async::prop{get_fwd, 17}));
 }

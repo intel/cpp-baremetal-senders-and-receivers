@@ -10,21 +10,25 @@
 #include <stdx/optional.hpp>
 
 #include <concepts>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
 namespace async {
 namespace _start_detached {
-template <typename Ops> struct receiver {
+template <typename Ops, typename Env> struct receiver {
     using is_receiver = void;
 
     Ops *ops;
+    [[no_unique_address]] Env e;
 
     [[nodiscard]] constexpr auto query(get_env_t) const
-        -> prop<
-            get_stop_token_t,
-            decltype(std::declval<typename Ops::stop_source_t>().get_token())> {
-        return prop{get_stop_token_t{}, ops->stop_src.get_token()};
+        -> env<prop<get_stop_token_t,
+                    decltype(std::declval<typename Ops::stop_source_t>()
+                                 .get_token())>,
+               Env const &> {
+        return env{prop{get_stop_token_t{}, ops->stop_src.get_token()},
+                   std::cref(e)};
     }
 
     constexpr auto set_value(auto &&...) const && -> void { ops->die(); }
@@ -32,16 +36,17 @@ template <typename Ops> struct receiver {
     constexpr auto set_stopped() const && -> void { ops->die(); }
 };
 
-template <typename Uniq, typename Sndr, typename Alloc, typename StopSource>
+template <typename Uniq, typename Sndr, typename Alloc, typename StopSource,
+          typename Env>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
-    using receiver_t = receiver<op_state>;
+    using receiver_t = receiver<op_state, Env>;
     using stop_source_t = StopSource;
     using Ops = connect_result_t<Sndr, receiver_t>;
 
     template <typename S>
-    constexpr explicit(true) op_state(S &&s)
-        : ops{connect(std::forward<S>(s), receiver<op_state>{this})} {}
+    constexpr explicit(true) op_state(S &&s, Env &&e)
+        : ops{connect(std::forward<S>(s), receiver_t{this, std::move(e)})} {}
     constexpr op_state(op_state &&) = delete;
 
     auto die() { Alloc::template destruct<Uniq>(this); }
@@ -52,49 +57,57 @@ struct op_state {
     Ops ops;
 };
 
-template <typename Uniq, typename StopSource, sender S>
-[[nodiscard]] auto start(S &&s) -> stdx::optional<StopSource *> {
+template <typename Uniq, typename StopSource, sender S, typename Env>
+[[nodiscard]] auto start(S &&s, Env &&e) -> stdx::optional<StopSource *> {
     using Sndr = std::remove_cvref_t<S>;
-    using A = allocator_of_t<env_of_t<Sndr>>;
-    using O = op_state<Uniq, Sndr, A, StopSource>;
+    auto composite_env = env{std::forward<Env>(e), get_env(s)};
+    using E = decltype(composite_env);
+    using A = allocator_of_t<E>;
+    using O = op_state<Uniq, Sndr, A, StopSource, E>;
     stdx::optional<StopSource *> stop_src{};
     A::template construct<Uniq, O>(
         [&](O &ops) {
             stop_src = std::addressof(ops.stop_src);
             async::start(ops);
         },
-        std::forward<S>(s));
+        std::forward<S>(s), std::move(composite_env));
     return stop_src;
 }
 
-template <typename Uniq, typename StopSource> struct pipeable {
+template <typename Uniq, typename StopSource, typename Env> struct pipeable {
+    [[no_unique_address]] Env e;
+
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
-    [[nodiscard]] friend auto operator|(S &&s, Self &&) {
-        return start<Uniq, StopSource>(std::forward<S>(s));
+    [[nodiscard]] friend auto operator|(S &&s, Self &&self) {
+        return start<Uniq, StopSource>(std::forward<S>(s),
+                                       std::forward<Self>(self).e);
     }
 };
 } // namespace _start_detached
 
-template <typename Uniq = decltype([] {})>
-[[nodiscard]] constexpr auto
-start_detached() -> _start_detached::pipeable<Uniq, inplace_stop_source> {
-    return {};
+template <typename Uniq = decltype([] {}), typename Env = empty_env>
+    requires(not sender<Env>)
+[[nodiscard]] constexpr auto start_detached(Env &&e = {})
+    -> _start_detached::pipeable<Uniq, inplace_stop_source, Env> {
+    return {std::forward<Env>(e)};
 }
 
-template <typename Uniq = decltype([] {}), sender S>
-[[nodiscard]] auto start_detached(S &&s) {
-    return std::forward<S>(s) | start_detached<Uniq>();
+template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
+[[nodiscard]] auto start_detached(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) | start_detached<Uniq>(std::forward<Env>(e));
 }
 
-template <typename Uniq = decltype([] {})>
-[[nodiscard]] constexpr auto start_detached_unstoppable()
-    -> _start_detached::pipeable<Uniq, never_stop_source> {
-    return {};
+template <typename Uniq = decltype([] {}), typename Env = empty_env>
+    requires(not sender<Env>)
+[[nodiscard]] constexpr auto start_detached_unstoppable(Env &&e = {})
+    -> _start_detached::pipeable<Uniq, never_stop_source, Env> {
+    return {std::forward<Env>(e)};
 }
 
-template <typename Uniq = decltype([] {}), sender S>
-[[nodiscard]] auto start_detached_unstoppable(S &&s) {
-    return std::forward<S>(s) | start_detached_unstoppable<Uniq>();
+template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
+[[nodiscard]] auto start_detached_unstoppable(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) |
+           start_detached_unstoppable<Uniq>(std::forward<Env>(e));
 }
 } // namespace async
