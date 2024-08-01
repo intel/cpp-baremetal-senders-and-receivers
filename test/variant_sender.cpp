@@ -1,7 +1,9 @@
 #include "detail/common.hpp"
 
+#include <async/completes_synchronously.hpp>
 #include <async/connect.hpp>
 #include <async/just.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/variant_sender.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -119,8 +121,7 @@ TEST_CASE("generalized make_variant", "[variant_sender]") {
     CHECK(std::get<1>(v2) == 3.14f);
 }
 
-TEST_CASE("make_variant_sender (general choice)"
-          "[variant_sender]") {
+TEST_CASE("make_variant_sender (general choice)", "[variant_sender]") {
     auto const s = async::make_variant_sender(
         async::match([](auto i, auto j) { return i + j == 3; }) >>
             [](auto, auto) { return async::just(42); },
@@ -138,7 +139,7 @@ TEST_CASE("make_variant_sender (general choice)"
     CHECK(value == 42);
 }
 
-TEST_CASE("make_variant_sender (simplified binary choice)"
+TEST_CASE("make_variant_sender (simplified binary choice)",
           "[variant_sender]") {
     auto const i = 0;
     auto const s = async::make_variant_sender(
@@ -154,4 +155,20 @@ TEST_CASE("make_variant_sender (simplified binary choice)"
     auto op = async::connect(s, receiver{[&](auto v) { value = v; }});
     async::start(op);
     CHECK(value == 42);
+}
+
+TEST_CASE("variant_sender may complete synchronously", "[variant_sender]") {
+    auto const i = 0;
+    [[maybe_unused]] auto const s = async::make_variant_sender(
+        i == 0, [] { return async::just(42); },
+        [] { return async::just_error(17); });
+    static_assert(async::sync_sender<decltype(s)>);
+}
+
+TEST_CASE("variant_sender may not complete synchronously", "[variant_sender]") {
+    auto const i = 0;
+    [[maybe_unused]] auto const s = async::make_variant_sender(
+        i == 0, [] { return async::just(42); },
+        [] { return async::thread_scheduler{}.schedule(); });
+    static_assert(not async::sync_sender<decltype(s)>);
 }

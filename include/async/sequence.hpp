@@ -1,9 +1,11 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/completion_tags.hpp>
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/env.hpp>
 
 #include <stdx/functional.hpp>
 
@@ -114,6 +116,14 @@ template <typename S, std::invocable F> struct sender {
         -> boost::mp11::mp_unique<boost::mp11::mp_append<
             unchanged_completions<Env>, dependent_completions<Env>>> {
         return {};
+    }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) {
+        if constexpr (sync_sender<S> and sync_sender<dependent_sender>) {
+            return prop{completes_synchronously_t{}, std::true_type{}};
+        } else {
+            return empty_env{};
+        }
     }
 };
 

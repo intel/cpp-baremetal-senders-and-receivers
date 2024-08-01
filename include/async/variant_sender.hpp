@@ -1,7 +1,9 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/env.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
@@ -174,6 +176,14 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
         requires(... and multishot_sender<Sndrs, R>)
     [[nodiscard]] constexpr auto connect(R &&r) const & {
         return connect_impl(*this, std::forward<R>(r));
+    }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) {
+        if constexpr ((... and sync_sender<Sndrs>)) {
+            return prop{completes_synchronously_t{}, std::true_type{}};
+        } else {
+            return empty_env{};
+        }
     }
 
   private:
