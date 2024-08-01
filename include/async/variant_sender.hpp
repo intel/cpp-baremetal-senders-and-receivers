@@ -179,7 +179,7 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
-        if constexpr ((... and sync_sender<Sndrs>)) {
+        if constexpr ((... and synchronous<Sndrs>)) {
             return prop{completes_synchronously_t{}, std::true_type{}};
         } else {
             return empty_env{};

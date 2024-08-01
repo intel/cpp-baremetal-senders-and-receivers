@@ -162,14 +162,14 @@ TEST_CASE("seq(sender) with move-only sender", "[sequence]") {
 TEST_CASE("sequence may complete synchronously", "[sequence]") {
     auto const s =
         async::just() | async::sequence([] { return async::just(); });
-    static_assert(async::sync_sender<decltype(s)>);
+    static_assert(async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("sequence may not complete synchronously if antecedent does not",
           "[sequence]") {
     auto const s = async::thread_scheduler{}.schedule() |
                    async::sequence([] { return async::just(); });
-    static_assert(not async::sync_sender<decltype(s)>);
+    static_assert(not async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("sequence may not complete synchronously if subsequent does not",
@@ -177,5 +177,5 @@ TEST_CASE("sequence may not complete synchronously if subsequent does not",
     auto const s = async::just() | async::sequence([] {
                        return async::thread_scheduler{}.schedule();
                    });
-    static_assert(not async::sync_sender<decltype(s)>);
+    static_assert(not async::synchronous<decltype(s)>);
 }

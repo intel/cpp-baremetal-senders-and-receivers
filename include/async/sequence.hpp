@@ -119,7 +119,7 @@ template <typename S, std::invocable F> struct sender {
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
-        if constexpr (sync_sender<S> and sync_sender<dependent_sender>) {
+        if constexpr (synchronous<S> and synchronous<dependent_sender>) {
             return prop{completes_synchronously_t{}, std::true_type{}};
         } else {
             return empty_env{};
