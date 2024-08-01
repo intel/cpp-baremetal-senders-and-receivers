@@ -234,3 +234,29 @@ TEST_CASE("let_value stores result of input sender", "[let_value]") {
     async::start(op);
     CHECK(value == 42);
 }
+
+TEST_CASE("let_value op state may complete synchronously", "[let_value]") {
+    auto const s =
+        async::just() | async::let_value([] { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE(
+    "let_value op state may not complete synchronously if antecedent does not",
+    "[let_value]") {
+    auto const s = async::thread_scheduler{}.schedule() |
+                   async::let_value([] { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
+}
+
+TEST_CASE(
+    "let_value op state may not complete synchronously if subsequent does not",
+    "[let_value]") {
+    auto const s = async::just() | async::let_value([] {
+                       return async::thread_scheduler{}.schedule();
+                   });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
+}

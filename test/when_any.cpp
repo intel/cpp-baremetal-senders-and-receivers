@@ -1,9 +1,12 @@
 #include "detail/common.hpp"
 
+#include <async/allocator.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/stack_allocator.hpp>
 #include <async/sync_wait.hpp>
 #include <async/then.hpp>
 #include <async/type_traits.hpp>
@@ -302,4 +305,17 @@ TEST_CASE("when_any with one arg is a no-op", "[when_all]") {
     auto s = async::just(42);
     [[maybe_unused]] auto w = async::when_any(s);
     static_assert(std::same_as<decltype(s), decltype(w)>);
+}
+
+TEST_CASE("nullary when_any has a stack allocator", "[when_any]") {
+    static_assert(
+        std::is_same_v<
+            async::allocator_of_t<async::env_of_t<decltype(async::when_any())>>,
+            async::stack_allocator>);
+}
+
+TEST_CASE("nullary when_any op_state is synchronous", "[when_any]") {
+    [[maybe_unused]] auto op =
+        async::connect(async::when_any(), receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
 }

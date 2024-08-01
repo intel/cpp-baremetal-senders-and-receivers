@@ -5,6 +5,8 @@
 #include <async/just.hpp>
 #include <async/let_stopped.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
+#include <async/start_on.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
@@ -136,4 +138,31 @@ TEST_CASE("let_stopped can be single shot with passthrough", "[let_stopped]") {
     [[maybe_unused]] auto l = async::just(move_only{42}) |
                               async::let_stopped([](auto) { return 42; });
     static_assert(async::singleshot_sender<decltype(l)>);
+}
+
+TEST_CASE("let_stopped op state may complete synchronously", "[let_stopped]") {
+    auto s = async::just_stopped() |
+             async::let_stopped([] { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("let_stopped op state may not complete synchronously if antecedent "
+          "does not",
+          "[let_stopped]") {
+    auto const s =
+        async::start_on(async::thread_scheduler{}, async::just_stopped()) |
+        async::let_stopped([] { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("let_stopped op state may not complete synchronously if subsequent "
+          "does not",
+          "[let_stopped]") {
+    auto const s = async::just_stopped() | async::let_stopped([] {
+                       return async::thread_scheduler{}.schedule();
+                   });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
 }

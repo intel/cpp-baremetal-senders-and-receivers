@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
@@ -137,6 +138,11 @@ struct op_state : op_state_base<S, Uniq> {
             not next_ops) {
             async::start(*op_state_t::single_ops);
         }
+    }
+
+    [[nodiscard]] constexpr auto query(async::get_env_t) const {
+        return prop{completes_synchronously_t{},
+                    synchronous_t<typename op_state_t::single_op_state_t>{}};
     }
 
   private:

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
@@ -314,6 +315,10 @@ struct op_state<StopPolicy, Rcvr> {
                         stop_callback_fn{this});
     }
 
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
+    }
+
     using stop_callback_t =
         stop_callback_for_t<stop_token_of_t<env_of_t<Rcvr>>, stop_callback_fn>;
 
@@ -341,6 +346,10 @@ template <typename StopPolicy> struct sender<StopPolicy> {
     [[nodiscard]] constexpr auto
     connect(R &&r) const -> op_state<StopPolicy, std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
+    }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
 

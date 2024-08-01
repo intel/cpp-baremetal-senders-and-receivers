@@ -6,6 +6,8 @@
 #include <async/just_result_of.hpp>
 #include <async/let_error.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
+#include <async/start_on.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
@@ -223,4 +225,31 @@ TEST_CASE("let_error stores result of input sender", "[let_error]") {
     auto op = async::connect(s, receiver{[&](int const *i) { value = *i; }});
     async::start(op);
     CHECK(value == 42);
+}
+
+TEST_CASE("let_error op state may complete synchronously", "[let_error]") {
+    auto s = async::just_error(42) |
+             async::let_error([](auto) { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE(
+    "let_error op state may not complete synchronously if antecedent does not",
+    "[let_error]") {
+    auto const s =
+        async::start_on(async::thread_scheduler{}, async::just_error(42)) |
+        async::let_error([](auto) { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
+}
+
+TEST_CASE(
+    "let_error op state may not complete synchronously if subsequent does not",
+    "[let_error]") {
+    auto const s = async::just_error(42) | async::let_error([](auto) {
+                       return async::thread_scheduler{}.schedule();
+                   });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
 }

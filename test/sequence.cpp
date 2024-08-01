@@ -179,3 +179,29 @@ TEST_CASE("sequence may not complete synchronously if subsequent does not",
                    });
     static_assert(not async::synchronous<decltype(s)>);
 }
+
+TEST_CASE("sequence op state may complete synchronously", "[sequence]") {
+    auto const s =
+        async::just() | async::sequence([] { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE(
+    "sequence op state may not complete synchronously if antecedent does not",
+    "[sequence]") {
+    auto const s = async::thread_scheduler{}.schedule() |
+                   async::sequence([] { return async::just(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
+}
+
+TEST_CASE(
+    "sequence op state may not complete synchronously if subsequent does not",
+    "[sequence]") {
+    auto const s = async::just() | async::sequence([] {
+                       return async::thread_scheduler{}.schedule();
+                   });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
+}

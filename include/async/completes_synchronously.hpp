@@ -21,4 +21,5 @@ constexpr inline struct completes_synchronously_t : forwarding_query_t {
 
 template <typename S>
 concept synchronous = static_cast<bool>(completes_synchronously(env_of_t<S>{}));
+template <typename S> using synchronous_t = std::bool_constant<synchronous<S>>;
 } // namespace async

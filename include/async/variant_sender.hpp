@@ -155,6 +155,14 @@ template <typename... Ops> struct op_state {
     constexpr auto start() & -> void {
         std::visit([](auto &&ops) { async::start(FWD(ops)); }, v);
     }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) {
+        if constexpr ((... and synchronous<Ops>)) {
+            return prop{completes_synchronously_t{}, std::true_type{}};
+        } else {
+            return empty_env{};
+        }
+    }
 };
 
 template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
@@ -187,15 +195,13 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
     }
 
   private:
-    template <typename R>
-    using ops_t = op_state<connect_result_t<Sndrs, std::remove_cvref_t<R>>...>;
-
     template <typename Sndr, typename R>
-    [[nodiscard]] constexpr static auto connect_impl(Sndr &&sndr,
-                                                     R &&r) -> ops_t<R> {
+    [[nodiscard]] constexpr static auto connect_impl(Sndr &&sndr, R &&r) {
+        using ops_t =
+            op_state<connect_result_t<Sndrs, std::remove_cvref_t<R>>...>;
         return std::visit(
-            [&]<typename S>(S &&s) -> ops_t<R> {
-                using V = typename ops_t<R>::variant_t;
+            [&]<typename S>(S &&s) -> ops_t {
+                using V = typename ops_t::variant_t;
                 using O = connect_result_t<S, R>;
                 constexpr auto I = boost::mp11::mp_find<V, O>::value;
                 return {V{std::in_place_index<I>, stdx::with_result_of{[&] {

@@ -334,6 +334,10 @@ struct sync_op_state
         complete();
     }
 
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
+    }
+
     [[no_unique_address]] Rcvr rcvr;
 };
 
@@ -411,6 +415,10 @@ template <typename Rcvr> struct op_state<Rcvr> {
             }
         }
         set_value(std::move(rcvr));
+    }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
 

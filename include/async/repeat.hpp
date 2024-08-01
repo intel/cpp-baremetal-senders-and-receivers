@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/completion_tags.hpp>
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
@@ -86,6 +87,10 @@ template <typename Sndr, typename Rcvr, stdx::callable Pred> struct op_state {
             }
         }
         start();
+    }
+
+    [[nodiscard]] constexpr auto query(async::get_env_t) const {
+        return prop{completes_synchronously_t{}, synchronous_t<state_t>{}};
     }
 
     [[no_unique_address]] Sndr sndr;
