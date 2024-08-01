@@ -25,6 +25,10 @@ template <typename Tag, typename R, typename... Vs> struct op_state {
             Tag{}(std::move(receiver), std::forward<Ts>(ts)...);
         });
     }
+
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
+    }
 };
 
 template <typename Tag, typename... Vs> struct sender {
