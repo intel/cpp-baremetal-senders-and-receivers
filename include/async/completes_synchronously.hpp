@@ -1,7 +1,9 @@
 #pragma once
 
+#include <async/env.hpp>
 #include <async/forwarding_query.hpp>
 
+#include <type_traits>
 #include <utility>
 
 namespace async {
@@ -14,6 +16,9 @@ constexpr inline struct completes_synchronously_t : forwarding_query_t {
         return std::forward<T>(t).query(*this);
     }
 
-    constexpr auto operator()(auto &&) const -> bool { return false; }
+    constexpr auto operator()(auto &&) const -> std::false_type { return {}; }
 } completes_synchronously{};
+
+template <typename S>
+concept sync_sender = static_cast<bool>(completes_synchronously(env_of_t<S>{}));
 } // namespace async

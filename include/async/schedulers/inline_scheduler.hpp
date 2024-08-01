@@ -1,12 +1,10 @@
 #pragma once
 
-#include <async/allocator.hpp>
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
-#include <async/stack_allocator.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
@@ -29,8 +27,7 @@ class inline_scheduler {
             async::completion_signatures<set_value_t()>;
 
         [[nodiscard]] static constexpr auto query(get_env_t) noexcept {
-            return env{prop{get_allocator_t{}, stack_allocator{}},
-                       prop{completes_synchronously_t{}, std::true_type{}},
+            return env{prop{completes_synchronously_t{}, std::true_type{}},
                        prop{get_completion_scheduler<set_value_t>,
                             inline_scheduler{}}};
         }

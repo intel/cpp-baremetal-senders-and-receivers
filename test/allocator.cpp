@@ -133,3 +133,19 @@ TEST_CASE("static allocator is an allocator", "[allocator]") {
 TEST_CASE("stack allocator is an allocator", "[allocator]") {
     static_assert(async::allocator<async::stack_allocator>);
 }
+
+TEST_CASE("sender that completes synchronously defaults to a stack allocator",
+          "[allocator]") {
+    [[maybe_unused]] auto s = async::inline_scheduler{}.schedule();
+    static_assert(
+        std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s)>>,
+                       async::stack_allocator>);
+}
+
+TEST_CASE("sender that completes asynchronously defaults to a static allocator",
+          "[allocator]") {
+    [[maybe_unused]] auto s = async::thread_scheduler{}.schedule();
+    static_assert(
+        std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s)>>,
+                       async::static_allocator>);
+}

@@ -1,11 +1,9 @@
 #pragma once
 
-#include <async/allocator.hpp>
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/env.hpp>
-#include <async/stack_allocator.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
@@ -69,8 +67,7 @@ template <typename Tag, std::invocable... Fs> struct sender : Fs... {
             boost::mp11::mp_not_fn<std::is_void>>>;
 
     [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
-        return env{prop{get_allocator_t{}, stack_allocator{}},
-                   prop{completes_synchronously_t{}, std::true_type{}}};
+        return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
 } // namespace _just_result_of
