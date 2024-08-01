@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/just.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/sequence.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -156,4 +157,25 @@ TEST_CASE("seq(sender) with move-only sender", "[sequence]") {
                              receiver{[&](auto mo) { value = mo.value; }});
     async::start(op);
     CHECK(value == 42);
+}
+
+TEST_CASE("sequence may complete synchronously", "[sequence]") {
+    auto const s =
+        async::just() | async::sequence([] { return async::just(); });
+    static_assert(async::sync_sender<decltype(s)>);
+}
+
+TEST_CASE("sequence may not complete synchronously if antecedent does not",
+          "[sequence]") {
+    auto const s = async::thread_scheduler{}.schedule() |
+                   async::sequence([] { return async::just(); });
+    static_assert(not async::sync_sender<decltype(s)>);
+}
+
+TEST_CASE("sequence may not complete synchronously if subsequent does not",
+          "[sequence]") {
+    auto const s = async::just() | async::sequence([] {
+                       return async::thread_scheduler{}.schedule();
+                   });
+    static_assert(not async::sync_sender<decltype(s)>);
 }

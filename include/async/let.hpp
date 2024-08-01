@@ -178,13 +178,6 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
     [[no_unique_address]] S s;
     [[no_unique_address]] F f;
 
-    [[nodiscard]] constexpr auto query(get_env_t) const & {
-        return forward_env_of(s);
-    }
-    [[nodiscard]] constexpr auto query(get_env_t) && {
-        return forward_env_of(std::move(s));
-    }
-
   private:
     template <typename E>
     using raw_completions =

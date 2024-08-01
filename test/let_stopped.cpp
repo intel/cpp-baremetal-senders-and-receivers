@@ -2,7 +2,6 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
-#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/let_stopped.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
@@ -119,15 +118,6 @@ TEST_CASE("let_stopped propagates error (order 2)", "[let_stopped]") {
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
-}
-
-TEST_CASE("let_stopped propagates forwarding queries to its child environment",
-          "[let_stopped]") {
-    auto s = custom_sender{};
-    CHECK(get_fwd(async::get_env(s)) == 42);
-
-    auto l = async::let_stopped(s, [] { return async::just(17); });
-    CHECK(get_fwd(async::get_env(l)) == 42);
 }
 
 TEST_CASE("let_stopped advertises pass-through completions", "[let_stopped]") {

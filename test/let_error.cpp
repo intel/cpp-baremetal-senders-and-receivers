@@ -2,7 +2,6 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
-#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/let_error.hpp>
@@ -196,15 +195,6 @@ TEST_CASE("let_error propagates stopped (order 2)", "[let_error]") {
     auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
     async::start(op);
     CHECK(value == 42);
-}
-
-TEST_CASE("let_error propagates forwarding queries to its child environment",
-          "[let_error]") {
-    auto s = custom_sender{};
-    CHECK(get_fwd(async::get_env(s)) == 42);
-
-    auto l = async::let_error(s, [] { return async::just(17); });
-    CHECK(get_fwd(async::get_env(l)) == 42);
 }
 
 TEST_CASE("let_error advertises pass-through completions", "[let_error]") {

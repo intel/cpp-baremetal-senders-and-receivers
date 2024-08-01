@@ -2,11 +2,11 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
-#include <async/env.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/let_value.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
@@ -204,15 +204,6 @@ TEST_CASE("let_value propagates stopped (order 2)", "[let_value]") {
     auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
     async::start(op);
     CHECK(value == 42);
-}
-
-TEST_CASE("let_value propagates forwarding queries to its child environment",
-          "[let_value]") {
-    auto s = custom_sender{};
-    CHECK(get_fwd(async::get_env(s)) == 42);
-
-    auto l = async::let_value(s, [] { return async::just(17); });
-    CHECK(get_fwd(async::get_env(l)) == 42);
 }
 
 TEST_CASE("let_value advertises pass-through completions", "[let_value]") {
