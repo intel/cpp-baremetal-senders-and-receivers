@@ -313,6 +313,11 @@ struct op_state<StopPolicy, Rcvr> {
     };
 
     constexpr auto start() & -> void {
+        if constexpr (unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
+            static_assert(stdx::always_false_v<Rcvr>,
+                          "Starting when_any<> but the connected receiver "
+                          "cannot cancel!");
+        }
         stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
                         stop_callback_fn{this});
     }

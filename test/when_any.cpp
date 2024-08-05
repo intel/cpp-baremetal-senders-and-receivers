@@ -252,14 +252,15 @@ TEST_CASE("stop_when is adaptor-pipeable", "[when_any]") {
 }
 
 TEST_CASE("when_any with zero args never completes", "[when_any]") {
-    int value{};
     [[maybe_unused]] auto w = async::when_any();
     static_assert(std::same_as<async::completion_signatures_of_t<decltype(w)>,
                                async::completion_signatures<>>);
-
-    auto op = async::connect(w, receiver{[&] { value = 42; }});
-    async::start(op);
-    CHECK(value == 0);
+    auto r = receiver{[] {}};
+    auto op = async::connect(w, r);
+    static_assert(
+        std::is_same_v<decltype(op),
+                       async::_when_any::op_state<
+                           async::_when_any::first_noncancelled, decltype(r)>>);
 }
 
 TEST_CASE("when_any with zero args can be stopped (before start)",
