@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/allocator.hpp>
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/env.hpp>
@@ -58,4 +59,10 @@ TEST_CASE("just_error has a stack allocator", "[just_error]") {
         std::is_same_v<async::allocator_of_t<
                            async::env_of_t<decltype(async::just_error(42))>>,
                        async::stack_allocator>);
+}
+
+TEST_CASE("just_error op state is synchronous", "[just_error]") {
+    [[maybe_unused]] auto op =
+        async::connect(async::just_error(42), receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
 }

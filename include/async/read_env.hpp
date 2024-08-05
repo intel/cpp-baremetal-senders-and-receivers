@@ -22,6 +22,10 @@ template <typename R, typename Tag> struct op_state {
     constexpr auto start() & -> void {
         set_value(std::move(receiver), Tag{}(get_env(receiver)));
     }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
+    }
 };
 
 template <typename Tag> struct sender {
@@ -35,7 +39,7 @@ template <typename Tag> struct sender {
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
-        return prop{completes_synchronously, true};
+        return prop{completes_synchronously_t{}, std::true_type{}};
     }
 
     template <receiver R>

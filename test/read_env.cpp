@@ -49,3 +49,15 @@ TEST_CASE("read_env with sync_wait", "[read_env]") {
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
 }
+
+TEST_CASE("read_env completes synchronously", "[read_env]") {
+    [[maybe_unused]] auto const s = async::get_scheduler();
+    static_assert(async::synchronous<decltype(s)>);
+}
+
+TEST_CASE("read_env op state is synchronous", "[read_env]") {
+    auto const s = async::get_stop_token();
+    [[maybe_unused]] auto const op =
+        async::connect(s, stoppable_receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}

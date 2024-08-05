@@ -257,6 +257,12 @@ TEST_CASE("nullary when_all has a stack allocator", "[when_all]") {
             async::stack_allocator>);
 }
 
+TEST_CASE("nullary when_all op_state is synchronous", "[when_all]") {
+    [[maybe_unused]] auto op =
+        async::connect(async::when_all(), receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
 TEST_CASE("when_all has a stack allocator when all its subsenders do",
           "[when_all]") {
     static_assert(
@@ -264,4 +270,11 @@ TEST_CASE("when_all has a stack allocator when all its subsenders do",
             async::allocator_of_t<async::env_of_t<decltype(async::when_all(
                 async::just(42), async::just(17)))>>,
             async::stack_allocator>);
+}
+
+TEST_CASE("when_all op state is synchronous when all its sub-op states are",
+          "[when_all]") {
+    [[maybe_unused]] auto op = async::connect(
+        async::when_all(async::just(42), async::just(17)), receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
 }

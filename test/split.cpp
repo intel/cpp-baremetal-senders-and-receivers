@@ -4,6 +4,7 @@
 #include <async/connect.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/split.hpp>
 #include <async/start_on.hpp>
 #include <async/then.hpp>
@@ -173,4 +174,32 @@ TEST_CASE("split sender environment", "[split]") {
 
     auto spl = async::split(std::move(s));
     CHECK(get_fwd(async::get_env(spl)) == 42);
+}
+
+TEST_CASE("split may complete synchronously", "[split]") {
+    auto s = async::inline_scheduler::schedule<
+        async::inline_scheduler::singleshot>();
+    [[maybe_unused]] auto spl = async::split(std::move(s));
+    static_assert(async::synchronous<decltype(s)>);
+}
+
+TEST_CASE("split may not complete synchronously", "[split]") {
+    auto s = async::thread_scheduler::schedule();
+    [[maybe_unused]] auto spl = async::split(std::move(s));
+    static_assert(not async::synchronous<decltype(s)>);
+}
+
+TEST_CASE("split op state may be synchronous", "[split]") {
+    auto s = async::inline_scheduler::schedule<
+        async::inline_scheduler::singleshot>();
+    auto spl = async::split(std::move(s));
+    [[maybe_unused]] auto op = async::connect(spl, receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("split op state may not be synchronous", "[split]") {
+    auto s = async::thread_scheduler::schedule();
+    auto spl = async::split(std::move(s));
+    [[maybe_unused]] auto op = async::connect(spl, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
 }

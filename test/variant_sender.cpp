@@ -162,7 +162,7 @@ TEST_CASE("variant_sender may complete synchronously", "[variant_sender]") {
     [[maybe_unused]] auto const s = async::make_variant_sender(
         i == 0, [] { return async::just(42); },
         [] { return async::just_error(17); });
-    static_assert(async::sync_sender<decltype(s)>);
+    static_assert(async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("variant_sender may not complete synchronously", "[variant_sender]") {
@@ -170,5 +170,24 @@ TEST_CASE("variant_sender may not complete synchronously", "[variant_sender]") {
     [[maybe_unused]] auto const s = async::make_variant_sender(
         i == 0, [] { return async::just(42); },
         [] { return async::thread_scheduler{}.schedule(); });
-    static_assert(not async::sync_sender<decltype(s)>);
+    static_assert(not async::synchronous<decltype(s)>);
+}
+
+TEST_CASE("variant_sender op state may be synchronous", "[variant_sender]") {
+    auto const i = 0;
+    auto const s = async::make_variant_sender(
+        i == 0, [] { return async::just(42); },
+        [] { return async::just_error(17); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("variant_sender op state may not be synchronous",
+          "[variant_sender]") {
+    auto const i = 0;
+    auto const s = async::make_variant_sender(
+        i == 0, [] { return async::just(42); },
+        [] { return async::thread_scheduler{}.schedule(); });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
 }

@@ -5,8 +5,10 @@
 #include <async/just.hpp>
 #include <async/retry.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
+#include <async/schedulers/thread_scheduler.hpp>
 #include <async/sequence.hpp>
 #include <async/start_on.hpp>
+#include <async/then.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 
@@ -97,4 +99,41 @@ TEST_CASE("retry can be cancelled", "[retry]") {
     auto op = async::connect(s, r);
     async::start(op);
     CHECK(var == 44);
+}
+
+TEST_CASE("retry may complete synchronously", "[retry]") {
+    int var{};
+    auto sub = async::just() | async::then([&] { ++var; });
+    auto s = async::retry_until(sub, [&](auto i) { return i == 42; });
+    static_assert(async::synchronous<decltype(s)>);
+}
+
+TEST_CASE("retry may not complete synchronously", "[retry]") {
+    int var{};
+    auto sub =
+        async::thread_scheduler::schedule() | async::then([&] { ++var; });
+    auto s = async::retry_until(sub, [&](auto i) { return i == 42; });
+    static_assert(not async::synchronous<decltype(s)>);
+}
+
+TEST_CASE("retry op state may be synchronous", "[retry]") {
+    int var{};
+    auto sub = async::just() | async::then([&] {
+                   ++var;
+                   return var;
+               });
+    auto s = async::retry_until(sub, [&](auto i) { return i == 42; });
+    auto op = async::connect(s, receiver{[] {}});
+    static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("retry op state may not be synchronous", "[retry]") {
+    int var{};
+    auto sub = async::thread_scheduler::schedule() | async::then([&] {
+                   ++var;
+                   return var;
+               });
+    auto s = async::retry_until(sub, [&](auto i) { return i == 42; });
+    auto op = async::connect(s, receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
 }

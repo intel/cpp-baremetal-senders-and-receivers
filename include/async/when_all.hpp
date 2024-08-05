@@ -334,6 +334,10 @@ struct sync_op_state
         complete();
     }
 
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
+    }
+
     [[no_unique_address]] Rcvr rcvr;
 };
 
@@ -341,7 +345,7 @@ template <typename S, typename R>
 concept not_stoppable = not stoppable_sender<S, env_of_t<R>>;
 
 template <typename Rcvr, typename... Sndrs> constexpr auto select_op_state() {
-    if constexpr ((... and sync_sender<Sndrs>)) {
+    if constexpr ((... and synchronous<Sndrs>)) {
         return std::type_identity<sync_op_state<Rcvr, Sndrs...>>{};
     } else if constexpr ((... and not_stoppable<Sndrs, Rcvr>)) {
         return std::type_identity<nostop_op_state<Rcvr, Sndrs...>>{};
@@ -391,7 +395,7 @@ template <typename... Sndrs> struct sender : Sndrs... {
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
-        if constexpr ((... and sync_sender<Sndrs>)) {
+        if constexpr ((... and synchronous<Sndrs>)) {
             return prop{completes_synchronously_t{}, std::true_type{}};
         } else {
             return empty_env{};
@@ -411,6 +415,10 @@ template <typename Rcvr> struct op_state<Rcvr> {
             }
         }
         set_value(std::move(rcvr));
+    }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
 

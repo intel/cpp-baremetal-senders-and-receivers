@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/allocator.hpp>
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
@@ -59,4 +60,10 @@ TEST_CASE("sender has a static allocator", "[inline_scheduler]") {
         std::is_same_v<async::allocator_of_t<async::env_of_t<
                            decltype(async::thread_scheduler::schedule())>>,
                        async::static_allocator>);
+}
+
+TEST_CASE("op state is not synchronous", "[inline_scheduler]") {
+    [[maybe_unused]] auto op =
+        async::connect(async::thread_scheduler::schedule(), receiver{[] {}});
+    static_assert(not async::synchronous<decltype(op)>);
 }

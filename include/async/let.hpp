@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/env.hpp>
@@ -148,6 +149,14 @@ struct op_state {
     }
 
     constexpr auto start() & -> void { async::start(std::get<0>(state)); }
+
+    [[nodiscard]] constexpr static auto query(get_env_t) {
+        return prop{
+            completes_synchronously_t{},
+            std::bool_constant < synchronous<first_ops> and
+                boost::mp11::mp_all_of<dependent_ops, synchronous_t>::value >
+                    {}};
+    }
 
     template <typename Sig>
     using dependent_connect_result_t =

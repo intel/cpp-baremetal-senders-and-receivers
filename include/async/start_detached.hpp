@@ -36,41 +36,56 @@ template <typename Ops, typename Env> struct receiver {
     constexpr auto set_stopped() const && -> void { ops->die(); }
 };
 
+template <typename StopSource>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct op_state_base {
+    constexpr op_state_base() = default;
+    constexpr op_state_base(op_state_base &&) = delete;
+
+    auto die() {}
+
+    using stop_source_t = StopSource;
+    [[no_unique_address]] stop_source_t stop_src{};
+};
+
 template <typename Uniq, typename Sndr, typename Alloc, typename StopSource,
           typename Env>
-// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-struct op_state {
+struct op_state : op_state_base<StopSource> {
     using receiver_t = receiver<op_state, Env>;
-    using stop_source_t = StopSource;
-    using Ops = connect_result_t<Sndr, receiver_t>;
+    using ops_t = connect_result_t<Sndr, receiver_t>;
 
     template <typename S>
     constexpr explicit(true) op_state(S &&s, Env &&e)
         : ops{connect(std::forward<S>(s), receiver_t{this, std::move(e)})} {}
-    constexpr op_state(op_state &&) = delete;
 
     auto die() { Alloc::template destruct<Uniq>(this); }
 
     constexpr auto start() & -> void { async::start(ops); }
 
-    [[no_unique_address]] stop_source_t stop_src;
-    Ops ops;
+    ops_t ops;
 };
 
 template <typename Uniq, typename StopSource, sender S, typename Env>
 [[nodiscard]] auto start(S &&s, Env &&e) -> stdx::optional<StopSource *> {
-    using Sndr = std::remove_cvref_t<S>;
-    auto composite_env = env{std::forward<Env>(e), get_env(s)};
-    using E = decltype(composite_env);
-    using A = allocator_of_t<E>;
-    using O = op_state<Uniq, Sndr, A, StopSource, E>;
+    using sndr_t = std::remove_cvref_t<S>;
+    using custom_env_t = std::remove_cvref_t<Env>;
+
+    // to determine the allocator, use a combination of the passed-in
+    // environment, the sender's environment, and the environment from the op
+    // state resulting from connecting the sender and receiver: this correctly
+    // handles senders whose connected behaviour changes with the environment
+    using simulated_rcvr_t = receiver<op_state_base<StopSource>, custom_env_t>;
+    using ops_env_t = env_of_t<connect_result_t<S, simulated_rcvr_t>>;
+    using A = allocator_of_t<env<custom_env_t, env_of_t<sndr_t>, ops_env_t>>;
+
+    using O = op_state<Uniq, sndr_t, A, StopSource, custom_env_t>;
     stdx::optional<StopSource *> stop_src{};
     A::template construct<Uniq, O>(
         [&](O &ops) {
             stop_src = std::addressof(ops.stop_src);
             async::start(ops);
         },
-        std::forward<S>(s), std::move(composite_env));
+        std::forward<S>(s), std::forward<Env>(e));
     return stop_src;
 }
 

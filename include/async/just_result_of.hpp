@@ -38,6 +38,10 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
             Tag{}(std::move(receiver), static_cast<Ts &>(*this)()...);
         }(boost::mp11::mp_back<split_returns>{});
     }
+
+    [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+        return prop{completes_synchronously_t{}, std::true_type{}};
+    }
 };
 
 template <typename Tag, std::invocable... Fs> struct sender : Fs... {

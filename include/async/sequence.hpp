@@ -57,6 +57,12 @@ struct op_state {
 
     constexpr auto start() & -> void { async::start(std::get<0>(state)); }
 
+    [[nodiscard]] constexpr static auto query(get_env_t) {
+        return prop{completes_synchronously_t{},
+                    std::bool_constant < synchronous<first_ops> and
+                        synchronous < second_ops >> {}};
+    }
+
     [[no_unique_address]] Func func;
     [[no_unique_address]] Rcvr rcvr;
 
@@ -119,11 +125,9 @@ template <typename S, std::invocable F> struct sender {
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
-        if constexpr (sync_sender<S> and sync_sender<dependent_sender>) {
-            return prop{completes_synchronously_t{}, std::true_type{}};
-        } else {
-            return empty_env{};
-        }
+        return prop{completes_synchronously_t{},
+                    std::bool_constant < synchronous<S> and
+                        synchronous < dependent_sender >> {}};
     }
 };
 

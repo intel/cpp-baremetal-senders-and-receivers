@@ -19,6 +19,10 @@ class inline_scheduler {
         [[no_unique_address]] R receiver;
 
         constexpr auto start() & -> void { set_value(std::move(receiver)); }
+
+        [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
+            return prop{completes_synchronously_t{}, std::true_type{}};
+        }
     };
 
     struct sender_base {
