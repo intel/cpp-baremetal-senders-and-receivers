@@ -282,13 +282,14 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
         return {};
     }
 
-    template <receiver_from<sender> R>
+    template <typename R>
     [[nodiscard]] constexpr auto connect(
         R &&r) && -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        check_connect<sender &&, R>();
         return {std::move(*this), std::forward<R>(r)};
     }
 
-    template <receiver_from<sender> R>
+    template <typename R>
         requires(... and
                  multishot_sender<typename Sndrs::sender_t,
                                   detail::universal_receiver<overriding_env<
@@ -296,6 +297,7 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
                                       std::remove_cvref_t<R>>>>)
     [[nodiscard]] constexpr auto connect(R &&r)
         const & -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        check_connect<sender const &, R>();
         return {*this, std::forward<R>(r)};
     }
 };
@@ -342,9 +344,10 @@ template <typename StopPolicy> struct sender<StopPolicy> {
         return {};
     }
 
-    template <receiver_from<sender> R>
+    template <typename R>
     [[nodiscard]] constexpr auto
     connect(R &&r) const -> op_state<StopPolicy, std::remove_cvref_t<R>> {
+        check_connect<sender const &, R>();
         return {std::forward<R>(r)};
     }
 
