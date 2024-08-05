@@ -12,6 +12,8 @@
 #include <async/type_traits.hpp>
 #include <async/when_any.hpp>
 
+#include <stdx/type_traits.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -319,4 +321,26 @@ TEST_CASE("nullary when_any op_state is synchronous", "[when_any]") {
     [[maybe_unused]] auto op =
         async::connect(async::when_any(), receiver{[] {}});
     static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("normal, (internally) stoppable op_state", "[when_any]") {
+    auto s1 = async::just(42);
+    auto s2 = async::when_any();
+    auto w = async::when_any(s1, s2);
+
+    [[maybe_unused]] auto op = async::connect(w, receiver{[&](auto...) {}});
+    static_assert(
+        stdx::is_specialization_of<decltype(op), async::_when_any::op_state>());
+}
+
+TEST_CASE("optimized op_state for unstoppable", "[when_any]") {
+    auto s1 = async::just(42);
+    auto s2 = async::just(17);
+    auto w = async::when_any(s1, s2);
+
+    [[maybe_unused]] auto op =
+        async::connect(w, stoppable_receiver{[&](auto) {}});
+    static_assert(
+        stdx::is_specialization_of<decltype(op),
+                                   async::_when_any::nostop_op_state>());
 }
