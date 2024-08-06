@@ -5,6 +5,7 @@
 #include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/stop_token.hpp>
+#include <conc/concurrency.hpp>
 
 #include <stdx/concepts.hpp>
 #include <stdx/optional.hpp>
@@ -36,6 +37,21 @@ template <typename Ops, typename Env> struct receiver {
     constexpr auto set_stopped() const && -> void { ops->die(); }
 };
 
+template <typename Uniq> inplace_stop_source *stop_source_for{};
+
+template <typename Uniq, typename A, typename StopSource>
+constexpr auto use_single_stop_source =
+    std::same_as<StopSource, inplace_stop_source> and
+    A::template allocation_limit<Uniq> == 1;
+
+template <typename Uniq, typename A, typename StopSource>
+auto set_stop_source(StopSource *p) -> void {
+    if constexpr (use_single_stop_source<Uniq, A, StopSource>) {
+        conc::call_in_critical_section<Uniq>(
+            [p] { stop_source_for<Uniq> = p; });
+    }
+}
+
 template <typename StopSource>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state_base {
@@ -58,7 +74,10 @@ struct op_state : op_state_base<StopSource> {
     constexpr explicit(true) op_state(S &&s, Env &&e)
         : ops{connect(std::forward<S>(s), receiver_t{this, std::move(e)})} {}
 
-    auto die() { Alloc::template destruct<Uniq>(this); }
+    auto die() {
+        set_stop_source<Uniq, Alloc, StopSource>(nullptr);
+        Alloc::template destruct<Uniq>(this);
+    }
 
     constexpr auto start() & -> void { async::start(ops); }
 
@@ -71,9 +90,10 @@ template <typename Uniq, typename StopSource, sender S, typename Env>
     using custom_env_t = std::remove_cvref_t<Env>;
 
     // to determine the allocator, use a combination of the passed-in
-    // environment, the sender's environment, and the environment from the op
-    // state resulting from connecting the sender and receiver: this correctly
-    // handles senders whose connected behaviour changes with the environment
+    // environment, the sender's environment, and the environment from the
+    // op state resulting from connecting the sender and receiver: this
+    // correctly handles senders whose connected behaviour changes with the
+    // environment
     using simulated_rcvr_t = receiver<op_state_base<StopSource>, custom_env_t>;
     using ops_env_t = env_of_t<connect_result_t<S, simulated_rcvr_t>>;
     using A = allocator_of_t<env<custom_env_t, env_of_t<sndr_t>, ops_env_t>>;
@@ -83,6 +103,7 @@ template <typename Uniq, typename StopSource, sender S, typename Env>
     A::template construct<Uniq, O>(
         [&](O &ops) {
             stop_src = std::addressof(ops.stop_src);
+            set_stop_source<Uniq, A>(std::addressof(ops.stop_src));
             async::start(ops);
         },
         std::forward<S>(s), std::forward<Env>(e));
@@ -124,5 +145,12 @@ template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
 [[nodiscard]] auto start_detached_unstoppable(S &&s, Env &&e = {}) {
     return std::forward<S>(s) |
            start_detached_unstoppable<Uniq>(std::forward<Env>(e));
+}
+
+template <typename Uniq> auto stop_detached() {
+    return conc::call_in_critical_section<Uniq>([] {
+        return _start_detached::stop_source_for<Uniq> != nullptr and
+               _start_detached::stop_source_for<Uniq>->request_stop();
+    });
 }
 } // namespace async

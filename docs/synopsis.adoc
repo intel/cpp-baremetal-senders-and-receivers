@@ -148,6 +148,7 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/start_detached.hpp[start_detached.hpp]
 * `start_detached` - a xref:sender_consumers.adoc#_start_detached[sender consumer] that starts a sender without waiting for it to complete
 * `start_detached_unstoppable` - a xref:sender_consumers.adoc#_start_detached_unstoppable[sender consumer] that starts a sender without waiting for it to complete, without a provision for cancellation
+* `stop_detached` - a function that may request cancellation of a sender started with `start_detached`
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/start_on.hpp[start_on.hpp]
 * `start_on` - a xref:sender_adaptors.adoc#_start_on[sender adaptor] that starts execution on a given scheduler
@@ -249,6 +250,7 @@ contains traits and metaprogramming constructs used by many senders.
 * xref:sender_adaptors.adoc#_start_on[`start_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/start_on.hpp[`#include <async/start_on.hpp>`]
 * `static_allocation_limit<Domain>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/static_allocator.hpp[`#include <async/static_allocator.hpp>`]
 * xref:attributes.adoc#_allocator[`static_allocator`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/static_allocator.hpp[`#include <async/static_allocator.hpp>`]
+* xref:sender_consumers.adoc#_stop_detached[`stop_detached`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/start_detached.hpp[`#include <async/start_detached.hpp>`]
 * `stop_token_of_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stop_token.hpp[`#include <async/stop_token.hpp>`]
 * xref:sender_adaptors.adoc#_when_any[`stop_when`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_any.hpp[`#include <async/when_any.hpp>`]
 * xref:sender_consumers.adoc#_sync_wait[`sync_wait`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/sync_wait.hpp[`#include <async/sync_wait.hpp>`]

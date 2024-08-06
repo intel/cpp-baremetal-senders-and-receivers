@@ -19,5 +19,7 @@ struct stack_allocator {
     }
 
     template <typename, typename T> static auto destruct(T const *) -> void {}
+
+    template <typename> constexpr static auto allocation_limit = std::size_t{};
 };
 } // namespace async
