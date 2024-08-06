@@ -184,6 +184,13 @@ struct first_complete {
     }
 };
 
+template <typename Tag> struct prepend {
+    template <typename L> using fn = boost::mp11::mp_push_front<L, Tag>;
+};
+
+template <typename Tag, typename L>
+using apply_tag = boost::mp11::mp_transform_q<prepend<Tag>, L>;
+
 template <typename StopPolicy, typename Rcvr, typename... Sndrs>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state
@@ -198,13 +205,6 @@ struct op_state
         : sub_op_state<op_state, Rcvr, Sndrs>{std::forward<S>(s)}...,
           rcvr{std::forward<R>(r)} {}
     constexpr op_state(op_state &&) = delete;
-
-    template <typename Tag> struct prepend {
-        template <typename L> using fn = boost::mp11::mp_push_front<L, Tag>;
-    };
-
-    template <typename Tag, typename L>
-    using apply_tag = boost::mp11::mp_transform_q<prepend<Tag>, L>;
 
     using env_t = overriding_env<get_stop_token_t, inplace_stop_token, Rcvr>;
 
@@ -270,7 +270,85 @@ struct op_state
     std::atomic<std::size_t> count{};
     inplace_stop_source stop_source{};
     std::optional<stop_callback_t> stop_cb{};
-}; // namespace async
+};
+
+template <typename StopPolicy, typename Rcvr, typename... Sndrs>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct nostop_op_state
+    : sub_op_state<nostop_op_state<StopPolicy, Rcvr, Sndrs...>, Rcvr,
+                   Sndrs>... {
+    template <typename S, typename R>
+    constexpr nostop_op_state(S &&s, R &&r)
+        : sub_op_state<nostop_op_state, Rcvr, Sndrs>{std::forward<S>(s)}...,
+          rcvr{std::forward<R>(r)} {}
+    constexpr nostop_op_state(nostop_op_state &&) = delete;
+
+    using env_t = overriding_env<get_stop_token_t, inplace_stop_token, Rcvr>;
+
+    using completions_t = boost::mp11::mp_unique<boost::mp11::mp_append<
+        std::variant<std::monostate>,
+        apply_tag<set_value_t, value_types_of_t<Sndrs, env_t, decayed_tuple,
+                                                std::variant>>...,
+        apply_tag<set_error_t, error_types_of_t<Sndrs, env_t, decayed_tuple,
+                                                std::variant>>...,
+        apply_tag<set_stopped_t, stopped_types_of_t<Sndrs, env_t, decayed_tuple,
+                                                    std::variant>>...>>;
+
+    struct mutex;
+
+    template <typename Tag, typename... Args>
+    auto emplace(Args &&...args) -> void {
+        StopPolicy::template emplace<mutex, Tag>(completions, stop_source,
+                                                 std::forward<Args>(args)...);
+        if (--count == 0) {
+            complete();
+        }
+    }
+
+    auto complete() -> void {
+        std::visit(stdx::overload{[&]<typename T>(T &&t) {
+                                      std::forward<T>(t).apply(
+                                          [&]<typename... Args>(
+                                              auto tag, Args &&...args) {
+                                              tag(std::move(rcvr),
+                                                  std::forward<Args>(args)...);
+                                          });
+                                  },
+                                  [](std::monostate) {}},
+                   std::move(completions));
+    }
+
+    constexpr auto start() & -> void {
+        count = sizeof...(Sndrs);
+        (async::start(
+             static_cast<sub_op_state<nostop_op_state, Rcvr, Sndrs> &>(*this)
+                 .ops),
+         ...);
+    }
+
+    [[no_unique_address]] Rcvr rcvr;
+    completions_t completions{};
+    std::atomic<std::size_t> count{};
+    [[no_unique_address]] never_stop_source stop_source{};
+};
+
+using stopping_env = prop<get_stop_token_t, inplace_stop_token>;
+template <typename S>
+concept not_stoppable = not stoppable_sender<S, stopping_env>;
+
+template <typename StopPolicy, typename Rcvr, typename... Sndrs>
+constexpr auto select_op_state() {
+    if constexpr ((... and not_stoppable<Sndrs>)) {
+        return std::type_identity<
+            nostop_op_state<StopPolicy, Rcvr, Sndrs...>>{};
+    } else {
+        return std::type_identity<op_state<StopPolicy, Rcvr, Sndrs...>>{};
+    }
+}
+
+template <typename StopPolicy, typename Rcvr, typename... Sndrs>
+using op_state_t =
+    typename decltype(select_op_state<StopPolicy, Rcvr, Sndrs...>())::type;
 
 template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
     using is_sender = void;
@@ -282,20 +360,22 @@ template <typename StopPolicy, typename... Sndrs> struct sender : Sndrs... {
         return {};
     }
 
-    template <receiver_from<sender> R>
+    template <typename R>
     [[nodiscard]] constexpr auto connect(
-        R &&r) && -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        R &&r) && -> op_state_t<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        check_connect<sender &&, R>();
         return {std::move(*this), std::forward<R>(r)};
     }
 
-    template <receiver_from<sender> R>
+    template <typename R>
         requires(... and
                  multishot_sender<typename Sndrs::sender_t,
                                   detail::universal_receiver<overriding_env<
                                       get_stop_token_t, inplace_stop_token,
                                       std::remove_cvref_t<R>>>>)
     [[nodiscard]] constexpr auto connect(R &&r)
-        const & -> op_state<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        const & -> op_state_t<StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
+        check_connect<sender const &, R>();
         return {*this, std::forward<R>(r)};
     }
 };
@@ -311,6 +391,11 @@ struct op_state<StopPolicy, Rcvr> {
     };
 
     constexpr auto start() & -> void {
+        if constexpr (unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
+            static_assert(stdx::always_false_v<Rcvr>,
+                          "Starting when_any<> but the connected receiver "
+                          "cannot cancel!");
+        }
         stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
                         stop_callback_fn{this});
     }
@@ -342,9 +427,10 @@ template <typename StopPolicy> struct sender<StopPolicy> {
         return {};
     }
 
-    template <receiver_from<sender> R>
+    template <typename R>
     [[nodiscard]] constexpr auto
     connect(R &&r) const -> op_state<StopPolicy, std::remove_cvref_t<R>> {
+        check_connect<sender const &, R>();
         return {std::forward<R>(r)};
     }
 
