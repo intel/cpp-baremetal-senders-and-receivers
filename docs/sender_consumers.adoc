@@ -21,11 +21,13 @@ auto started = async::start_detached(sndr);
 
 If a sender starts detached, its operation state has to be allocated somewhere.
 That is achieved through an xref:attributes.adoc#_allocator[allocator]
-determined from the sender's attributes.
+determined from the sender's attributes. Without further customization, if a
+sender completes synchronously, it will use the `stack_allocator` by default.
+Otherwise it will use the `static_allocator`.
 
 To hook into the static xref:attributes.adoc#_allocator[allocation strategy], a
 template argument (representing the name of the allocation domain) can be given
-to `start_detached`.
+to `start_detached`. This is used to select a static allocator.
 
 [source,cpp]
 ----
@@ -33,9 +35,24 @@ auto result = async::start_detached<struct Name>(s);
 ----
 
 The default template argument results in a different `static_allocator` for each
-call site, with a default allocation limit of 1. If the allocator's `construct` method
-returns `false` (presumably because the allocation limit has been reached),
-the result of `start_detached` is an empty optional.
+call site, with a default allocation limit of 1. If a name is given, that name
+is used to specialize the `static_allocator`, and can be used with
+xref:sender_consumers.adoc#_stop_detached[`stop_detached`] to request
+cancellation.
+
+If the allocator's `construct` method returns `false` (presumably because the
+allocation limit has been reached), the result of `start_detached` is an empty
+optional.
+
+An extra xref:environments.adoc#_environments[environment] may be given to
+`start_detached` in order to control sender behaviour, or to specify a custom
+allocator:
+
+[source,cpp]
+----
+auto result = async::start_detached(
+    s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
+----
 
 === `start_detached_unstoppable`
 
@@ -53,6 +70,33 @@ required.
 ----
 auto result = async::start_detached_unstoppable<struct Name>(s);
 ----
+
+=== `stop_detached`
+
+Found in the header: `async/start_detached.hpp`
+
+A sender started with `start_detached` may be cancelled with `stop_detached`,
+using the same template argument:
+
+[source,cpp]
+----
+struct Name;
+auto result = async::start_detached<Name>(s);
+
+// later, in another context...
+auto stop_requested = async::stop_detached<Name>(); // true if a stop was requested
+----
+
+`stop_detached` will return `false` if it cannot request a stop:
+
+* because no sender with that name was given to `start_detached`
+* because the sender has already completed
+* because a stop was already requested
+* because the sender was started using `start_detached_unstoppable`
+* because the associated allocator supports multiple operation states, so a
+  single template argument is not sufficient to determine which one to stop (in
+  this case, the return value of `start_detached` may be used to request
+  cancellation)
 
 === `sync_wait`
 

@@ -68,6 +68,9 @@ struct stop_callback_base {
 struct inplace_stop_source {
     struct mutex;
 
+    constexpr inplace_stop_source() = default;
+    constexpr explicit(true) inplace_stop_source(bool b) : requested{b} {}
+
     [[nodiscard]] auto stop_requested() const noexcept -> bool {
         return requested.load();
     }
