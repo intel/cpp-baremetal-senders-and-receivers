@@ -37,6 +37,16 @@ call site, with a default allocation limit of 1. If the allocator's `construct` 
 returns `false` (presumably because the allocation limit has been reached),
 the result of `start_detached` is an empty optional.
 
+An extra xref:environments.adoc#_environments[environment] may be given to
+`start_detached` in order to control sender behaviour, or to specify a custom
+allocator:
+
+[source,cpp]
+----
+auto result = async::start_detached(
+    s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
+----
+
 === `start_detached_unstoppable`
 
 Found in the header: `async/start_detached.hpp`
@@ -53,6 +63,33 @@ required.
 ----
 auto result = async::start_detached_unstoppable<struct Name>(s);
 ----
+
+=== `stop_detached`
+
+Found in the header: `async/start_detached.hpp`
+
+A sender started with `start_detached` may be cancelled with `stop_detached`,
+using the same template argument:
+
+[source,cpp]
+----
+struct Name;
+auto result = async::start_detached<Name>(s);
+
+// later, in another context...
+auto stop_requested = async::stop_detached<Name>(); // true if a stop was requested
+----
+
+`stop_detached` will return `false` if it cannot request a stop:
+
+* because no sender with that name was given to `start_detached`
+* because the sender has already completed
+* because a stop was already requested
+* because the sender was started using `start_detached_unstoppable`
+* because the associated allocator supports multiple operation states, so a
+  single template argument is not sufficient to determine which one to stop (in
+  this case, the return value of `start_detached` may be used to request
+  cancellation)
 
 === `sync_wait`
 
