@@ -78,10 +78,10 @@ TEST_CASE("static allocate more than 1", "[allocator]") {
                     auto x = alloc.construct<multi_domain, S>(
                         [](auto &&) { CHECK(false); }, 0);
                     CHECK(not x);
-                    alloc.destruct<domain>(&q);
+                    alloc.destruct<multi_domain>(&q);
                 },
                 17));
-            alloc.destruct<domain>(&p);
+            alloc.destruct<multi_domain>(&p);
         },
         42));
 }
