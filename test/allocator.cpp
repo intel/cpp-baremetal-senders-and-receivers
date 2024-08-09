@@ -10,6 +10,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
+#include <thread>
+#include <type_traits>
+
 TEST_CASE("default allocator is static_allocator", "[allocator]") {
     static_assert(std::is_same_v<async::allocator_of_t<async::empty_env>,
                                  async::static_allocator>);
@@ -62,6 +66,26 @@ TEST_CASE("static allocate fails when limit is reached", "[allocator]") {
         42));
 }
 
+TEST_CASE("static allocator is thread-safe", "[allocator]") {
+    auto alloc = async::static_allocator{};
+
+    auto const f = [&] {
+        return alloc.construct<domain, S>(
+            [&](auto &&s) {
+                CHECK(s.i == 42);
+                alloc.destruct<domain>(&s);
+            },
+            42);
+    };
+    {
+        auto t1 = std::thread{f};
+        auto t2 = std::thread{f};
+        t1.join();
+        t2.join();
+    }
+    CHECK(f());
+}
+
 template <>
 constexpr inline auto async::static_allocation_limit<multi_domain> =
     std::size_t{2};
@@ -78,10 +102,10 @@ TEST_CASE("static allocate more than 1", "[allocator]") {
                     auto x = alloc.construct<multi_domain, S>(
                         [](auto &&) { CHECK(false); }, 0);
                     CHECK(not x);
-                    alloc.destruct<domain>(&q);
+                    alloc.destruct<multi_domain>(&q);
                 },
                 17));
-            alloc.destruct<domain>(&p);
+            alloc.destruct<multi_domain>(&p);
         },
         42));
 }
