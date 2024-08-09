@@ -1,5 +1,7 @@
 #pragma once
 
+#include <conc/concurrency.hpp>
+
 #include <stdx/bit.hpp>
 #include <stdx/bitset.hpp>
 
@@ -22,14 +24,20 @@ template <typename Name, typename T, std::size_t N> struct static_allocator_t {
 
     alignas(alignment) storage_t data{};
     stdx::bitset<N> used{};
+    struct mutex;
 
     template <typename... Args> auto construct(Args &&...args) -> T * {
-        auto const idx = used.lowest_unset();
+        auto const idx = conc::call_in_critical_section<mutex>([&] {
+            auto const i = used.lowest_unset();
+            if (i != N) {
+                used.set(i);
+            }
+            return i;
+        });
         if (idx == N) {
             return nullptr;
         }
         auto const ptr = std::data(data) + idx * aligned_size;
-        used.set(idx);
         return std::construct_at(stdx::bit_cast<T *>(ptr),
                                  std::forward<Args>(args)...);
     }
@@ -39,7 +47,7 @@ template <typename Name, typename T, std::size_t N> struct static_allocator_t {
         auto const ptr = stdx::bit_cast<std::byte *>(t);
         auto const idx =
             static_cast<std::size_t>(ptr - std::data(data)) / aligned_size;
-        used.reset(idx);
+        conc::call_in_critical_section<mutex>([&] { used.reset(idx); });
     }
 };
 template <typename Name, typename T, std::size_t N>

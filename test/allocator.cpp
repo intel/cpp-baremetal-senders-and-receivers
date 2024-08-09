@@ -10,6 +10,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
+#include <thread>
+#include <type_traits>
+
 TEST_CASE("default allocator is static_allocator", "[allocator]") {
     static_assert(std::is_same_v<async::allocator_of_t<async::empty_env>,
                                  async::static_allocator>);
@@ -60,6 +64,26 @@ TEST_CASE("static allocate fails when limit is reached", "[allocator]") {
             alloc.destruct<domain>(&s);
         },
         42));
+}
+
+TEST_CASE("static allocator is thread-safe", "[allocator]") {
+    auto alloc = async::static_allocator{};
+
+    auto const f = [&] {
+        return alloc.construct<domain, S>(
+            [&](auto &&s) {
+                CHECK(s.i == 42);
+                alloc.destruct<domain>(&s);
+            },
+            42);
+    };
+    {
+        auto t1 = std::thread{f};
+        auto t2 = std::thread{f};
+        t1.join();
+        t2.join();
+    }
+    CHECK(f());
 }
 
 template <>
