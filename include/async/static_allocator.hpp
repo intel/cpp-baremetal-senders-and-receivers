@@ -4,6 +4,7 @@
 
 #include <stdx/bit.hpp>
 #include <stdx/bitset.hpp>
+#include <stdx/compiler.hpp>
 
 #include <array>
 #include <cstddef>
@@ -26,7 +27,8 @@ template <typename Name, typename T, std::size_t N> struct static_allocator_t {
     stdx::bitset<N> used{};
     struct mutex;
 
-    template <typename... Args> auto construct(Args &&...args) -> T * {
+    template <typename... Args>
+    auto construct(Args &&...args) LIFETIMEBOUND -> T * {
         auto const idx = conc::call_in_critical_section<mutex>([&] {
             auto const i = used.lowest_unset();
             if (i != N) {
