@@ -7,6 +7,7 @@
 #include <stdx/compiler.hpp>
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -52,6 +53,30 @@ template <typename Name, typename T, std::size_t N> struct static_allocator_t {
         conc::call_in_critical_section<mutex>([&] { used.reset(idx); });
     }
 };
+
+template <typename Name, typename T> struct static_allocator_t<Name, T, 1> {
+    constexpr static inline auto alignment = alignof(T);
+    constexpr static inline auto size = sizeof(T);
+
+    alignas(alignment) std::array<std::byte, size> data{};
+    std::atomic<bool> used{};
+
+    template <typename... Args>
+    auto construct(Args &&...args) LIFETIMEBOUND -> T * {
+        if (not used.exchange(true)) {
+            return std::construct_at(stdx::bit_cast<T *>(std::data(data)),
+                                     std::forward<Args>(args)...);
+        } else {
+            return nullptr;
+        }
+    }
+
+    auto destruct(T const *t) -> void {
+        std::destroy_at(t);
+        used = false;
+    }
+};
+
 template <typename Name, typename T, std::size_t N>
 inline auto static_allocator_v = static_allocator_t<Name, T, N>{};
 } // namespace detail
