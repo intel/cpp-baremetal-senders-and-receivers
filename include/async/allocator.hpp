@@ -25,6 +25,9 @@ concept allocator = std::is_empty_v<T> and requires(
             [](archetypes::constructible) {}, 0)
     } -> std::same_as<bool>;
     { T::template destruct<archetypes::domain>(p) } -> std::same_as<void>;
+    {
+        T::template allocation_limit<archetypes::domain>
+    } -> std::same_as<std::size_t const &>;
 };
 
 constexpr inline struct get_allocator_t : forwarding_query_t {

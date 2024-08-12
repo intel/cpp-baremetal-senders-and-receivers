@@ -107,5 +107,8 @@ struct static_allocator {
             detail::static_allocator_v<Name, T, static_allocation_limit<Name>>;
         a.destruct(t);
     }
+
+    template <typename Name>
+    constexpr static auto allocation_limit = static_allocation_limit<Name>;
 };
 } // namespace async
