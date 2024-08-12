@@ -66,9 +66,8 @@ template <typename Name, typename T> struct static_allocator_t<Name, T, 1> {
         if (not used.exchange(true)) {
             return std::construct_at(stdx::bit_cast<T *>(std::data(data)),
                                      std::forward<Args>(args)...);
-        } else {
-            return nullptr;
         }
+        return nullptr;
     }
 
     auto destruct(T const *t) -> void {

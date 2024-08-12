@@ -94,6 +94,10 @@ by `let_error.hpp`, `let_stopped.hpp`, and `let_value.hpp`
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/priority_scheduler.hpp[schedulers/priority_scheduler.hpp]
 * `fixed_priority_scheduler<P>` - a xref:schedulers.adoc#_fixed_priority_scheduler[scheduler] that completes on a priority interrupt
 
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/requeue_policy.hpp[schedulers/requeue_policy.hpp]
+* `requeue_policy::immediate` - a policy used with `priority_task_manager::service_tasks()` and `triggers<"name">.run`
+* `requeue_policy::deferred` - the default policy used with `priority_task_manager::service_tasks()` and `triggers<"name">.run`
+
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/runloop_scheduler.hpp[schedulers/runloop_scheduler.hpp]
 * `runloop_scheduler` - a xref:schedulers.adoc#_runloop_scheduler[scheduler] that allows further work to be added during execution, and is used by xref:sender_consumers.adoc#_sync_wait[`sync_wait`]
 
@@ -107,8 +111,6 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 * `priority_task_manager<HAL, NumPriorities>` - an implementation of a task
   manager that can be used with
   xref:schedulers.adoc#_fixed_priority_scheduler[fixed_priority_scheduler]
-* `requeue_policy::immediate` - a policy used with `priority_task_manager::service_tasks()`
-* `requeue_policy::deferred` - the default policy used with `priority_task_manager::service_tasks()`
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[schedulers/task_manager_interface.hpp]
 * `injected_task_manager<>` - a variable template used to inject a specific implementation of a priority task manager
@@ -131,6 +133,12 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 * `timer_mgr::is_idle()` - a function that returns `true` when no timer tasks are queued
 * `timer_mgr::service_task()` - an ISR function used to execute the next timer task
 * `timer_mgr::time_point_for` - a class template that can be specialized to specify a `time_point` type corresponding to a `duration` type
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_manager.hpp[schedulers/trigger_manager.hpp]
+* `triggers<"name">` - a named trigger manager that is used with xref:schedulers.adoc#_trigger_scheduler[trigger_scheduler]
+
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_scheduler.hpp[schedulers/trigger_scheduler.hpp]
+* `trigger_scheduler<"name">` - a xref:schedulers.adoc#_trigger_scheduler[trigger_scheduler] that completes on a user-defined stimulus by calling `triggers<"name">.run`.
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/sequence.hpp[sequence.hpp]
 * `seq` - a xref:sender_adaptors.adoc#_sequence[sender adaptor] used to sequence two senders without typing a lambda expression
@@ -224,8 +232,8 @@ contains traits and metaprogramming constructs used by many senders.
 * xref:sender_adaptors.adoc#_repeat[`repeat`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[`#include <async/repeat.hpp>`]
 * xref:sender_adaptors.adoc#_repeat_n[`repeat_n`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[`#include <async/repeat.hpp>`]
 * xref:sender_adaptors.adoc#_repeat_until[`repeat_until`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[`#include <async/repeat.hpp>`]
-* `requeue_policy::immediate` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[`#include <async/schedulers/task_manager.hpp>`]
-* `requeue_policy::deferred` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[`#include <async/schedulers/task_manager.hpp>`]
+* `requeue_policy::immediate` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/requeue_policy.hpp[`#include <async/schedulers/requeue_policy.hpp>`]
+* `requeue_policy::deferred` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/requeue_policy.hpp[`#include <async/schedulers/requeue_policy.hpp>`]
 * xref:sender_adaptors.adoc#_retry[`retry`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/retry.hpp[`#include <async/retry.hpp>`]
 * xref:sender_adaptors.adoc#_retry_until[`retry_until`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/retry.hpp[`#include <async/retry.hpp>`]
 * xref:schedulers.adoc#_runloop_scheduler[`runloop_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/runloop_scheduler.hpp[`#include <async/schedulers/runloop_scheduler.hpp>`]
@@ -260,6 +268,8 @@ contains traits and metaprogramming constructs used by many senders.
 * `timer_mgr::is_idle()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
 * `timer_mgr::service_task()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
 * `timer_mgr::time_point_for` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
+* xref:schedulers.adoc#_trigger_scheduler[`trigger_scheduler<"name">`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_scheduler.hpp[`#include <async/schedulers/trigger_scheduler.hpp>`]
+* xref:schedulers.adoc#_trigger_scheduler[`triggers<"name">`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_manager.hpp[`#include <async/schedulers/trigger_manager.hpp>`]
 * xref:sender_adaptors.adoc#_upon_error[`upon error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
 * xref:sender_adaptors.adoc#_upon_stopped[`upon stopped`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
 * xref:sender_adaptors.adoc#_when_all[`when_all`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_all.hpp[`#include <async/when_all.hpp>`]

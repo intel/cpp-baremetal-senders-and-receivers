@@ -233,3 +233,43 @@ auto alt_timer_interrupt_service_routine() {
 
 // and now x is 42
 ----
+
+=== `trigger_scheduler`
+
+Found in the header: `async/schedulers/trigger_scheduler.hpp`
+
+A `trigger_scheduler` represents work that will be run on a named user-defined
+trigger, like a specific interrupt service routine.
+
+[source,cpp]
+----
+using S = async::trigger_scheduler<"name">;
+----
+
+The `trigger_scheduler` works hand in glove with a `trigger_manager` that
+manages tasks in queued order. The action is very similar to that of the
+`priority_task_manager`, but instead of dealing with multiple priorities, tasks
+for a given trigger are identified with the trigger name.
+
+[source,cpp]
+----
+// when an interrupt fires, the ISR executes the tasks for the trigger
+auto interrupt_service_routine() {
+  async::triggers<"name">.run();
+}
+----
+
+The result of using a `trigger_scheduler` is that work is scheduled to be
+run when such an interrupt fires and runs the ISR.
+
+[source,cpp]
+----
+int x{};
+async::start_on(async::trigger_scheduler<"name">{},
+          async::just_result_of([&] { x = 42; }))
+| async::start_detached();
+
+// when the interrupt fires...
+async::triggers<"name">.run();
+// x is now 42
+----

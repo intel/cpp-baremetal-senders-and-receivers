@@ -3,8 +3,9 @@ add_tests(
     priority_scheduler
     runloop_scheduler
     task_manager
+    thread_scheduler
     time_scheduler
     timer_manager
-    thread_scheduler)
+    trigger_scheduler)
 
 add_subdirectory(fail)
