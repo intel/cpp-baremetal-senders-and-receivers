@@ -1,7 +1,6 @@
 #pragma once
 
 #include <async/schedulers/requeue_policy.hpp>
-#include <async/schedulers/task.hpp>
 #include <conc/concurrency.hpp>
 
 #include <stdx/ct_string.hpp>
@@ -16,18 +15,26 @@
 #include <utility>
 
 namespace async {
-template <typename T>
-concept triggerable_task = stdx::single_linkable<T> and
-                           std::equality_comparable<T> and requires(T *t) {
-                               { t->run() } -> std::same_as<void>;
-                               { t->pending } -> std::same_as<bool &>;
-                           };
+// NOLINTNEXTLINE(*-special-member-functions)
+template <typename... Args> struct trigger_task {
+    bool pending{};
+    trigger_task *next{};
 
-using trigger_task = single_linked_task<task_base>;
+    virtual auto run(Args const &...) -> void = 0;
 
-template <stdx::ct_string Name, triggerable_task Task = trigger_task>
-struct trigger_manager {
-    using task_t = Task;
+    constexpr trigger_task() = default;
+    constexpr trigger_task(trigger_task &&) = delete;
+    virtual ~trigger_task() = default;
+
+  private:
+    [[nodiscard]] friend constexpr auto operator==(trigger_task const &lhs,
+                                                   trigger_task const &rhs) {
+        return std::addressof(lhs) == std::addressof(rhs);
+    }
+};
+
+template <stdx::ct_string Name, typename... Args> struct trigger_manager {
+    using task_t = trigger_task<Args...>;
 
   private:
     struct mutex;
@@ -35,8 +42,6 @@ struct trigger_manager {
     std::atomic<int> task_count{};
 
   public:
-    constexpr static auto create_trigger = async::create_task<task_t>;
-
     auto enqueue(task_t &t) -> bool {
         return conc::call_in_critical_section<mutex>([&]() -> bool {
             auto const added = not std::exchange(t.pending, true);
@@ -48,7 +53,8 @@ struct trigger_manager {
         });
     }
 
-    template <typename RQP = requeue_policy::deferred> auto run() -> void {
+    template <typename RQP = requeue_policy::deferred>
+    auto run(Args const &...args) -> void {
         decltype(auto) q = RQP::template get_queue<0, mutex>(tasks);
         while (not std::empty(q)) {
             auto &task = q.front();
@@ -56,7 +62,7 @@ struct trigger_manager {
                 q.pop_front();
                 task.pending = false;
             });
-            task.run();
+            task.run(args...);
             --task_count;
         }
     }
@@ -64,6 +70,13 @@ struct trigger_manager {
     [[nodiscard]] auto empty() const -> bool { return task_count == 0; }
 };
 
-template <stdx::ct_string Name, triggerable_task Task = trigger_task>
-auto triggers = trigger_manager<Name, Task>{};
+template <stdx::ct_string Name, typename... Args>
+auto triggers = trigger_manager<Name, Args...>{};
+
+template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
+          typename... Args>
+auto run_triggers(Args &&...args) -> void {
+    triggers<Name, std::remove_cvref_t<Args>...>.template run<RQP>(
+        std::forward<Args>(args)...);
+}
 } // namespace async
