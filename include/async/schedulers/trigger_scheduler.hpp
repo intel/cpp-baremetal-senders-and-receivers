@@ -12,21 +12,21 @@
 
 namespace async {
 namespace trigger_mgr {
-template <stdx::ct_string Name, typename Rcvr, typename Task>
-struct op_state final : Task {
+template <stdx::ct_string Name, typename Rcvr, typename... Args>
+struct op_state final : trigger_task<Args...> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
 
-    auto run() -> void final {
+    auto run(Args const &...args) -> void final {
         if (not check_stopped()) {
-            set_value(std::move(rcvr));
+            set_value(std::move(rcvr), args...);
         }
     }
 
     constexpr auto start() & -> void {
         if (not check_stopped()) {
-            triggers<Name>.enqueue(*this);
+            triggers<Name, Args...>.enqueue(*this);
         }
     }
 
@@ -45,8 +45,7 @@ struct op_state final : Task {
 };
 } // namespace trigger_mgr
 
-template <stdx::ct_string Name, typename Task = trigger_task>
-class trigger_scheduler {
+template <stdx::ct_string Name, typename... Args> class trigger_scheduler {
     struct sender {
         using is_sender = void;
 
@@ -58,21 +57,23 @@ class trigger_scheduler {
         template <typename Env>
         [[nodiscard]] constexpr static auto
         get_completion_signatures(Env const &) noexcept
-            -> completion_signatures<set_value_t(), set_stopped_t()> {
+            -> completion_signatures<set_value_t(Args const &...),
+                                     set_stopped_t()> {
             return {};
         }
 
         template <typename Env>
             requires unstoppable_token<stop_token_of_t<Env>>
-        [[nodiscard]] constexpr static auto get_completion_signatures(
-            Env const &) noexcept -> completion_signatures<set_value_t()> {
+        [[nodiscard]] constexpr static auto
+        get_completion_signatures(Env const &) noexcept
+            -> completion_signatures<set_value_t(Args const &...)> {
             return {};
         }
 
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const {
             check_connect<sender, R>();
-            return trigger_mgr::op_state<Name, std::remove_cvref_t<R>, Task>{
+            return trigger_mgr::op_state<Name, std::remove_cvref_t<R>, Args...>{
                 std::forward<R>(r)};
         }
     };

@@ -36,6 +36,15 @@ TEMPLATE_TEST_CASE("trigger_scheduler sender advertises nothing",
 }
 
 TEMPLATE_TEST_CASE(
+    "trigger_scheduler sender advertises args that will be used to trigger it",
+    "[trigger_scheduler]", decltype([] {})) {
+    static_assert(
+        async::sender_of<decltype(async::trigger_scheduler<
+                                  type_string<TestType>, int>::schedule()),
+                         async::set_value_t(int const &)>);
+}
+
+TEMPLATE_TEST_CASE(
     "sender has the trigger_scheduler as its completion scheduler",
     "[trigger_scheduler]", decltype([] {})) {
     using S = async::trigger_scheduler<type_string<TestType>>;
@@ -61,6 +70,25 @@ TEMPLATE_TEST_CASE("trigger_scheduler schedules tasks", "[trigger_scheduler]",
     async::triggers<name>.run();
     CHECK(var == 42);
     CHECK(async::triggers<name>.empty());
+}
+
+TEMPLATE_TEST_CASE("trigger_scheduler can be triggered with arguments",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::trigger_scheduler<name, int>{};
+    int var{};
+    async::sender auto sndr =
+        s.schedule() | async::then([&](auto x) { var = x; });
+    auto op = async::connect(sndr, universal_receiver{});
+
+    async::run_triggers<name>(42);
+    CHECK(var == 0);
+
+    async::start(op);
+    CHECK(not async::triggers<name, int>.empty());
+    async::run_triggers<name>(42);
+    CHECK(var == 42);
+    CHECK(async::triggers<name, int>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler is cancellable before start",

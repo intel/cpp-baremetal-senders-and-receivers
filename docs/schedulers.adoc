@@ -273,3 +273,23 @@ async::start_on(async::trigger_scheduler<"name">{},
 async::triggers<"name">.run();
 // x is now 42
 ----
+
+A `trigger_scheduler` can also be triggered with arguments, which must be
+specified as template arguments, and supplied using `run_triggers`:
+
+[source,cpp]
+----
+int x{};
+async::trigger_scheduler<"name", int>{}
+  | async::then([&] (auto i) { x = i; })
+  | async::start_detached();
+
+// when the interrupt fires...
+async::run_triggers<"name">(42);
+// x is now 42
+----
+
+NOTE: It is possible to use a `trigger_scheduler` that takes arguments as a
+"normal" scheduler, i.e. functions like `start_on` will work; however the
+arguments passed to `run_triggers` will be discarded when used with constructs
+like `start_on(trigger_scheduler<"name", int>{}, just(42))`.
