@@ -178,6 +178,9 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 * `upon error` - a xref:sender_adaptors.adoc#_upon_error[sender adaptor] that transforms what a sender sends on the error channel
 * `upon stopped` - a xref:sender_adaptors.adoc#_upon_stopped[sender adaptor] that transforms what a sender sends on the stopped channel
 
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/timeout_after.hpp[timeout_after.hpp]
+* `timeout_after` - a xref:sender_adaptors.adoc#_timeout_after[sender adaptor] that races a sender against a time limit
+
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/type_traits.hpp[type_traits.hpp]
 An internal header that contains no public-facing identifiers. `type_traits.hpp`
 contains traits and metaprogramming constructs used by many senders.
@@ -267,6 +270,7 @@ contains traits and metaprogramming constructs used by many senders.
 * xref:sender_adaptors.adoc#_then[`then`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
 * xref:schedulers.adoc#_thread_scheduler[`thread_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/thread_scheduler.hpp[`#include <async/schedulers/thread_scheduler.hpp>`]
 * xref:schedulers.adoc#_time_scheduler[`time_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/time_scheduler.hpp[`#include <async/schedulers/time_scheduler.hpp>`]
+* xref:sender_adaptors.adoc#_timeout_after[`timeout_after`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/timeout_after.hpp[`#include <async/timeout_after.hpp>`]
 * `timer_mgr::is_idle()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
 * `timer_mgr::service_task()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
 * `timer_mgr::time_point_for` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
