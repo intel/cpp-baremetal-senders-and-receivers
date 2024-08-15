@@ -41,6 +41,7 @@ add_tests(
     start_on
     stop_token
     then
+    timeout_after
     type_traits
     upon_error
     upon_stopped

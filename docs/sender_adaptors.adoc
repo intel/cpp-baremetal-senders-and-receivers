@@ -332,6 +332,24 @@ auto t = async::then(s,
 // when run, this will call set_value(59, "no", 1.0f) on the downstream receiver
 ----
 
+=== `timeout_after`
+
+Found in the header: `async/timeout_after.hpp`
+
+`timeout_after` takes a sender, a duration and an error value, and returns a
+sender that will complete with an error after the given timeout. Otherwise it
+will complete as the given sender completes.
+
+[source,cpp]
+----
+auto sndr = async::start_on(my_scheduler{}, async::just(42))
+          | async::timeout_after(1s, error{17});
+// when run, sndr will produce 42 on the value channel if my_scheduler runs within 1s
+// otherwise it will produce error{17} on the error channel
+----
+
+NOTE: `timeout_after` is implemented using xref:_when_any[`stop_when`].
+
 === `upon_error`
 
 Found in the header: `async/then.hpp`
