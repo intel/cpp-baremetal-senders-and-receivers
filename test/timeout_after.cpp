@@ -16,7 +16,7 @@
 using namespace std::chrono_literals;
 
 namespace {
-struct default_domain;
+using default_domain = async::timer_mgr::default_domain;
 
 using tp_t = std::chrono::steady_clock::time_point;
 
@@ -132,7 +132,7 @@ TEST_CASE("timeout_after can work in a different domain", "[timeout_after]") {
     constexpr auto scheduler_factory =
         async::time_scheduler_factory<alt_domain>;
     auto s = async::start_on(scheduler_factory(1s), async::just(42));
-    auto to = async::timeout_after(s, 2s, 17);
+    auto to = async::timeout_after<alt_domain>(s, 2s, 17);
     auto op = async::connect(to, receiver{[&](int i) { var = i; }});
     async::start(op);
     CHECK(enabled<alt_domain>);
@@ -142,4 +142,84 @@ TEST_CASE("timeout_after can work in a different domain", "[timeout_after]") {
     CHECK(not enabled<alt_domain>);
     CHECK(var == 42);
     CHECK(async::timer_mgr::is_idle<alt_domain>());
+}
+
+TEST_CASE("timeout_after can time out in a different domain",
+          "[timeout_after]") {
+    current_time<alt_domain, tp_t> = tp_t{};
+    int var{};
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<alt_domain>;
+    auto s = async::start_on(scheduler_factory(1s), async::just(42));
+    auto to = async::timeout_after<alt_domain>(s, 100ms, 17);
+    auto op = async::connect(to, error_receiver{[&](int i) { var = i; }});
+    async::start(op);
+
+    current_time<alt_domain, tp_t> = tp_t{3s};
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(var == 17);
+}
+
+TEST_CASE("timeout_after can time out on custom channel", "[timeout_after]") {
+    current_time<alt_domain, tp_t> = tp_t{};
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<alt_domain>;
+    auto s = async::start_on(scheduler_factory(1s), async::just(42));
+    auto to =
+        async::timeout_after<alt_domain, async::set_value_t>(s, 100ms, 1.0f);
+    static_assert(
+        std::same_as<async::completion_signatures_of_t<decltype(to)>,
+                     async::completion_signatures<async::set_value_t(int),
+                                                  async::set_value_t(float)>>);
+}
+
+TEST_CASE("timeout_after can complete with value after timeout",
+          "[timeout_after]") {
+    current_time<alt_domain, tp_t> = tp_t{};
+    int var{};
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<alt_domain>;
+    auto s = async::start_on(scheduler_factory(1s), async::just(42));
+    auto to =
+        async::timeout_after<alt_domain, async::set_value_t>(s, 100ms, 17);
+    auto op = async::connect(to, receiver{[&](int i) { var = i; }});
+    async::start(op);
+
+    current_time<alt_domain, tp_t> = tp_t{3s};
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(var == 17);
+}
+
+TEST_CASE("timeout_after can complete with multiple values after timeout",
+          "[timeout_after]") {
+    current_time<alt_domain, tp_t> = tp_t{};
+    int var{};
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<alt_domain>;
+    auto s = async::start_on(scheduler_factory(1s), async::just(42));
+    auto to =
+        async::timeout_after<alt_domain, async::set_value_t>(s, 100ms, 17, 18);
+    auto op =
+        async::connect(to, receiver{[&](auto... is) { var = (0 + ... + is); }});
+    async::start(op);
+
+    current_time<alt_domain, tp_t> = tp_t{3s};
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(var == 35);
+}
+
+TEST_CASE("timeout_after can complete with stopped after timeout",
+          "[timeout_after]") {
+    current_time<alt_domain, tp_t> = tp_t{};
+    int var{};
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<alt_domain>;
+    auto s = async::start_on(scheduler_factory(1s), async::just(42));
+    auto to = async::timeout_after<alt_domain, async::set_stopped_t>(s, 100ms);
+    auto op = async::connect(to, stopped_receiver{[&] { var = 17; }});
+    async::start(op);
+
+    current_time<alt_domain, tp_t> = tp_t{3s};
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(var == 17);
 }
