@@ -11,6 +11,7 @@ function(add_tests)
             warnings
             async
             pthread)
+        target_compile_features("${name}_test" PRIVATE cxx_std_23)
     endforeach()
 endfunction()
 
@@ -19,6 +20,7 @@ add_tests(
     completes_synchronously
     concepts
     continue_on
+    debug
     env
     forwarding_query
     freestanding_sync_wait
