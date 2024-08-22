@@ -18,7 +18,7 @@ template <typename Query, typename Value> struct prop {
     [[no_unique_address]] Value value{};
 };
 template <typename Query, typename Value>
-prop(Query, Value) -> prop<Query, Value>;
+prop(Query, Value) -> prop<Query, std::unwrap_reference_t<Value>>;
 
 template <template <typename> typename Query, typename Value, typename... Ts>
 struct template_prop {

@@ -3,11 +3,13 @@
 #include <async/allocator.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/stop_token.hpp>
 #include <conc/concurrency.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 #include <stdx/optional.hpp>
 
 #include <concepts>
@@ -17,24 +19,24 @@
 
 namespace async {
 namespace _start_detached {
-template <typename Ops, typename Env> struct receiver {
+template <typename Ops> struct receiver {
     using is_receiver = void;
 
     Ops *ops;
-    [[no_unique_address]] Env e;
 
-    [[nodiscard]] constexpr auto query(get_env_t) const
-        -> env<prop<get_stop_token_t,
-                    decltype(std::declval<typename Ops::stop_source_t>()
-                                 .get_token())>,
-               Env const &> {
-        return env{prop{get_stop_token_t{}, ops->stop_src.get_token()},
-                   std::cref(e)};
+    [[nodiscard]] constexpr auto query(get_env_t) const -> typename Ops::env_t {
+        return ops->query(get_env_t{});
     }
 
-    constexpr auto set_value(auto &&...) const && -> void { ops->die(); }
-    constexpr auto set_error(auto &&...) const && -> void { ops->die(); }
-    constexpr auto set_stopped() const && -> void { ops->die(); }
+    constexpr auto set_value(auto &&...) const && -> void {
+        ops->template die<"set_value">();
+    }
+    constexpr auto set_error(auto &&...) const && -> void {
+        ops->template die<"set_error">();
+    }
+    constexpr auto set_stopped() const && -> void {
+        ops->template die<"set_stopped">();
+    }
 };
 
 template <typename Uniq> inplace_stop_source *stop_source_for{};
@@ -52,34 +54,49 @@ auto set_stop_source(StopSource *p) -> void {
     }
 }
 
-template <typename StopSource>
+template <typename StopSource, typename Env>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state_base {
-    constexpr op_state_base() = default;
+    using env_t = env<prop<get_stop_token_t,
+                           decltype(std::declval<StopSource>().get_token())>,
+                      Env const &>;
+
+    constexpr op_state_base(Env &&env) : e{std::move(env)} {}
     constexpr op_state_base(op_state_base &&) = delete;
 
-    auto die() {}
+    template <stdx::ct_string> auto die() {}
+
+    [[nodiscard]] constexpr auto query(get_env_t) const -> env_t {
+        return env{prop{get_stop_token_t{}, stop_src.get_token()},
+                   std::cref(e)};
+    }
 
     using stop_source_t = StopSource;
     [[no_unique_address]] stop_source_t stop_src{};
+    [[no_unique_address]] Env e;
 };
 
 template <typename Uniq, typename Sndr, typename Alloc, typename StopSource,
           typename Env>
-struct op_state : op_state_base<StopSource> {
-    using receiver_t = receiver<op_state, Env>;
+struct op_state : op_state_base<StopSource, Env> {
+    using receiver_t = receiver<op_state>;
     using ops_t = connect_result_t<Sndr, receiver_t>;
 
     template <typename S>
-    constexpr explicit(true) op_state(S &&s, Env &&e)
-        : ops{connect(std::forward<S>(s), receiver_t{this, std::move(e)})} {}
+    constexpr explicit(true) op_state(S &&s, Env &&env)
+        : op_state_base<StopSource, Env>{std::move(env)},
+          ops{connect(std::forward<S>(s), receiver_t{this})} {}
 
-    auto die() {
+    template <stdx::ct_string S> auto die() {
+        debug_signal<S, "start_detached", op_state>(this->e);
         set_stop_source<Uniq, Alloc, StopSource>(nullptr);
         Alloc::template destruct<Uniq>(this);
     }
 
-    constexpr auto start() & -> void { async::start(ops); }
+    constexpr auto start() & -> void {
+        debug_signal<"start", "start_detached", op_state>(this->e);
+        async::start(ops);
+    }
 
     ops_t ops;
 };
@@ -94,7 +111,7 @@ template <typename Uniq, typename StopSource, sender S, typename Env>
     // op state resulting from connecting the sender and receiver: this
     // correctly handles senders whose connected behaviour changes with the
     // environment
-    using simulated_rcvr_t = receiver<op_state_base<StopSource>, custom_env_t>;
+    using simulated_rcvr_t = receiver<op_state_base<StopSource, custom_env_t>>;
     using ops_env_t = env_of_t<connect_result_t<S, simulated_rcvr_t>>;
     using A = allocator_of_t<env<custom_env_t, env_of_t<sndr_t>, ops_env_t>>;
 
@@ -129,9 +146,22 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
     return {std::forward<Env>(e)};
 }
 
+template <stdx::ct_string Name, typename Env = empty_env>
+    requires(not sender<Env>)
+[[nodiscard]] auto start_detached(Env &&e = {}) {
+    return start_detached<stdx::cts_t<Name>>(
+        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
+            std::forward<Env>(e)});
+}
+
 template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
 [[nodiscard]] auto start_detached(S &&s, Env &&e = {}) {
     return std::forward<S>(s) | start_detached<Uniq>(std::forward<Env>(e));
+}
+
+template <stdx::ct_string Name, sender S, typename Env = empty_env>
+[[nodiscard]] auto start_detached(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) | start_detached<Name>(std::forward<Env>(e));
 }
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
@@ -141,10 +171,24 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
     return {std::forward<Env>(e)};
 }
 
+template <stdx::ct_string Name, typename Env = empty_env>
+    requires(not sender<Env>)
+[[nodiscard]] auto start_detached_unstoppable(Env &&e = {}) {
+    return start_detached_unstoppable<stdx::cts_t<Name>>(
+        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
+            std::forward<Env>(e)});
+}
+
 template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
 [[nodiscard]] auto start_detached_unstoppable(S &&s, Env &&e = {}) {
     return std::forward<S>(s) |
            start_detached_unstoppable<Uniq>(std::forward<Env>(e));
+}
+
+template <stdx::ct_string Name, sender S, typename Env = empty_env>
+[[nodiscard]] auto start_detached_unstoppable(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) |
+           start_detached_unstoppable<Name>(std::forward<Env>(e));
 }
 
 template <typename Uniq> auto stop_detached() {
@@ -152,5 +196,9 @@ template <typename Uniq> auto stop_detached() {
         return _start_detached::stop_source_for<Uniq> != nullptr and
                _start_detached::stop_source_for<Uniq>->request_stop();
     });
+}
+
+template <stdx::ct_string Name> auto stop_detached() {
+    return stop_detached<stdx::cts_t<Name>>();
 }
 } // namespace async

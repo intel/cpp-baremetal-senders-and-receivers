@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/allocator.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/just_result_of.hpp>
 #include <async/read_env.hpp>
@@ -10,7 +11,17 @@
 #include <async/static_allocator.hpp>
 #include <async/then.hpp>
 
+#include <stdx/ct_string.hpp>
+#include <stdx/type_traits.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <cstddef>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 TEST_CASE("basic operation", "[start_detached]") {
     int var{};
@@ -262,4 +273,71 @@ TEST_CASE("stop_detached doesn't cancel an unstoppable operation",
     CHECK(not async::stop_detached<Name>());
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        static_assert(
+            stdx::is_specialization_of_v<Ctx,
+                                         async::_start_detached::op_state>);
+        debug_events.push_back(fmt::format("{} {} {}", std::string_view{C},
+                                           std::string_view{L},
+                                           std::string_view{S}));
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("start_detached can be named and debugged with a string",
+          "[start_detached]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+    int var{};
+    using S = async::fixed_priority_scheduler<0>;
+    auto s = S::schedule() | async::then([&] { var = 42; });
+    CHECK(async::start_detached<"op">(s));
+    CHECK(var == 0);
+    CHECK(debug_events == std::vector{"op start_detached start"s});
+    async::task_mgr::service_tasks<0>();
+    CHECK(var == 42);
+    CHECK(debug_events == std::vector{"op start_detached start"s,
+                                      "op start_detached set_value"s});
+}
+
+TEST_CASE("start_detached_unstoppable can be named and debugged with a string",
+          "[start_detached]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+    int var{};
+    using S = async::fixed_priority_scheduler<0>;
+    auto s = S::schedule() | async::then([&] { var = 42; });
+    CHECK(async::start_detached_unstoppable<"op">(s));
+    CHECK(var == 0);
+    CHECK(debug_events == std::vector{"op start_detached start"s});
+    async::task_mgr::service_tasks<0>();
+    CHECK(var == 42);
+    CHECK(debug_events == std::vector{"op start_detached start"s,
+                                      "op start_detached set_value"s});
+}
+
+TEST_CASE("stop_detached works with a string name", "[start_detached]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+    int var{};
+    using S = async::fixed_priority_scheduler<0>;
+    auto s = S::schedule() | async::then([&] { var = 42; });
+
+    CHECK(async::start_detached<"op">(s));
+    CHECK(debug_events == std::vector{"op start_detached start"s});
+    CHECK(async::stop_detached<"op">());
+    async::task_mgr::service_tasks<0>();
+    CHECK(var == 0);
+    CHECK(debug_events == std::vector{"op start_detached start"s,
+                                      "op start_detached set_stopped"s});
 }
