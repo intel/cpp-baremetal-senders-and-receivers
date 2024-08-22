@@ -1,3 +1,5 @@
+fmt_recipe(10.2.1)
+
 function(add_tests)
     foreach(name ${ARGN})
         add_unit_test(
@@ -10,6 +12,7 @@ function(add_tests)
             LIBRARIES
             warnings
             async
+            fmt::fmt-header-only
             pthread)
         target_compile_features("${name}_test" PRIVATE cxx_std_23)
     endforeach()
