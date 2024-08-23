@@ -11,7 +11,7 @@
 #include <async/static_allocator.hpp>
 #include <async/then.hpp>
 
-#include <stdx/ct_string.hpp>
+#include <stdx/ct_format.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -285,9 +285,7 @@ struct debug_handler {
         static_assert(
             stdx::is_specialization_of_v<Ctx,
                                          async::_start_detached::op_state>);
-        debug_events.push_back(fmt::format("{} {} {}", std::string_view{C},
-                                           std::string_view{L},
-                                           std::string_view{S}));
+        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
     }
 };
 } // namespace

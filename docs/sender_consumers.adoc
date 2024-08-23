@@ -114,3 +114,12 @@ auto sndr = async::just(42);
 auto [i] = async::sync_wait(sndr).value();
 // i is now 42
 ----
+
+As with `start_detached`, an extra xref:environments.adoc#_environments[environment] may be given to
+`sync_wait` in order to control sender behaviour:
+
+[source,cpp]
+----
+auto result = async::sync_wait(
+    s, async::prop{async::get_custom_property_t{}, custom_property{}}));
+----
