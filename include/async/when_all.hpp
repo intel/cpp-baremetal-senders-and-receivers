@@ -34,7 +34,7 @@ template <typename SubOps> struct sub_receiver {
     SubOps *ops;
 
     [[nodiscard]] constexpr auto query(get_env_t) const
-        -> overriding_env<get_stop_token_t, inplace_stop_token,
+        -> overriding_env<get_stop_token_t, typename SubOps::stop_token_t,
                           typename SubOps::receiver_t> {
         return override_env_with<get_stop_token_t>(ops->get_stop_token(),
                                                    ops->get_receiver());
@@ -76,11 +76,12 @@ struct sub_op_storage<E, S> {
     value_t v{};
 };
 
-template <typename Ops, typename R, typename S>
+template <typename Ops, typename R, typename S, typename StopToken>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct sub_op_state : sub_op_storage<env_of_t<R>, S> {
     using sender_t = typename S::sender_t;
     using receiver_t = R;
+    using stop_token_t = StopToken;
 
     constexpr explicit(true) sub_op_state(S &&s)
         : ops{connect(static_cast<sender_t &&>(std::move(s)),
@@ -105,8 +106,8 @@ struct sub_op_state : sub_op_storage<env_of_t<R>, S> {
         return static_cast<Ops const &>(*this).rcvr;
     }
 
-    [[nodiscard]] auto get_stop_token() const -> inplace_stop_token {
-        return static_cast<Ops const &>(*this).stop_source.get_token();
+    [[nodiscard]] auto get_stop_token() const -> stop_token_t {
+        return static_cast<Ops const &>(*this).get_stop_token();
     }
 
     using ops_t = connect_result_t<sender_t, sub_receiver<sub_op_state>>;
@@ -157,7 +158,11 @@ using error_senders = boost::mp11::mp_copy_if_q<boost::mp11::mp_list<Sndrs...>,
 template <typename Rcvr, typename... Sndrs>
 struct op_state
     : error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
-      sub_op_state<op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>... {
+      sub_op_state<op_state<Rcvr, Sndrs...>, Rcvr, Sndrs,
+                   inplace_stop_token>... {
+    template <typename S>
+    using sub_op_state_t = sub_op_state<op_state, Rcvr, S, inplace_stop_token>;
+
     struct stop_callback_fn {
         auto operator()() -> void { stop_source->request_stop(); }
         inplace_stop_source *stop_source;
@@ -165,8 +170,7 @@ struct op_state
 
     template <typename S, typename R>
     constexpr op_state(S &&s, R &&r)
-        : sub_op_state<op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>{std::forward<S>(
-              s)}...,
+        : sub_op_state_t<Sndrs>{std::forward<S>(s)}...,
           rcvr{std::forward<R>(r)} {}
 
     auto notify() -> void {
@@ -206,23 +210,25 @@ struct op_state
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
                 set_value(
                     std::move(rcvr),
-                    static_cast<sub_op_state<op_state, Rcvr, Ss> &&>(*this)
-                        .v.value()...);
+                    static_cast<sub_op_state_t<Ss> &&>(*this).v.value()...);
             }(value_senders{});
         }
     }
 
     constexpr auto start() & -> void {
-        stop_cb.emplace(get_stop_token(get_env(rcvr)),
+        stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
                         stop_callback_fn{std::addressof(stop_source)});
         if (stop_source.stop_requested()) {
             set_stopped(std::move(rcvr));
         } else {
             count = sizeof...(Sndrs);
-            (async::start(
-                 static_cast<sub_op_state<op_state, Rcvr, Sndrs> &>(*this).ops),
+            (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops),
              ...);
         }
+    }
+
+    [[nodiscard]] auto get_stop_token() const -> inplace_stop_token {
+        return stop_source.get_token();
     }
 
     using stop_callback_t =
@@ -237,12 +243,15 @@ struct op_state
 template <typename Rcvr, typename... Sndrs>
 struct nostop_op_state
     : error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
-      sub_op_state<nostop_op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>... {
+      sub_op_state<nostop_op_state<Rcvr, Sndrs...>, Rcvr, Sndrs,
+                   never_stop_token>... {
+    template <typename S>
+    using sub_op_state_t =
+        sub_op_state<nostop_op_state, Rcvr, S, never_stop_token>;
 
     template <typename S, typename R>
     constexpr nostop_op_state(S &&s, R &&r)
-        : sub_op_state<nostop_op_state<Rcvr, Sndrs...>, Rcvr,
-                       Sndrs>{std::forward<S>(s)}...,
+        : sub_op_state_t<Sndrs>{std::forward<S>(s)}...,
           rcvr{std::forward<R>(r)} {}
 
     auto notify() -> void {
@@ -271,20 +280,17 @@ struct nostop_op_state
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
                 set_value(
                     std::move(rcvr),
-                    static_cast<sub_op_state<nostop_op_state, Rcvr, Ss> &&>(
-                        *this)
-                        .v.value()...);
+                    static_cast<sub_op_state_t<Ss> &&>(*this).v.value()...);
             }(value_senders{});
         }
     }
 
     constexpr auto start() & -> void {
         count = sizeof...(Sndrs);
-        (async::start(
-             static_cast<sub_op_state<nostop_op_state, Rcvr, Sndrs> &>(*this)
-                 .ops),
-         ...);
+        (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
     }
+
+    [[nodiscard]] auto get_stop_token() const -> never_stop_token { return {}; }
 
     [[no_unique_address]] Rcvr rcvr;
     std::atomic<std::size_t> count{};
@@ -293,12 +299,15 @@ struct nostop_op_state
 template <typename Rcvr, typename... Sndrs>
 struct sync_op_state
     : error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
-      sub_op_state<sync_op_state<Rcvr, Sndrs...>, Rcvr, Sndrs>... {
+      sub_op_state<sync_op_state<Rcvr, Sndrs...>, Rcvr, Sndrs,
+                   never_stop_token>... {
+    template <typename S>
+    using sub_op_state_t =
+        sub_op_state<sync_op_state, Rcvr, S, never_stop_token>;
 
     template <typename S, typename R>
     constexpr sync_op_state(S &&s, R &&r)
-        : sub_op_state<sync_op_state<Rcvr, Sndrs...>, Rcvr,
-                       Sndrs>{std::forward<S>(s)}...,
+        : sub_op_state_t<Sndrs>{std::forward<S>(s)}...,
           rcvr{std::forward<R>(r)} {}
 
     auto notify() -> void {}
@@ -320,23 +329,21 @@ struct sync_op_state
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
                 set_value(
                     std::move(rcvr),
-                    static_cast<sub_op_state<sync_op_state, Rcvr, Ss> &&>(*this)
-                        .v.value()...);
+                    static_cast<sub_op_state_t<Ss> &&>(*this).v.value()...);
             }(value_senders{});
         }
     }
 
     constexpr auto start() & -> void {
-        (async::start(
-             static_cast<sub_op_state<sync_op_state, Rcvr, Sndrs> &>(*this)
-                 .ops),
-         ...);
+        (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
         complete();
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
         return prop{completes_synchronously_t{}, std::true_type{}};
     }
+
+    [[nodiscard]] auto get_stop_token() const -> never_stop_token { return {}; }
 
     [[no_unique_address]] Rcvr rcvr;
 };

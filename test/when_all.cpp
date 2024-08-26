@@ -5,6 +5,7 @@
 #include <async/connect.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
+#include <async/read_env.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/sync_wait.hpp>
 #include <async/then.hpp>
@@ -277,4 +278,18 @@ TEST_CASE("when_all op state is synchronous when all its sub-op states are",
     [[maybe_unused]] auto op = async::connect(
         async::when_all(async::just(42), async::just(17)), receiver{[] {}});
     static_assert(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("when_all receiver environment is well-formed for synchronous ops",
+          "[when_all]") {
+    int value{};
+    auto op = async::connect(
+        async::when_all(async::get_stop_token(), async::just(42)),
+        receiver{[&](auto st, int x) {
+            static_assert(
+                std::is_same_v<decltype(st), async::never_stop_token>);
+            value = x;
+        }});
+    async::start(op);
+    CHECK(value == 42);
 }
