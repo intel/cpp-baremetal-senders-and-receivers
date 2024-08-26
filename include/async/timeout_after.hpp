@@ -26,7 +26,7 @@ struct pipeable {
                    time_scheduler_factory<Domain>(std::forward<Self>(self).d),
                    std::forward<Self>(self).values.apply(
                        []<typename... Ts>(Ts &&...ts) {
-                           return _just::sender<Tag, Vs...>{
+                           return _just::sender<"timeout", Tag, Vs...>{
                                std::forward<Ts>(ts)...};
                        })));
     }

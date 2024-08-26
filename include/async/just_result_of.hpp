@@ -3,10 +3,12 @@
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/utility.hpp>
 
@@ -19,13 +21,15 @@
 
 namespace async {
 namespace _just_result_of {
-template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
+template <stdx::ct_string Name, typename Tag, typename R, typename... Fs>
+struct op_state : Fs... {
     template <typename F>
     using has_void_result = std::is_void<std::invoke_result_t<F>>;
 
     [[no_unique_address]] R receiver;
 
     auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(receiver));
         using split_returns =
             boost::mp11::mp_partition<boost::mp11::mp_list<Fs...>,
                                       has_void_result>;
@@ -35,6 +39,7 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
         }(boost::mp11::mp_front<split_returns>{});
 
         [&]<typename... Ts>(boost::mp11::mp_list<Ts...>) {
+            debug_signal<Tag::name, Name, op_state>(get_env(receiver));
             Tag{}(std::move(receiver), static_cast<Ts &>(*this)()...);
         }(boost::mp11::mp_back<split_returns>{});
     }
@@ -44,18 +49,19 @@ template <typename Tag, typename R, typename... Fs> struct op_state : Fs... {
     }
 };
 
-template <typename Tag, std::invocable... Fs> struct sender : Fs... {
+template <stdx::ct_string Name, typename Tag, std::invocable... Fs>
+struct sender : Fs... {
     template <receiver R>
     [[nodiscard]] constexpr auto
-    connect(R &&r) && -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {
+    connect(R &&r) && -> op_state<Name, Tag, std::remove_cvref_t<R>, Fs...> {
         check_connect<sender &&, R>();
         return {{static_cast<Fs &&>(std::move(*this))}..., std::forward<R>(r)};
     }
 
     template <receiver R>
         requires(... and std::copy_constructible<Fs>)
-    [[nodiscard]] constexpr auto
-    connect(R &&r) const & -> op_state<Tag, std::remove_cvref_t<R>, Fs...> {
+    [[nodiscard]] constexpr auto connect(
+        R &&r) const & -> op_state<Name, Tag, std::remove_cvref_t<R>, Fs...> {
         check_connect<sender const &, R>();
         return {{static_cast<Fs const &>(*this)}..., std::forward<R>(r)};
     }
@@ -76,15 +82,17 @@ template <typename Tag, std::invocable... Fs> struct sender : Fs... {
 };
 } // namespace _just_result_of
 
-template <std::invocable... Fs>
+template <stdx::ct_string Name = "just_result_of", std::invocable... Fs>
 [[nodiscard]] constexpr auto just_result_of(Fs &&...fs) -> sender auto {
-    return _just_result_of::sender<set_value_t, std::remove_cvref_t<Fs>...>{
+    return _just_result_of::sender<Name, set_value_t,
+                                   std::remove_cvref_t<Fs>...>{
         std::forward<Fs>(fs)...};
 }
 
-template <std::invocable... Fs>
+template <stdx::ct_string Name = "just_error_result_of", std::invocable... Fs>
 [[nodiscard]] constexpr auto just_error_result_of(Fs &&...fs) -> sender auto {
-    return _just_result_of::sender<set_error_t, std::remove_cvref_t<Fs>...>{
+    return _just_result_of::sender<Name, set_error_t,
+                                   std::remove_cvref_t<Fs>...>{
         std::forward<Fs>(fs)...};
 }
 } // namespace async

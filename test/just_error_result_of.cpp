@@ -8,9 +8,17 @@
 #include <async/just_result_of.hpp>
 #include <async/stack_allocator.hpp>
 
-#include <catch2/catch_test_macros.hpp>
+#include <stdx/ct_format.hpp>
+#include <stdx/type_traits.hpp>
 
+#include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <concepts>
+#include <string>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 TEST_CASE("one function", "[just_error_result_of]") {
     int value{};
@@ -107,4 +115,48 @@ TEST_CASE("just_error_result_of op state is synchronous",
     [[maybe_unused]] auto op = async::connect(
         async::just_error_result_of([] { return 42; }), receiver{[] {}});
     static_assert(async::synchronous<decltype(op)>);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("just_error_result_of can be debugged with a string",
+          "[just_error_result_of]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+    auto s = async::just_error_result_of([] { return 42; });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op just_error_result_of start"s,
+                                      "op just_error_result_of set_error"s});
+}
+
+TEST_CASE("just_error_result_of can be named and debugged with a string",
+          "[just_error_result_of]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+    auto s = async::just_error_result_of<"just_error_result_of_name">(
+        [] { return 42; });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op just_error_result_of_name start"s,
+                      "op just_error_result_of_name set_error"s});
 }

@@ -240,4 +240,13 @@ struct stoppable_just {
         return {std::forward<R>(r)};
     }
 };
+
+template <typename T, typename Env> struct with_env : T {
+    [[no_unique_address]] Env e;
+
+    [[nodiscard]] constexpr auto query(async::get_env_t) const noexcept {
+        return e;
+    }
+};
+template <typename T, typename Env> with_env(T, Env) -> with_env<T, Env>;
 } // namespace

@@ -94,9 +94,10 @@ struct debug_handler {
     template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
               typename Ctx>
     constexpr auto signal(auto &&...) {
-        static_assert(
-            stdx::is_specialization_of_v<Ctx, async::_sync_wait::receiver>);
-        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        if constexpr (stdx::is_specialization_of_v<
+                          Ctx, async::_sync_wait::receiver>) {
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
     }
 };
 } // namespace
