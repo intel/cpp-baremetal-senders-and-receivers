@@ -5,6 +5,7 @@
 #include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
+#include <async/read_env.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/stack_allocator.hpp>
 #include <async/sync_wait.hpp>
@@ -343,4 +344,17 @@ TEST_CASE("optimized op_state for unstoppable", "[when_any]") {
     static_assert(
         stdx::is_specialization_of<decltype(op),
                                    async::_when_any::nostop_op_state>());
+}
+
+TEST_CASE("when_any receiver environment is well-formed for synchronous ops",
+          "[when_any]") {
+    int value{};
+    auto op = async::connect(
+        async::when_any(async::get_stop_token(), async::just(42)),
+        receiver{[&](auto st) {
+            CHECK(std::is_same_v<decltype(st), async::never_stop_token>);
+            value = 42;
+        }});
+    async::start(op);
+    CHECK(value == 42);
 }
