@@ -3,6 +3,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/continue_on.hpp>
+#include <async/debug.hpp>
 #include <async/just_result_of.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
 #include <async/schedulers/task_manager.hpp>
@@ -11,10 +12,14 @@
 #include <async/then.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_format.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
 
 #include <concepts>
+#include <string>
+#include <vector>
 
 namespace {
 struct hal {
@@ -122,4 +127,57 @@ TEST_CASE("request and response", "[priority_scheduler]") {
     async::task_mgr::service_tasks<1>();
     CHECK(var == 86);
     CHECK(async::task_mgr::is_idle());
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("fixed_priority_scheduler can be debugged", "[priority_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::fixed_priority_scheduler<0, "sched">::schedule();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op sched start"s});
+    async::task_mgr::service_tasks<0>();
+    CHECK(debug_events ==
+          std::vector{"op sched start"s, "op sched set_value"s});
+}
+
+TEST_CASE("fixed_priority_scheduler produces set_stopped debug signal",
+          "[priority_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto stop = async::inplace_stop_source{};
+    auto s = async::fixed_priority_scheduler<0, "sched">::schedule();
+    auto r = with_env{
+        universal_receiver{},
+        async::env{async::prop{async::get_debug_interface_t{},
+                               async::debug::named_interface<"op">{}},
+                   async::prop{async::get_stop_token_t{}, stop.get_token()}}};
+    auto op = async::connect(s, r);
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op sched start"s});
+    stop.request_stop();
+    async::task_mgr::service_tasks<0>();
+    CHECK(debug_events ==
+          std::vector{"op sched start"s, "op sched set_stopped"s});
 }

@@ -111,7 +111,7 @@ TEST_CASE("retry may complete synchronously", "[retry]") {
 TEST_CASE("retry may not complete synchronously", "[retry]") {
     int var{};
     auto sub =
-        async::thread_scheduler::schedule() | async::then([&] { ++var; });
+        async::thread_scheduler<>::schedule() | async::then([&] { ++var; });
     auto s = async::retry_until(sub, [&](auto i) { return i == 42; });
     static_assert(not async::synchronous<decltype(s)>);
 }
@@ -129,7 +129,7 @@ TEST_CASE("retry op state may be synchronous", "[retry]") {
 
 TEST_CASE("retry op state may not be synchronous", "[retry]") {
     int var{};
-    auto sub = async::thread_scheduler::schedule() | async::then([&] {
+    auto sub = async::thread_scheduler<>::schedule() | async::then([&] {
                    ++var;
                    return var;
                });

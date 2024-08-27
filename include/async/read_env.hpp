@@ -3,12 +3,14 @@
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/get_scheduler.hpp>
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 
 #include <concepts>
 #include <type_traits>
@@ -16,10 +18,26 @@
 
 namespace async {
 namespace _read_env {
-template <typename R, typename Tag> struct op_state {
+namespace detail {
+template <stdx::ct_string Name, typename Tag> constexpr auto get_name() {
+    if constexpr (not Name.empty()) {
+        return Name;
+    } else if constexpr (requires {
+                             []<auto N>(stdx::ct_string<N>) {}(Tag::name);
+                         }) {
+        return Tag::name;
+    } else {
+        return stdx::ct_string{"read_env"};
+    }
+}
+} // namespace detail
+
+template <stdx::ct_string Name, typename R, typename Tag> struct op_state {
     [[no_unique_address]] R receiver;
 
     constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(receiver));
+        debug_signal<"set_value", Name, op_state>(get_env(receiver));
         set_value(std::move(receiver), Tag{}(get_env(receiver)));
     }
 
@@ -28,7 +46,7 @@ template <typename R, typename Tag> struct op_state {
     }
 };
 
-template <typename Tag> struct sender {
+template <stdx::ct_string Name, typename Tag> struct sender {
     using is_sender = void;
 
     template <typename Env>
@@ -44,22 +62,25 @@ template <typename Tag> struct sender {
 
     template <receiver R>
     [[nodiscard]] constexpr static auto
-    connect(R &&r) -> op_state<std::remove_cvref_t<R>, Tag> {
+    connect(R &&r) -> op_state<detail::get_name<Name, Tag>(),
+                               std::remove_cvref_t<R>, Tag> {
         check_connect<sender, R>();
         return {std::forward<R>(r)};
     }
 };
 } // namespace _read_env
 
-template <typename Tag>
+template <stdx::ct_string Name = "", typename Tag>
 [[nodiscard]] constexpr auto read_env(Tag) -> sender auto {
-    return _read_env::sender<Tag>{};
+    return _read_env::sender<Name, Tag>{};
 }
 
+template <stdx::ct_string Name = "">
 [[nodiscard]] constexpr auto get_stop_token() -> sender auto {
-    return read_env(get_stop_token_t{});
+    return read_env<Name>(get_stop_token_t{});
 }
+template <stdx::ct_string Name = "">
 [[nodiscard]] constexpr auto get_scheduler() -> sender auto {
-    return read_env(get_scheduler_t{});
+    return read_env<Name>(get_scheduler_t{});
 }
 } // namespace async

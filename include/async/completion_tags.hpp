@@ -8,6 +8,7 @@
 namespace async {
 constexpr inline struct set_value_t {
     constexpr static auto name = stdx::ct_string{"set_value"};
+
     template <typename R, typename... Ts>
     constexpr auto operator()(R &&r, Ts &&...ts) const noexcept(
         noexcept(std::forward<R>(r).set_value(std::forward<Ts>(ts)...)))
@@ -20,6 +21,7 @@ constexpr inline struct set_value_t {
 
 constexpr inline struct set_error_t {
     constexpr static auto name = stdx::ct_string{"set_error"};
+
     template <typename R, typename... Ts>
     constexpr auto operator()(R &&r, Ts &&...ts) const noexcept(
         noexcept(std::forward<R>(r).set_error(std::forward<Ts>(ts)...)))
@@ -32,6 +34,7 @@ constexpr inline struct set_error_t {
 
 constexpr inline struct set_stopped_t {
     constexpr static auto name = stdx::ct_string{"set_stopped"};
+
     template <typename R>
     constexpr auto operator()(R &&r) const
         noexcept(noexcept(std::forward<R>(r).set_stopped()))

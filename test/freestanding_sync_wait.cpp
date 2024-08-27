@@ -22,14 +22,14 @@
 #include <fmt/format.h>
 
 TEST_CASE("sync_wait for inline scheduler", "[freestanding_sync_wait]") {
-    auto value = async::inline_scheduler::schedule() |
+    auto value = async::inline_scheduler<>::schedule() |
                  async::then([] { return 42; }) | async::sync_wait();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
 }
 
 TEST_CASE("sync_wait for thread scheduler", "[freestanding_sync_wait]") {
-    auto value = async::thread_scheduler::schedule() |
+    auto value = async::thread_scheduler<>::schedule() |
                  async::then([] { return 42; }) | async::sync_wait();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
@@ -61,7 +61,7 @@ TEST_CASE("sync_wait with read (inline scheduler)",
                  return async::start_on(sched, async::just(42));
              });
 
-    auto value = async::inline_scheduler::schedule() |
+    auto value = async::inline_scheduler<>::schedule() |
                  async::sequence([&] { return s; }) | async::sync_wait();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
@@ -72,7 +72,7 @@ TEST_CASE("sync_wait with read (thread scheduler", "[freestanding_sync_wait]") {
                  return async::start_on(sched, async::just(42));
              });
 
-    auto value = async::thread_scheduler::schedule() |
+    auto value = async::thread_scheduler<>::schedule() |
                  async::sequence([&] { return s; }) | async::sync_wait();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
@@ -109,7 +109,7 @@ TEST_CASE("sync_wait can be named and debugged with a string",
     using namespace std::string_literals;
     debug_events.clear();
     int var{};
-    using S = async::inline_scheduler;
+    using S = async::inline_scheduler<>;
     auto s = S::schedule() | async::then([&] { var = 42; });
     CHECK(async::sync_wait<"op">(s));
     CHECK(var == 42);

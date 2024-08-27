@@ -5,6 +5,8 @@
 #include <async/stack_allocator.hpp>
 #include <async/static_allocator.hpp>
 
+#include <stdx/ct_string.hpp>
+
 #include <type_traits>
 #include <utility>
 
@@ -31,6 +33,8 @@ concept allocator = std::is_empty_v<T> and requires(
 };
 
 constexpr inline struct get_allocator_t : forwarding_query_t {
+    constexpr static auto name = stdx::ct_string{"get_allocator"};
+
     template <typename T>
         requires true // more constrained
     constexpr auto operator()(T &&t) const noexcept(

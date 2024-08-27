@@ -3,11 +3,15 @@
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
 
+#include <stdx/ct_string.hpp>
+
 #include <type_traits>
 #include <utility>
 
 namespace async {
 constexpr inline struct completes_synchronously_t : forwarding_query_t {
+    constexpr static auto name = stdx::ct_string{"completes_synchronously"};
+
     template <typename T>
         requires true // more constrained
     constexpr auto operator()(T &&t) const noexcept(noexcept(

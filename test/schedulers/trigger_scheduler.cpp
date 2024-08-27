@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/continue_on.hpp>
+#include <async/debug.hpp>
 #include <async/just_result_of.hpp>
 #include <async/schedulers/trigger_manager.hpp>
 #include <async/schedulers/trigger_scheduler.hpp>
@@ -10,12 +11,16 @@
 #include <async/then.hpp>
 
 #include <stdx/ct_conversions.hpp>
+#include <stdx/ct_format.hpp>
 #include <stdx/ct_string.hpp>
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
 
 #include <concepts>
+#include <string>
+#include <vector>
 
 namespace {
 template <typename T>
@@ -154,4 +159,57 @@ TEST_CASE("request and response", "[trigger_scheduler]") {
     CHECK(var == 86);
     CHECK(async::triggers<"client">.empty());
     CHECK(async::triggers<"server">.empty());
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("trigger_scheduler can be debugged", "[trigger_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::trigger_scheduler<"sched">::schedule();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op sched start"s});
+    async::triggers<"sched">.run();
+    CHECK(debug_events ==
+          std::vector{"op sched start"s, "op sched set_value"s});
+}
+
+TEST_CASE("trigger_scheduler produces set_stopped debug signal",
+          "[trigger_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto stop = async::inplace_stop_source{};
+    auto s = async::trigger_scheduler<"sched">::schedule();
+    auto r = with_env{
+        universal_receiver{},
+        async::env{async::prop{async::get_debug_interface_t{},
+                               async::debug::named_interface<"op">{}},
+                   async::prop{async::get_stop_token_t{}, stop.get_token()}}};
+    auto op = async::connect(s, r);
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op sched start"s});
+    stop.request_stop();
+    async::triggers<"sched">.run();
+    CHECK(debug_events ==
+          std::vector{"op sched start"s, "op sched set_stopped"s});
 }

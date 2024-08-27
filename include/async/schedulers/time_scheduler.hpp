@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/schedulers/timer_manager_interface.hpp>
 #include <async/type_traits.hpp>
@@ -15,45 +16,57 @@
 
 namespace async {
 namespace timer_mgr {
-template <typename Rcvr, typename Task> struct op_state_base : Task {
+template <typename Rcvr, stdx::ct_string Name, typename Task>
+struct op_state_base : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state_base(R &&r) : rcvr{std::forward<R>(r)} {}
 
-    auto run() -> void final { set_value(std::move(rcvr)); }
+    auto run() -> void final {
+        debug_signal<"set_value", Name, op_state_base>(get_env(rcvr));
+        set_value(std::move(rcvr));
+    }
 
     [[no_unique_address]] Rcvr rcvr;
 };
 
-template <typename Domain, typename Duration, typename Rcvr, typename Task>
+template <typename Domain, stdx::ct_string Name, typename Duration,
+          typename Rcvr, typename Task>
 struct op_state;
 
-template <typename Domain, typename Duration, typename Rcvr, typename Task>
+template <typename Domain, stdx::ct_string Name, typename Duration,
+          typename Rcvr, typename Task>
     requires unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>
-struct op_state<Domain, Duration, Rcvr, Task> final
-    : op_state_base<Rcvr, Task> {
+struct op_state<Domain, Name, Duration, Rcvr, Task> final
+    : op_state_base<Rcvr, Name, Task> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r, Duration dur)
-        : op_state_base<Rcvr, Task>{std::forward<R>(r)}, d{dur} {}
+        : op_state_base<Rcvr, Name, Task>{std::forward<R>(r)}, d{dur} {}
 
-    constexpr auto start() & -> void { detail::run_after<Domain>(*this, d); }
+    constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(this->rcvr));
+        detail::run_after<Domain>(*this, d);
+    }
 
     [[no_unique_address]] Duration d{};
 };
 
-template <typename Domain, typename Duration, typename Rcvr, typename Task>
+template <typename Domain, stdx::ct_string Name, typename Duration,
+          typename Rcvr, typename Task>
     requires(not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>)
-struct op_state<Domain, Duration, Rcvr, Task> final
-    : op_state_base<Rcvr, Task> {
+struct op_state<Domain, Name, Duration, Rcvr, Task> final
+    : op_state_base<Rcvr, Name, Task> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r, Duration dur)
-        : op_state_base<Rcvr, Task>{std::forward<R>(r)}, d{dur} {}
+        : op_state_base<Rcvr, Name, Task>{std::forward<R>(r)}, d{dur} {}
 
     constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(this->rcvr));
         auto token = get_stop_token(get_env(this->rcvr));
         if (token.stop_requested()) {
+            debug_signal<"set_stopped", Name, op_state>(get_env(this->rcvr));
             set_stopped(std::move(this->rcvr));
         } else {
             detail::run_after<Domain>(*this, d);
@@ -65,6 +78,7 @@ struct op_state<Domain, Duration, Rcvr, Task> final
     struct stop_callback_fn {
         auto operator()() -> void {
             if (detail::cancel<Domain>(*ops)) {
+                debug_signal<"set_stopped", Name, op_state>(get_env(ops->rcvr));
                 set_stopped(std::move(ops->rcvr));
             }
         }
@@ -78,7 +92,7 @@ struct op_state<Domain, Duration, Rcvr, Task> final
 };
 } // namespace timer_mgr
 
-template <typename Domain, typename Duration,
+template <typename Domain, stdx::ct_string Name, typename Duration,
           typename Task = timer_task<timer_mgr::time_point_for_t<Duration>>>
 class time_scheduler {
     struct sender {
@@ -107,8 +121,9 @@ class time_scheduler {
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const & {
             check_connect<sender, R>();
-            return timer_mgr::op_state<Domain, Duration, std::remove_cvref_t<R>,
-                                       Task>{std::forward<R>(r), d};
+            return timer_mgr::op_state<Domain, Name, Duration,
+                                       std::remove_cvref_t<R>, Task>{
+                std::forward<R>(r), d};
         }
     };
 
@@ -127,9 +142,11 @@ class time_scheduler {
 };
 
 template <typename D>
-time_scheduler(D) -> time_scheduler<timer_mgr::default_domain, D>;
+time_scheduler(D)
+    -> time_scheduler<timer_mgr::default_domain, "time_scheduler", D>;
 
-template <typename Domain = timer_mgr::default_domain>
+template <typename Domain = timer_mgr::default_domain,
+          stdx::ct_string Name = "time_scheduler">
 constexpr auto time_scheduler_factory =
-    []<typename D>(D d) -> time_scheduler<Domain, D> { return {d}; };
+    []<typename D>(D d) -> time_scheduler<Domain, Name, D> { return {d}; };
 } // namespace async

@@ -13,6 +13,14 @@ auto sndr = async::just(42, 17);
 // sndr produces (sends) the values 42 and 17
 ----
 
+`just` can be given a name that is used for debug events. By default, its name
+is `"just"`.
+
+[source,cpp]
+----
+auto sndr = async::just<"the answer">(42);
+----
+
 [NOTE]
 .For functional programmers
 ====
@@ -33,6 +41,14 @@ auto sndr = async::just_error(42);
 // sndr produces (sends) the value 42 on the error channel
 ----
 
+`just_error` can be given a name that is used for debug events. By default, its name
+is `"just_error"`.
+
+[source,cpp]
+----
+auto sndr = async::just_error<"oops">(42);
+----
+
 === `just_error_result_of`
 
 Found in the header: `async/just_result_of.hpp`
@@ -49,6 +65,14 @@ auto sndr2 = async::just_error_result_of([] { return 42; },
                                          [] { do_something(); });
 // sndr2 also sends 42 on the error channel,
 // as well as executing do_something() - which returns void
+----
+
+`just_error_result_of` can be given a name that is used for debug events. By default, its name
+is `"just_error_result_of"`.
+
+[source,cpp]
+----
+auto sndr = async::just_error_result_of<"oops">([] { return 42; });
 ----
 
 NOTE: Do not rely on the order of evaluation of the functions given to
@@ -78,6 +102,14 @@ auto sndr2 = async::just_result_of([] { return 42; },
 // as well as executing do_something() - which returns void
 ----
 
+`just_result_of` can be given a name that is used for debug events. By default, its name
+is `"just_result_of"`.
+
+[source,cpp]
+----
+auto sndr = async::just_result_of<"the answer">([] { return 42; });
+----
+
 NOTE: Do not rely on the order of evaluation of the functions given to
 `just_result_of`!
 
@@ -104,6 +136,14 @@ auto sndr = async::just_stopped();
 // sndr completes on the stopped channel
 ----
 
+`just_stopped` can be given a name that is used for debug events. By default, its name
+is `"just_stopped"`.
+
+[source,cpp]
+----
+auto sndr = async::just_stopped<"cancel">();
+----
+
 === `read_env`
 
 Found in the header: `async/read_env.hpp`
@@ -123,6 +163,17 @@ auto s = async::read_env(async::get_stop_token_t{});
 ----
 auto s1 = async::get_stop_token(); // same as async::read_env(async::get_stop_token_t{});
 auto s2 = async::get_scheduler();  // same as async::read_env(async::get_scheduler_t{});
+----
+
+`read_env` (and its tag aliases) can be given a name that is used for debug
+events. By default, the name is the name exposed by the tag, or if there is no
+such name, `"read_env"`.
+
+[source,cpp]
+----
+auto s1 = async::get_stop_token<"gst">(); // name = "gst"
+auto s2 = async::get_stop_token();        // name = "get_stop_token"
+auto s3 = async::read_env(unnamed_tag{}); // name = "read_env"
 ----
 
 === `schedule`

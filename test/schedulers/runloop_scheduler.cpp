@@ -1,11 +1,17 @@
 #include "detail/common.hpp"
 
+#include <async/debug.hpp>
 #include <async/get_completion_scheduler.hpp>
 #include <async/schedulers/runloop_scheduler.hpp>
 
-#include <catch2/catch_test_macros.hpp>
+#include <stdx/ct_format.hpp>
+#include <stdx/type_traits.hpp>
 
-#include <concepts>
+#include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <string>
+#include <vector>
 
 TEST_CASE("runloop_scheduler fulfils concept", "[runloop_scheduler]") {
     static_assert(
@@ -41,4 +47,56 @@ TEST_CASE("runloop operation", "[runloop_scheduler]") {
     rl.finish();
     rl.run();
     CHECK(value == 42);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("runloop_scheduler can be debugged with a string",
+          "[runloop_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    async::run_loop rl{};
+    auto s = rl.get_scheduler().schedule();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+
+    rl.finish();
+    rl.run();
+    CHECK(debug_events == std::vector{"op runloop_scheduler start"s,
+                                      "op runloop_scheduler set_value"s});
+}
+
+TEST_CASE("runloop_scheduler can be named and debugged with a string",
+          "[runloop_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    async::run_loop<stdx::cts_t<"sched">> rl{};
+    auto s = rl.get_scheduler().schedule();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+
+    rl.finish();
+    rl.run();
+    CHECK(debug_events ==
+          std::vector{"op sched start"s, "op sched set_value"s});
 }

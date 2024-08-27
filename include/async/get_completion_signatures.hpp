@@ -2,11 +2,15 @@
 
 #include <async/env.hpp>
 
+#include <stdx/ct_string.hpp>
+
 #include <type_traits>
 #include <utility>
 
 namespace async {
 constexpr inline struct get_completion_signatures_t {
+    constexpr static auto name = stdx::ct_string{"get_completion_signatures"};
+
     template <typename S, typename E>
     constexpr auto operator()(S &&s, E &&e) const noexcept(noexcept(
         std::forward<S>(s).get_completion_signatures(std::forward<E>(e))))

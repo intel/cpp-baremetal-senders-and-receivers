@@ -138,7 +138,7 @@ TEST_CASE("repeat may complete synchronously", "[repeat]") {
 TEST_CASE("repeat may not complete synchronously", "[repeat]") {
     int var{};
     auto sub =
-        async::thread_scheduler::schedule() | async::then([&] { ++var; });
+        async::thread_scheduler<>::schedule() | async::then([&] { ++var; });
     auto s = async::repeat_until(sub, [&](auto i) { return i == 42; });
     static_assert(not async::synchronous<decltype(s)>);
 }
@@ -156,7 +156,7 @@ TEST_CASE("repeat op state may be synchronous", "[repeat]") {
 
 TEST_CASE("repeat op state may not be synchronous", "[repeat]") {
     int var{};
-    auto sub = async::thread_scheduler::schedule() | async::then([&] {
+    auto sub = async::thread_scheduler<>::schedule() | async::then([&] {
                    ++var;
                    return var;
                });

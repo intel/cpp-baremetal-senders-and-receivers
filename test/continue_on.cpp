@@ -151,8 +151,8 @@ TEST_CASE("move-only value", "[continue_on]") {
 
 TEST_CASE("singleshot continue_on", "[continue_on]") {
     auto sched1 = test_scheduler<1>{};
-    [[maybe_unused]] auto n = async::inline_scheduler::schedule<
-                                  async::inline_scheduler::singleshot>() |
+    [[maybe_unused]] auto n = async::inline_scheduler<>::schedule<
+                                  async::inline_scheduler<>::singleshot>() |
                               async::continue_on(sched1);
     static_assert(async::singleshot_sender<decltype(n), universal_receiver>);
 }

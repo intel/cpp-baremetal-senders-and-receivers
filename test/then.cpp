@@ -107,8 +107,8 @@ TEST_CASE("move-only lambda", "[then]") {
 }
 
 TEST_CASE("single-shot sender", "[then]") {
-    [[maybe_unused]] auto n = async::inline_scheduler::schedule<
-                                  async::inline_scheduler::singleshot>() |
+    [[maybe_unused]] auto n = async::inline_scheduler<>::schedule<
+                                  async::inline_scheduler<>::singleshot>() |
                               async::then([] {});
     static_assert(async::singleshot_sender<decltype(n), universal_receiver>);
 }
