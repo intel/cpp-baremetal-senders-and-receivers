@@ -79,47 +79,32 @@ TEST_CASE("move-only value", "[let_stopped]") {
     CHECK(value == 42);
 }
 
-TEST_CASE("let_stopped propagates value (order 1)", "[let_stopped]") {
+TEST_CASE("let_stopped propagates value", "[let_stopped]") {
+    bool let_called{};
     int value{};
 
-    auto s = async::just(41) | async::then([](auto i) { return ++i; }) |
-             async::let_stopped([] { return async::just(17); });
+    auto s = async::just(42) | async::let_stopped([&] {
+                 let_called = true;
+                 return async::just();
+             });
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
+    CHECK(not let_called);
 }
 
-TEST_CASE("let_stopped propagates value (order 2)", "[let_stopped]") {
+TEST_CASE("let_stopped propagates error", "[let_stopped]") {
+    bool let_called{};
     int value{};
 
-    auto s = async::just(41) |
-             async::let_stopped([] { return async::just(17); }) |
-             async::then([](auto i) { return ++i; });
-    auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
-    async::start(op);
-    CHECK(value == 42);
-}
-
-TEST_CASE("let_stopped propagates error (order 1)", "[let_stopped]") {
-    int value{};
-
-    auto s = async::just_error(41) |
-             async::upon_error([](auto i) { return ++i; }) |
-             async::let_stopped([] { return async::just(17); });
+    auto s = async::just_error(42) | async::let_stopped([&] {
+                 let_called = true;
+                 return async::just();
+             });
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
-}
-
-TEST_CASE("let_stopped propagates error (order 2)", "[let_stopped]") {
-    int value{};
-
-    auto s = async::just_error(41) |
-             async::let_stopped([] { return async::just(17); }) |
-             async::upon_error([](auto i) { return ++i; });
-    auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    async::start(op);
-    CHECK(value == 42);
+    CHECK(not let_called);
 }
 
 TEST_CASE("let_stopped advertises pass-through completions", "[let_stopped]") {

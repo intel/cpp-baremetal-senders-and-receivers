@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completion_tags.hpp>
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
@@ -138,7 +139,7 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
                 stdx::filter<detail::nonvoid_result_t>(std::move(results));
 
             std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
-                Tag{}(std::move(r), std::forward<Ts>(ts)...);
+                async::set_value(std::move(r), std::forward<Ts>(ts)...);
             });
         } else {
             T{}(std::move(r), std::forward<Args>(args)...);
@@ -202,7 +203,7 @@ template <typename Tag, typename S, typename... Fs> struct sender {
 
     template <typename... Ts>
     using signatures =
-        typename detail::to_signature<Tag, Fs...>::template type<Ts...>;
+        typename detail::to_signature<set_value_t, Fs...>::template type<Ts...>;
 
     template <typename Env>
         requires std::same_as<Tag, set_value_t>
@@ -221,9 +222,14 @@ template <typename Tag, typename S, typename... Fs> struct sender {
 
     template <typename Env>
         requires std::same_as<Tag, set_stopped_t>
-    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
-        -> transform_completion_signatures_of<S, Env> {
-        return {};
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
+        if constexpr (not sends_stopped<S, Env>) {
+            return completion_signatures_of_t<S, Env>{};
+        } else {
+            return transform_completion_signatures_of<
+                S, Env, signatures<>, ::async::detail::default_set_value,
+                ::async::detail::default_set_error, completion_signatures<>>{};
+        }
     }
 
     using is_sender = void;

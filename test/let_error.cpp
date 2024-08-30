@@ -101,12 +101,10 @@ TEST_CASE("move-only value", "[let_error]") {
 TEST_CASE("let_error with variant", "[let_error]") {
     int value{};
 
-    auto s = async::just_error(0) |
-             async::upon_error([&](auto) { return value; }) |
-             async::let_error([](auto i) {
+    auto s = async::just_error(std::cref(value)) | async::let_error([](auto i) {
                  return async::make_variant_sender(
-                     i % 2 == 0, [=] { return async::just(i / 2); },
-                     [=] { return async::just(i * 3 + 1); });
+                     i.get() % 2 == 0, [=] { return async::just(i.get() / 2); },
+                     [=] { return async::just(i.get() * 3 + 1); });
              });
 
     static_assert(
@@ -157,46 +155,32 @@ TEST_CASE("let_error with variant", "[let_error]") {
     CHECK(value == 1);
 }
 
-TEST_CASE("let_error propagates value (order 1)", "[let_error]") {
+TEST_CASE("let_error propagates value", "[let_error]") {
+    bool let_called{};
     int value{};
 
-    auto s = async::just(41) | async::then([](auto i) { return ++i; }) |
-             async::let_error([] { return async::just(17); });
+    auto s = async::just(42) | async::let_error([&] {
+                 let_called = true;
+                 return async::just();
+             });
     auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
+    CHECK(not let_called);
 }
 
-TEST_CASE("let_error propagates value (order 2)", "[let_error]") {
+TEST_CASE("let_error propagates stopped", "[let_error]") {
+    bool let_called{};
     int value{};
 
-    auto s = async::just(41) |
-             async::let_error([] { return async::just(17); }) |
-             async::then([](auto i) { return ++i; });
-    auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
+    auto s = async::just_stopped() | async::let_error([&] {
+                 let_called = true;
+                 return async::just();
+             });
+    auto op = async::connect(s, stopped_receiver{[&] { value = 42; }});
     async::start(op);
     CHECK(value == 42);
-}
-
-TEST_CASE("let_error propagates stopped (order 1)", "[let_error]") {
-    int value{};
-
-    auto s = async::just_stopped() | async::upon_stopped([&] { value = 41; }) |
-             async::let_error([] { return async::just(17); });
-    auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
-    async::start(op);
-    CHECK(value == 42);
-}
-
-TEST_CASE("let_error propagates stopped (order 2)", "[let_error]") {
-    int value{};
-
-    auto s = async::just_stopped() |
-             async::let_error([] { return async::just(17); }) |
-             async::upon_stopped([&] { value = 41; });
-    auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
-    async::start(op);
-    CHECK(value == 42);
+    CHECK(not let_called);
 }
 
 TEST_CASE("let_error advertises pass-through completions", "[let_error]") {
