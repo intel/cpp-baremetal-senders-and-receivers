@@ -2,11 +2,19 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/then.hpp>
 
+#include <stdx/ct_format.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <concepts>
+#include <string>
+#include <vector>
 
 TEST_CASE("upon_stopped", "[upon_stopped]") {
     int value{};
@@ -69,4 +77,49 @@ TEST_CASE("upon_stopped propagates errors", "[upon_stopped]") {
     async::start(op);
     CHECK(value == 42);
     CHECK(not upon_stopped_called);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just_stopped"_cts) {
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("upon_stopped can be debugged with a string", "[upon_stopped]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just_stopped() | async::upon_stopped([] { return 42; });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op upon_stopped set_value"s});
+}
+
+TEST_CASE("upon_stopped can be named and debugged with a string",
+          "[upon_stopped]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just_stopped() |
+             async::upon_stopped<"upon_stopped_name">([] { return 42; });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op upon_stopped_name set_value"s});
 }
