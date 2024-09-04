@@ -3,6 +3,7 @@
 #include <async/allocator.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
 #include <async/read_env.hpp>
@@ -12,20 +13,25 @@
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 
+#include <stdx/ct_format.hpp>
 #include <stdx/tuple_destructure.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
 
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <concepts>
 #include <condition_variable>
 #include <functional>
 #include <iterator>
 #include <mutex>
 #include <random>
+#include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 namespace {
 [[maybe_unused]] auto get_rng() -> auto & {
@@ -292,4 +298,81 @@ TEST_CASE("when_all receiver environment is well-formed for synchronous ops",
         }});
     async::start(op);
     CHECK(value == 42);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    std::mutex m{};
+
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just"_cts) {
+            std::lock_guard l{m};
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("nullary when_all can be debugged with a string", "[when_all]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::when_all();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op when_all start"s, "op when_all set_value"s});
+}
+
+TEST_CASE("nullary when_all can be named and debugged with a string",
+          "[when_all]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::when_all<"when_all_name">();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op when_all_name start"s,
+                                      "op when_all_name set_value"s});
+}
+
+TEST_CASE("when_all can be debugged with a string", "[when_all]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::when_all(async::just(42), async::just(17));
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op when_all start"s, "op when_all set_value"s});
+}
+
+TEST_CASE("when_all can be named and debugged with a string", "[when_all]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::when_all<"when_all_name">(async::just(42), async::just(17));
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op when_all_name start"s,
+                                      "op when_all_name set_value"s});
 }

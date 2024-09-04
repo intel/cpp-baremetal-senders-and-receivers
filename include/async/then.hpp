@@ -4,11 +4,13 @@
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/tuple_algorithms.hpp>
 #include <stdx/type_traits.hpp>
@@ -97,7 +99,8 @@ constexpr auto invoke =
 };
 } // namespace detail
 
-template <typename Tag, typename R, typename... Fs> struct receiver {
+template <stdx::ct_string Name, typename Tag, typename R, typename... Fs>
+struct receiver {
     using is_receiver = void;
     [[no_unique_address]] R r;
     [[no_unique_address]] stdx::tuple<Fs...> fs;
@@ -138,10 +141,12 @@ template <typename Tag, typename R, typename... Fs> struct receiver {
             auto filtered_results =
                 stdx::filter<detail::nonvoid_result_t>(std::move(results));
 
+            debug_signal<set_value_t::name, Name, receiver>(get_env(r));
             std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
                 async::set_value(std::move(r), std::forward<Ts>(ts)...);
             });
         } else {
+            debug_signal<T::name, Name, receiver>(get_env(r));
             T{}(std::move(r), std::forward<Args>(args)...);
         }
     }
@@ -184,21 +189,23 @@ template <typename Tag, typename... Fs> struct to_signature {
 };
 } // namespace detail
 
-template <typename Tag, typename S, typename... Fs> struct sender {
+template <stdx::ct_string Name, typename Tag, typename S, typename... Fs>
+struct sender {
     template <async::receiver R>
     [[nodiscard]] constexpr auto connect(R &&r) && {
         check_connect<sender &&, R>();
-        return async::connect(std::move(s),
-                              receiver<Tag, std::remove_cvref_t<R>, Fs...>{
-                                  std::forward<R>(r), std::move(fs)});
+        return async::connect(
+            std::move(s), receiver<Name, Tag, std::remove_cvref_t<R>, Fs...>{
+                              std::forward<R>(r), std::move(fs)});
     }
 
     template <async::receiver R>
         requires multishot_sender<S> and (... and std::copy_constructible<Fs>)
     [[nodiscard]] constexpr auto connect(R &&r) const & {
         check_connect<sender const &, R>();
-        return async::connect(s, receiver<Tag, std::remove_cvref_t<R>, Fs...>{
-                                     std::forward<R>(r), fs});
+        return async::connect(
+            s, receiver<Name, Tag, std::remove_cvref_t<R>, Fs...>{
+                   std::forward<R>(r), fs});
     }
 
     template <typename... Ts>
@@ -242,49 +249,52 @@ template <typename Tag, typename S, typename... Fs> struct sender {
     }
 };
 
-template <typename Tag, typename... Fs> struct pipeable {
+template <stdx::ct_string Name, typename Tag, typename... Fs> struct pipeable {
     stdx::tuple<Fs...> fs;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Tag, std::remove_cvref_t<S>, Fs...>{
+        return sender<Name, Tag, std::remove_cvref_t<S>, Fs...>{
             std::forward<S>(s), std::forward<Self>(self).fs};
     }
 };
 } // namespace _then
 
-template <stdx::callable... Fs> [[nodiscard]] constexpr auto then(Fs &&...fs) {
+template <stdx::ct_string Name = "then", stdx::callable... Fs>
+[[nodiscard]] constexpr auto then(Fs &&...fs) {
     return _compose::adaptor<
-        _then::pipeable<set_value_t, std::remove_cvref_t<Fs>...>>{
+        _then::pipeable<Name, set_value_t, std::remove_cvref_t<Fs>...>>{
         std::forward<Fs>(fs)...};
 }
 
-template <sender S, stdx::callable... Fs>
+template <stdx::ct_string Name = "then", sender S, stdx::callable... Fs>
 [[nodiscard]] constexpr auto then(S &&s, Fs &&...fs) -> sender auto {
-    return std::forward<S>(s) | then(std::forward<Fs>(fs)...);
+    return std::forward<S>(s) | then<Name>(std::forward<Fs>(fs)...);
 }
 
-template <stdx::callable F> [[nodiscard]] constexpr auto upon_error(F &&f) {
+template <stdx::ct_string Name = "upon_error", stdx::callable F>
+[[nodiscard]] constexpr auto upon_error(F &&f) {
     return _compose::adaptor<
-        _then::pipeable<set_error_t, std::remove_cvref_t<F>>>{
+        _then::pipeable<Name, set_error_t, std::remove_cvref_t<F>>>{
         std::forward<F>(f)};
 }
 
-template <sender S, stdx::callable F>
+template <stdx::ct_string Name = "upon_error", sender S, stdx::callable F>
 [[nodiscard]] constexpr auto upon_error(S &&s, F &&f) -> sender auto {
-    return std::forward<S>(s) | upon_error(std::forward<F>(f));
+    return std::forward<S>(s) | upon_error<Name>(std::forward<F>(f));
 }
 
-template <stdx::callable F> [[nodiscard]] constexpr auto upon_stopped(F &&f) {
+template <stdx::ct_string Name = "upon_stopped", stdx::callable F>
+[[nodiscard]] constexpr auto upon_stopped(F &&f) {
     return _compose::adaptor<
-        _then::pipeable<set_stopped_t, std::remove_cvref_t<F>>>{
+        _then::pipeable<Name, set_stopped_t, std::remove_cvref_t<F>>>{
         std::forward<F>(f)};
 }
 
-template <sender S, stdx::callable F>
+template <stdx::ct_string Name = "upon_stopped", sender S, stdx::callable F>
 [[nodiscard]] constexpr auto upon_stopped(S &&s, F &&f) -> sender auto {
-    return std::forward<S>(s) | upon_stopped(std::forward<F>(f));
+    return std::forward<S>(s) | upon_stopped<Name>(std::forward<F>(f));
 }
 
 } // namespace async

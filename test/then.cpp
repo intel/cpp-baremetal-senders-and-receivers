@@ -7,7 +7,16 @@
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/then.hpp>
 
+#include <stdx/ct_format.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <concepts>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 TEST_CASE("then", "[then]") {
     int value{};
@@ -231,4 +240,47 @@ TEST_CASE("then can handle a reference", "[then]") {
                            CHECK(std::addressof(value) == std::addressof(i));
                        }});
     async::start(op);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just"_cts) {
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("then can be debugged with a string", "[then]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just() | async::then([] {});
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op then set_value"s});
+}
+
+TEST_CASE("then can be named and debugged with a string", "[then]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just() | async::then<"then_name">([] {});
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op then_name set_value"s});
 }
