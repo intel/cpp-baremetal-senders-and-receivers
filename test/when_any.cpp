@@ -8,14 +8,17 @@
 #include <async/read_env.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/stack_allocator.hpp>
+#include <async/stop_token.hpp>
 #include <async/sync_wait.hpp>
 #include <async/then.hpp>
 #include <async/type_traits.hpp>
 #include <async/when_any.hpp>
 
+#include <stdx/ct_format.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
 
 #include <algorithm>
 #include <array>
@@ -25,8 +28,11 @@
 #include <iterator>
 #include <mutex>
 #include <random>
+#include <string>
 #include <thread>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace {
 [[maybe_unused]] auto get_rng() -> auto & {
@@ -263,7 +269,8 @@ TEST_CASE("when_any with zero args never completes", "[when_any]") {
     static_assert(
         std::is_same_v<decltype(op),
                        async::_when_any::op_state<
-                           async::_when_any::first_noncancelled, decltype(r)>>);
+                           "when_any", async::_when_any::first_noncancelled,
+                           decltype(r)>>);
 }
 
 TEST_CASE("when_any with zero args can be stopped (before start)",
@@ -330,8 +337,11 @@ TEST_CASE("normal, (internally) stoppable op_state", "[when_any]") {
     auto w = async::when_any(s1, s2);
 
     [[maybe_unused]] auto op = async::connect(w, receiver{[&](auto...) {}});
-    static_assert(
-        stdx::is_specialization_of<decltype(op), async::_when_any::op_state>());
+    [[maybe_unused]] auto test_op_state =
+        []<stdx::ct_string Name, typename P, typename R, typename... Ss>(
+            async::_when_any::op_state<Name, P, R, Ss...> const &) {};
+
+    static_assert(requires { test_op_state(op); });
 }
 
 TEST_CASE("optimized op_state for unstoppable", "[when_any]") {
@@ -341,9 +351,11 @@ TEST_CASE("optimized op_state for unstoppable", "[when_any]") {
 
     [[maybe_unused]] auto op =
         async::connect(w, stoppable_receiver{[&](auto) {}});
-    static_assert(
-        stdx::is_specialization_of<decltype(op),
-                                   async::_when_any::nostop_op_state>());
+    [[maybe_unused]] auto test_op_state =
+        []<stdx::ct_string Name, typename P, typename R, typename... Ss>(
+            async::_when_any::nostop_op_state<Name, P, R, Ss...> const &) {};
+
+    static_assert(requires { test_op_state(op); });
 }
 
 TEST_CASE("when_any receiver environment is well-formed for synchronous ops",
@@ -357,4 +369,91 @@ TEST_CASE("when_any receiver environment is well-formed for synchronous ops",
         }});
     async::start(op);
     CHECK(value == 42);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    std::mutex m{};
+
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just"_cts) {
+            std::lock_guard l{m};
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("nullary when_any can be debugged with a string", "[when_any]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto stop = async::inplace_stop_source{};
+    auto s = async::when_any();
+    auto r = with_env{
+        universal_receiver{},
+        async::env{async::prop{async::get_debug_interface_t{},
+                               async::debug::named_interface<"op">{}},
+                   async::prop{async::get_stop_token_t{}, stop.get_token()}}};
+    auto op = async::connect(s, r);
+    stop.request_stop();
+
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op when_any start"s, "op when_any set_stopped"s});
+}
+
+TEST_CASE("nullary when_any can be named and debugged with a string",
+          "[when_any]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto stop = async::inplace_stop_source{};
+    auto s = async::when_any<"when_any_name">();
+    auto r = with_env{
+        universal_receiver{},
+        async::env{async::prop{async::get_debug_interface_t{},
+                               async::debug::named_interface<"op">{}},
+                   async::prop{async::get_stop_token_t{}, stop.get_token()}}};
+    auto op = async::connect(s, r);
+    stop.request_stop();
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op when_any_name start"s,
+                                      "op when_any_name set_stopped"s});
+}
+
+TEST_CASE("when_any can be debugged with a string", "[when_any]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::when_any(async::just(42), async::just(17));
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op when_any start"s, "op when_any set_value"s});
+}
+
+TEST_CASE("when_any can be named and debugged with a string", "[when_any]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::when_any<"when_any_name">(async::just(42), async::just(17));
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op when_any_name start"s,
+                                      "op when_any_name set_value"s});
 }
