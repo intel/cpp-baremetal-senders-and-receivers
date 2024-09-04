@@ -113,56 +113,32 @@ TEST_CASE("single-shot sender", "[then]") {
     static_assert(async::singleshot_sender<decltype(n), universal_receiver>);
 }
 
-TEST_CASE("then propagates error (order 1)", "[then]") {
+TEST_CASE("then propagates error", "[then]") {
+    bool then_called{};
     int value{};
 
-    auto s = async::just_error(0) | async::then([] { return 17; }) |
-             async::upon_error([](auto) { return 42; });
+    auto s = async::just_error(42) | async::then([&] { then_called = true; });
     static_assert(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_error_t(int)>>);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
+    CHECK(not then_called);
 }
 
-TEST_CASE("then propagates error (order 2)", "[then]") {
+TEST_CASE("then propagates stopped", "[then]") {
+    bool then_called{};
     int value{};
 
-    auto s = async::just_error(0) | async::upon_error([](auto) { return 42; }) |
-             async::then([] { return 17; });
-    static_assert(
-        std::same_as<async::completion_signatures_of_t<decltype(s)>,
-                     async::completion_signatures<async::set_error_t(int)>>);
-    auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
-    async::start(op);
-    CHECK(value == 42);
-}
-
-TEST_CASE("then propagates stopped (order 1)", "[then]") {
-    int value{};
-
-    auto s = async::just_stopped() | async::upon_stopped([&] { value = 41; }) |
-             async::then([] { return 17; });
+    auto s = async::just_stopped() | async::then([&] { then_called = true; });
     static_assert(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_stopped_t()>>);
-    auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
+    auto op = async::connect(s, stopped_receiver{[&] { value = 42; }});
     async::start(op);
     CHECK(value == 42);
-}
-
-TEST_CASE("then propagates stopped (order 2)", "[then]") {
-    int value{};
-
-    auto s = async::just_stopped() | async::then([] { return 17; }) |
-             async::upon_stopped([&] { value = 41; });
-    static_assert(
-        std::same_as<async::completion_signatures_of_t<decltype(s)>,
-                     async::completion_signatures<async::set_stopped_t()>>);
-    auto op = async::connect(s, stopped_receiver{[&] { ++value; }});
-    async::start(op);
-    CHECK(value == 42);
+    CHECK(not then_called);
 }
 
 TEST_CASE("then propagates forwarding queries to its child environment",
