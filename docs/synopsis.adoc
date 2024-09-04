@@ -40,6 +40,12 @@ in pipe-composition syntax.
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/continue_on.hpp[continue_on.hpp]
 * `continue_on` - a xref:sender_adaptors.adoc#_continue_on[sender adaptor] that continues execution on another scheduler
 
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[debug.hpp]
+* `get_debug_interface` - a query used to get a debug interface from an environment
+* `injected_debug_handler<>` - a variable template used to inject a specific implementation of a debug handler
+* `debug::make_named_interface<"name">` - a function that makes a debug interface with arguments passed as context
+* `debug_signal<"signal", "name", Ctx>` - a function to raise a debug signal
+
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/env.hpp[env.hpp]
 * `get_env` - a query used to retrieve the xref:environments.adoc#_environments[environment] of a receiver or the xref:attributes.adoc#_sender_attributes[attributes] of a sender
 
@@ -202,15 +208,19 @@ contains traits and metaprogramming constructs used by many senders.
 * `allocator_of_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[`#include <async/allocator.hpp>`]
 * `connect` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/connect.hpp[`#include <async/connect.hpp>`]
 * xref:sender_adaptors.adoc#_continue_on[`continue_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/continue_on.hpp[`#include <async/continue_on.hpp>`]
+* xref:debug.adoc#_naming_senders_and_operations[`debug::make_named_interface`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
+* xref:debug.adoc#_raising_a_debug_signal[`debug_signal`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
 * xref:sender_adaptors.adoc#_when_any[`first_successful`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_any.hpp[`#include <async/when_any.hpp>`]
 * xref:schedulers.adoc#_fixed_priority_scheduler[`fixed_priority_scheduler<P>`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/priority_scheduler.hpp[`#include <async/schedulers/priority_scheduler.hpp>`]
 * `forwarding_query` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/forwarding_query.hpp[`#include <async/forwarding_query.hpp>`]
 * `generic_timer_manager<HAL>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager.hpp[`#include <async/schedulers/timer_manager.hpp>`]
 * `get_allocator` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[`#include <async/allocator.hpp>`]
 * `get_completion_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/get_completion_scheduler.hpp[`#include <async/get_completion_scheduler.hpp>`]
+* xref:debug.adoc#_naming_senders_and_operations[`get_debug_interface`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
 * xref:environments.adoc#_environments[`get_env`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/env.hpp[`#include <async/env.hpp>`]
 * `get_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
 * `get_stop_token` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
+* xref:debug.adoc#_handling_a_debug_signal[`injected_debug_handler<>`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
 * `injected_task_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * `injected_timer_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
 * xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/inline_scheduler.hpp[`#include <async/schedulers/inline_scheduler.hpp>`]
