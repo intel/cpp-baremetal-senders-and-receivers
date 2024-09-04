@@ -13,7 +13,14 @@
 #include <async/then.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/ct_format.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <string>
+#include <type_traits>
+#include <vector>
 
 TEST_CASE("read_env advertises what it sends", "[read_env]") {
     [[maybe_unused]] auto r = stoppable_receiver{[] {}};
@@ -60,4 +67,71 @@ TEST_CASE("read_env op state is synchronous", "[read_env]") {
     [[maybe_unused]] auto const op =
         async::connect(s, stoppable_receiver{[] {}});
     static_assert(async::synchronous<decltype(op)>);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("read_env tag provides a debug name", "[read_env]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto stop = async::inplace_stop_source{};
+    auto s = async::get_stop_token();
+    auto r = with_env{
+        universal_receiver{},
+        async::env{async::prop{async::get_debug_interface_t{},
+                               async::debug::named_interface<"op">{}},
+                   async::prop{async::get_stop_token_t{}, stop.get_token()}}};
+    auto op = async::connect(s, r);
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op get_stop_token start"s,
+                                      "op get_stop_token set_value"s});
+}
+
+TEST_CASE("read_env can customize the debug name", "[read_env]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto stop = async::inplace_stop_source{};
+    auto s = async::get_stop_token<"GST">();
+    auto r = with_env{
+        universal_receiver{},
+        async::env{async::prop{async::get_debug_interface_t{},
+                               async::debug::named_interface<"op">{}},
+                   async::prop{async::get_stop_token_t{}, stop.get_token()}}};
+    auto op = async::connect(s, r);
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op GST start"s, "op GST set_value"s});
+}
+
+TEST_CASE("read_env provides a fallback name for tags that don't",
+          "[read_env]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::read_env(get_fwd);
+    auto r =
+        with_env{universal_receiver{},
+                 async::env{async::prop{async::get_debug_interface_t{},
+                                        async::debug::named_interface<"op">{}},
+                            async::prop{get_fwd_t{}, 42}}};
+    auto op = async::connect(s, r);
+
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op read_env start"s, "op read_env set_value"s});
 }

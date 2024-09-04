@@ -3,6 +3,7 @@
 #include <async/forwarding_query.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/ct_string.hpp>
 #include <stdx/intrusive_list.hpp>
 
 #include <atomic>
@@ -193,6 +194,8 @@ template <typename F> struct inplace_stop_callback final : stop_callback_base {
 };
 
 struct get_stop_token_t : forwarding_query_t {
+    constexpr static auto name = stdx::ct_string{"get_stop_token"};
+
     template <typename T>
         requires true // more constrained
     constexpr auto operator()(T &&t) const noexcept(

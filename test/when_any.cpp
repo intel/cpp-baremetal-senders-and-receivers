@@ -149,11 +149,11 @@ TEST_CASE("when_any with thread scheduler", "[when_any]") {
     auto const d1 = std::chrono::milliseconds{dis(get_rng())};
     auto const d2 = std::chrono::milliseconds{dis(get_rng())};
 
-    auto s1 = async::thread_scheduler::schedule() | async::then([&] {
+    auto s1 = async::thread_scheduler<>::schedule() | async::then([&] {
                   std::this_thread::sleep_for(d1);
                   return 42;
               });
-    auto s2 = async::thread_scheduler::schedule() | async::then([&] {
+    auto s2 = async::thread_scheduler<>::schedule() | async::then([&] {
                   std::this_thread::sleep_for(d2);
                   return 17;
               });
@@ -196,8 +196,8 @@ TEST_CASE("when_any cancellation (before start)", "[when_any]") {
     bool fail{};
     phase_control ctrl{};
 
-    auto s =
-        async::thread_scheduler::schedule() | async::then([&] { fail = true; });
+    auto s = async::thread_scheduler<>::schedule() |
+             async::then([&] { fail = true; });
     auto const w = async::when_any(s, async::when_any()) |
                    async::upon_stopped([&] { success = true; });
 
@@ -216,7 +216,7 @@ TEST_CASE("when_any cancellation (during operation)", "[when_any]") {
     bool success{};
     phase_control ctrl{};
 
-    auto s = async::thread_scheduler::schedule() |
+    auto s = async::thread_scheduler<>::schedule() |
              async::then([&] { ctrl.advance_and_wait(); });
     auto const w = async::when_any(s, async::when_any()) |
                    async::upon_stopped([&] { success = true; });

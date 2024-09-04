@@ -6,11 +6,13 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 
 #include <concepts>
 #include <thread>
@@ -18,12 +20,16 @@
 #include <utility>
 
 namespace async {
-class thread_scheduler {
+template <stdx::ct_string Name = "thread_scheduler"> class thread_scheduler {
     template <typename R> struct op_state {
         [[no_unique_address]] R receiver;
 
         auto start() & -> void {
-            std::thread{[&] { set_value(std::move(receiver)); }}.detach();
+            debug_signal<"start", Name, op_state>(get_env(receiver));
+            std::thread{[&] {
+                debug_signal<"set_value", Name, op_state>(get_env(receiver));
+                set_value(std::move(receiver));
+            }}.detach();
         }
     };
 

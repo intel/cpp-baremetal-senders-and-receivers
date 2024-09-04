@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/schedulers/task_manager_interface.hpp>
 #include <async/stop_token.hpp>
@@ -15,7 +16,7 @@
 
 namespace async {
 namespace task_mgr {
-template <priority_t P, typename Rcvr, typename Task>
+template <stdx::ct_string Name, priority_t P, typename Rcvr, typename Task>
 struct op_state final : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
@@ -23,11 +24,13 @@ struct op_state final : Task {
 
     auto run() -> void final {
         if (not check_stopped()) {
+            debug_signal<"set_value", Name, op_state>(get_env(rcvr));
             set_value(std::move(rcvr));
         }
     }
 
     constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(rcvr));
         if (not check_stopped()) {
             detail::enqueue_task(*this, P);
         }
@@ -39,6 +42,7 @@ struct op_state final : Task {
     auto check_stopped() -> bool {
         if constexpr (not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
+                debug_signal<"set_stopped", Name, op_state>(get_env(rcvr));
                 set_stopped(std::move(rcvr));
                 return true;
             }
@@ -48,7 +52,8 @@ struct op_state final : Task {
 };
 } // namespace task_mgr
 
-template <priority_t P, typename Task = priority_task>
+template <priority_t P, stdx::ct_string Name = "fixed_priority_scheduler",
+          typename Task = priority_task>
 class fixed_priority_scheduler {
     struct sender {
         using is_sender = void;
@@ -75,7 +80,7 @@ class fixed_priority_scheduler {
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const {
             check_connect<sender, R>();
-            return task_mgr::op_state<P, std::remove_cvref_t<R>, Task>{
+            return task_mgr::op_state<Name, P, std::remove_cvref_t<R>, Task>{
                 std::forward<R>(r)};
         }
     };

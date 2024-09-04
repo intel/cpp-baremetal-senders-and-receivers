@@ -8,6 +8,7 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
 #include <async/stop_token.hpp>
@@ -25,6 +26,18 @@
 
 namespace async {
 namespace _run_loop {
+namespace detail {
+template <typename Name> constexpr auto get_name() {
+    if constexpr (requires {
+                      []<auto N>(stdx::ct_string<N>) {}(Name::value);
+                  }) {
+        return Name::value;
+    } else {
+        return stdx::ct_string{"runloop_scheduler"};
+    }
+}
+} // namespace detail
+
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 template <typename Uniq = decltype([] {})> class run_loop {
     struct op_state_base {
@@ -41,13 +54,21 @@ template <typename Uniq = decltype([] {})> class run_loop {
 
         auto execute() -> void override {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
+                debug_signal<"set_stopped", detail::get_name<Uniq>(), op_state>(
+                    get_env(rcvr));
                 set_stopped(std::move(rcvr));
             } else {
+                debug_signal<"set_value", detail::get_name<Uniq>(), op_state>(
+                    get_env(rcvr));
                 set_value(std::move(rcvr));
             }
         }
 
-        constexpr auto start() & -> void { loop->push_back(this); }
+        constexpr auto start() & -> void {
+            debug_signal<"start", detail::get_name<Uniq>(), op_state>(
+                get_env(rcvr));
+            loop->push_back(this);
+        }
 
         run_loop *loop{};
         [[no_unique_address]] Rcvr rcvr;

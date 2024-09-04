@@ -72,6 +72,8 @@ using default_interface = named_interface<"unknown">;
 } // namespace debug
 
 constexpr inline struct get_debug_interface_t : forwarding_query_t {
+    constexpr static auto name = stdx::ct_string{"get_debug_interface"};
+
     template <typename T>
         requires true // more constrained
     [[nodiscard]] constexpr auto operator()(T &&t) const noexcept(noexcept(

@@ -1,13 +1,16 @@
 #include "detail/common.hpp"
 
+#include <async/debug.hpp>
 #include <async/just_result_of.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
 #include <async/start_on.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_format.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
 
 #include <chrono>
 #include <concepts>
@@ -18,7 +21,7 @@
 using namespace std::chrono_literals;
 
 namespace {
-struct default_domain;
+using default_domain = async::timer_mgr::default_domain;
 
 template <typename Domain, typename TP> inline auto current_time = TP{};
 template <typename Domain> inline auto enabled = false;
@@ -76,13 +79,14 @@ TEST_CASE("time_scheduler deduces duration type", "[time_scheduler]") {
     static_assert(
         std::same_as<decltype(s),
                      async::time_scheduler<async::timer_mgr::default_domain,
+                                           "time_scheduler",
                                            std::chrono::milliseconds> const>);
 }
 
 TEST_CASE("time_scheduler fulfils concept", "[time_scheduler]") {
     static_assert(
-        async::scheduler<
-            async::time_scheduler<async::timer_mgr::default_domain, int>>);
+        async::scheduler<async::time_scheduler<async::timer_mgr::default_domain,
+                                               "time_scheduler", int>>);
 }
 
 TEST_CASE("time_scheduler sender advertises nothing", "[time_scheduler]") {
@@ -99,6 +103,7 @@ TEST_CASE("sender has the time_scheduler as its completion scheduler",
     static_assert(
         std::same_as<decltype(cs),
                      async::time_scheduler<async::timer_mgr::default_domain,
+                                           "time_scheduler",
                                            std::chrono::milliseconds>>);
     CHECK(cs.d == 10ms);
 }
@@ -202,4 +207,61 @@ TEST_CASE("time_scheduler cancellation works on different domain",
     CHECK(var == 17);
     CHECK(async::timer_mgr::is_idle<alt_domain>());
     CHECK(not enabled<alt_domain>);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("time_scheduler can be debugged", "[time_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<default_domain, "sched">;
+    auto s = scheduler_factory(10ms).schedule();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op sched start"s});
+    async::timer_mgr::service_task();
+    CHECK(debug_events ==
+          std::vector{"op sched start"s, "op sched set_value"s});
+}
+
+TEST_CASE("time_scheduler produces set_stopped debug signal",
+          "[time_scheduler]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto stop = async::inplace_stop_source{};
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<default_domain, "sched">;
+    auto s = scheduler_factory(10ms).schedule();
+    auto r = with_env{
+        universal_receiver{},
+        async::env{async::prop{async::get_debug_interface_t{},
+                               async::debug::named_interface<"op">{}},
+                   async::prop{async::get_stop_token_t{}, stop.get_token()}}};
+    auto op = async::connect(s, r);
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op sched start"s});
+    stop.request_stop();
+    async::timer_mgr::service_task();
+    CHECK(debug_events ==
+          std::vector{"op sched start"s, "op sched set_stopped"s});
 }

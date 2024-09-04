@@ -58,8 +58,8 @@ TEST_CASE("move-only value", "[upon_error]") {
 }
 
 TEST_CASE("single-shot sender", "[upon_error]") {
-    [[maybe_unused]] auto n = async::inline_scheduler::schedule<
-                                  async::inline_scheduler::singleshot>() |
+    [[maybe_unused]] auto n = async::inline_scheduler<>::schedule<
+                                  async::inline_scheduler<>::singleshot>() |
                               async::upon_error([] {});
     static_assert(async::singleshot_sender<decltype(n), universal_receiver>);
 }

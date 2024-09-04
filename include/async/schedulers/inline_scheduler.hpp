@@ -3,22 +3,28 @@
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 
 #include <concepts>
 #include <type_traits>
 #include <utility>
 
 namespace async {
-class inline_scheduler {
+template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
     template <typename R> struct op_state {
         [[no_unique_address]] R receiver;
 
-        constexpr auto start() & -> void { set_value(std::move(receiver)); }
+        constexpr auto start() & -> void {
+            debug_signal<"start", Name, op_state>(get_env(receiver));
+            debug_signal<"set_value", Name, op_state>(get_env(receiver));
+            set_value(std::move(receiver));
+        }
 
         [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
             return prop{completes_synchronously_t{}, std::true_type{}};

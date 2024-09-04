@@ -35,8 +35,8 @@ TEST_CASE("upon_stopped is pipeable", "[upon_stopped]") {
 }
 
 TEST_CASE("single-shot sender", "[upon_stopped]") {
-    [[maybe_unused]] auto n = async::inline_scheduler::schedule<
-                                  async::inline_scheduler::singleshot>() |
+    [[maybe_unused]] auto n = async::inline_scheduler<>::schedule<
+                                  async::inline_scheduler<>::singleshot>() |
                               async::upon_stopped([] {});
     static_assert(async::singleshot_sender<decltype(n), universal_receiver>);
 }

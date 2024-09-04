@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/schedulers/task.hpp>
 #include <async/schedulers/trigger_manager.hpp>
@@ -20,11 +21,13 @@ struct op_state final : trigger_task<Args...> {
 
     auto run(Args const &...args) -> void final {
         if (not check_stopped()) {
+            debug_signal<"set_value", Name, op_state>(get_env(rcvr));
             set_value(std::move(rcvr), args...);
         }
     }
 
     constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(rcvr));
         if (not check_stopped()) {
             triggers<Name, Args...>.enqueue(*this);
         }
@@ -36,6 +39,7 @@ struct op_state final : trigger_task<Args...> {
     auto check_stopped() -> bool {
         if constexpr (not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
+                debug_signal<"set_stopped", Name, op_state>(get_env(rcvr));
                 set_stopped(std::move(rcvr));
                 return true;
             }

@@ -11,5 +11,5 @@ static_assert(async::receiver<fail_receiver>);
 
 auto main() -> int {
     [[maybe_unused]] auto op =
-        async::connect(async::inline_scheduler::schedule(), fail_receiver{});
+        async::connect(async::inline_scheduler<>::schedule(), fail_receiver{});
 }

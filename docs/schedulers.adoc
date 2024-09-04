@@ -15,6 +15,14 @@ using S = async::fixed_priority_scheduler<0>; // highest priority
 NOTE: The intended use case for `fixed_priority_scheduler` is to schedule tasks
 to be executed on prioritized interrupts.
 
+A `fixed_priority_scheduler` can be given a name which is used to output debug events.
+The default name is `"fixed_priority_scheduler"`.
+
+[source,cpp]
+----
+auto s = async::fixed_priority_scheduler<0, "my scheduler">{};
+----
+
 The `fixed_priority_scheduler` works hand in glove with a `task_manager` that
 manages tasks in priority order. A `priority_task_manager` is provided and may
 be used by providing a HAL, and by specializing the `injected_task_manager`
@@ -75,6 +83,14 @@ async::start_detached(s);
 // i is now 42
 ----
 
+An `inline_scheduler` can be given a name which is used to output debug events.
+The default name is `"inline_scheduler"`.
+
+[source,cpp]
+----
+auto s = async::inline_scheduler<"my scheduler">{};
+----
+
 CAUTION: The `inline_scheduler` may cause stack overflows when used with certain
 adaptors like xref:sender_adaptors.adoc#_repeat[`repeat`] or
 xref:sender_adaptors.adoc#_retry[`retry`].
@@ -115,6 +131,14 @@ auto s = async::start_on(async::thread_scheduler{},
 async::start_detached(s);
 // without some other sync mechanism, this is risky:
 // there is now a detached thread running that will update x at some point
+----
+
+A `thread_scheduler` can be given a name which is used to output debug events.
+The default name is `"thread_scheduler"`.
+
+[source,cpp]
+----
+auto s = async::thread_scheduler<"my scheduler">{};
 ----
 
 === `time_scheduler`
@@ -232,6 +256,15 @@ auto alt_timer_interrupt_service_routine() {
 }
 
 // and now x is 42
+----
+
+A `time_scheduler_factory` can be given a name that it passes on to the
+schedulers it creates, and which is used to output debug events. The default
+name is `"time_scheduler"`.
+
+[source,cpp]
+----
+auto sched_factory = async::time_scheduler_factory<alt_domain, "my scheduler">;
 ----
 
 === `trigger_scheduler`
