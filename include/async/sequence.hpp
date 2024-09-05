@@ -5,8 +5,10 @@
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 
+#include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
 
 #include <concepts>
@@ -29,14 +31,15 @@ template <typename Ops, typename Rcvr> struct receiver {
     auto set_value(auto &&...) const && -> void { ops->complete_first(); }
     template <typename... Args>
     auto set_error(Args &&...args) const && -> void {
-        async::set_error(std::move(ops->rcvr), std::forward<Args>(args)...);
+        ops->template passthrough<set_error_t>(std::forward<Args>(args)...);
     }
     auto set_stopped() const && -> void {
-        async::set_stopped(std::move(ops->rcvr));
+        ops->template passthrough<set_stopped_t>();
     }
 };
 
-template <typename Sndr, std::invocable Func, typename Rcvr>
+template <stdx::ct_string Name, typename Sndr, std::invocable Func,
+          typename Rcvr>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using first_rcvr = receiver<op_state, Rcvr>;
@@ -50,12 +53,22 @@ struct op_state {
     constexpr op_state(op_state &&) = delete;
 
     template <typename... Args> auto complete_first() -> void {
+        debug_signal<set_value_t::name, Name, op_state>(get_env(rcvr));
         auto &op = state.template emplace<1>(stdx::with_result_of{
             [&] { return connect(std::move(func)(), std::move(rcvr)); }});
         async::start(op);
     }
 
-    constexpr auto start() & -> void { async::start(std::get<0>(state)); }
+    template <channel_tag Tag, typename... Args>
+    auto passthrough(Args &&...args) -> void {
+        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
+        Tag{}(std::move(rcvr), std::forward<Args>(args)...);
+    }
+
+    constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        async::start(std::get<0>(state));
+    }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
         return prop{completes_synchronously_t{},
@@ -80,7 +93,7 @@ template <async::sender S> struct wrapper {
 template <typename S> wrapper(S) -> wrapper<S>;
 } // namespace detail
 
-template <typename S, std::invocable F> struct sender {
+template <stdx::ct_string Name, typename S, std::invocable F> struct sender {
     using is_sender = void;
 
     [[no_unique_address]] S s;
@@ -103,7 +116,7 @@ template <typename S, std::invocable F> struct sender {
   public:
     template <async::receiver R>
     [[nodiscard]] constexpr auto
-    connect(R &&r) && -> op_state<S, F, std::remove_cvref_t<R>> {
+    connect(R &&r) && -> op_state<Name, S, F, std::remove_cvref_t<R>> {
         check_connect<sender &&, R>();
         return {std::move(s), std::move(f), std::forward<R>(r)};
     }
@@ -112,7 +125,7 @@ template <typename S, std::invocable F> struct sender {
         requires multishot_sender<S> and std::copy_constructible<S> and
                      std::copy_constructible<F>
     [[nodiscard]] constexpr auto
-    connect(R &&r) const & -> op_state<S, F, std::remove_cvref_t<R>> {
+    connect(R &&r) const & -> op_state<Name, S, F, std::remove_cvref_t<R>> {
         check_connect<sender, R>();
         return {s, f, std::forward<R>(r)};
     }
@@ -131,29 +144,31 @@ template <typename S, std::invocable F> struct sender {
     }
 };
 
-template <std::invocable F> struct pipeable {
+template <stdx::ct_string Name, std::invocable F> struct pipeable {
     [[no_unique_address]] F f;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<std::remove_cvref_t<S>, F>{std::forward<S>(s),
-                                                 std::forward<Self>(self).f};
+        return sender<Name, std::remove_cvref_t<S>, F>{
+            std::forward<S>(s), std::forward<Self>(self).f};
     }
 };
 } // namespace _sequence
 
-template <std::invocable F> [[nodiscard]] constexpr auto sequence(F &&f) {
+template <stdx::ct_string Name = "sequence", std::invocable F>
+[[nodiscard]] constexpr auto sequence(F &&f) {
     return _compose::adaptor{stdx::tuple{
-        _sequence::pipeable<std::remove_cvref_t<F>>{std::forward<F>(f)}}};
+        _sequence::pipeable<Name, std::remove_cvref_t<F>>{std::forward<F>(f)}}};
 }
 
-template <sender S, std::invocable F>
+template <stdx::ct_string Name = "sequence", sender S, std::invocable F>
 [[nodiscard]] constexpr auto sequence(S &&s, F &&f) -> sender auto {
-    return std::forward<S>(s) | sequence(std::forward<F>(f));
+    return std::forward<S>(s) | sequence<Name>(std::forward<F>(f));
 }
 
-template <sender S> [[nodiscard]] constexpr auto seq(S &&s) {
-    return sequence(_sequence::detail::wrapper{std::forward<S>(s)});
+template <stdx::ct_string Name = "seq", sender S>
+[[nodiscard]] constexpr auto seq(S &&s) {
+    return sequence<Name>(_sequence::detail::wrapper{std::forward<S>(s)});
 }
 } // namespace async

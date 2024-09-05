@@ -1,10 +1,19 @@
 #include "detail/common.hpp"
 
+#include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/sequence.hpp>
 
+#include <stdx/ct_format.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <string>
+#include <utility>
+#include <vector>
 
 TEST_CASE("sequence", "[sequence]") {
     int value{};
@@ -204,4 +213,77 @@ TEST_CASE(
                    });
     [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
     static_assert(not async::synchronous<decltype(op)>);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just"_cts) {
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("sequence can be debugged with a string", "[sequence]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just() | async::sequence([] { return async::just(); });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op sequence start"s, "op sequence set_value"s});
+}
+
+TEST_CASE("sequence can be named and debugged with a string", "[sequence]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just() |
+             async::sequence<"sequence_name">([] { return async::just(); });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op sequence_name start"s,
+                                      "op sequence_name set_value"s});
+}
+
+TEST_CASE("seq can be debugged with a string", "[sequence]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just() | async::seq(async::just());
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op seq start"s, "op seq set_value"s});
+}
+
+TEST_CASE("seq can be named and debugged with a string", "[sequence]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just() | async::seq<"seq_name">(async::just());
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op seq_name start"s, "op seq_name set_value"s});
 }
