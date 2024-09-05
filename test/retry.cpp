@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/retry.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
@@ -12,7 +13,14 @@
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 
+#include <stdx/ct_format.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <concepts>
+#include <string>
+#include <vector>
 
 TEST_CASE("retry advertises what it sends", "[retry]") {
     [[maybe_unused]] auto s = async::just(42) | async::retry();
@@ -136,4 +144,68 @@ TEST_CASE("retry op state may not be synchronous", "[retry]") {
     auto s = async::retry_until(sub, [&](auto i) { return i == 42; });
     auto op = async::connect(s, receiver{[] {}});
     static_assert(not async::synchronous<decltype(op)>);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just"_cts and L != "just_error"_cts) {
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("retry_until can be debugged", "[retry]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s =
+        async::just_error(42) | async::retry_until([](auto) { return true; });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op retry_until start"s,
+                                      "op retry_until eval_predicate"s,
+                                      "op retry_until set_error"s});
+}
+
+TEST_CASE("retry can be debugged", "[retry]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just(42) | async::retry();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op retry start"s, "op retry set_value"s});
+}
+
+TEST_CASE("retry can be named and debugged", "[retry]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just(42) | async::retry<"retry_name">();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op retry_name start"s, "op retry_name set_value"s});
 }
