@@ -1,0 +1,149 @@
+
+== Debugging
+
+One way to debug a sender chain is to use a debugger and insert a breakpoint
+inside a suitable place where "real work" is being done: inside a function
+passed to `then` for example. This is certainly doable, but perhaps challenging
+for all the same reasons that debugging asynchronous code is usually
+challenging.
+
+Another approach to debugging is to construct sender chains without deciding
+which scheduler they run on. Switching a sender chain to run on an
+`inline_scheduler` provides a way to debug -- it is basically the same as
+debugging synchronous code.
+
+=== Handling a debug signal
+
+To debug code running asynchronously, this library provides a mechanism to
+inject a debug handler. This is done by defining a handler struct and
+specializing the `injected_debug_handler` variable template. The debug handler
+has one member function (template): `signal`.
+
+[source,cpp]
+----
+#include <async/debug.hpp>
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        fmt::print("{} {} {}", C, L, S));
+    }
+};
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+----
+
+NOTE: The injection mechanism uses the same pattern as for other global
+concerns, like the xref:schedulers.adoc#_time_scheduler[timer manager] or the
+xref:schedulers.adoc#_fixed_priority_scheduler[priority task manager].
+
+`signal` has four template arguments:
+
+ - `C`: a compile-time string representing the name of the whole sender
+   __chain__
+ - `L`: a compile-time string representing the name of the __link__ in the
+   chain, i.e. a single sender adaptor
+ - `S`: a compile-time string which is the debug signal raised
+ - `Ctx`: an opaque type intended just to disambiguate a case where the same
+   link can occur multiple times in a chain, in which case `C`, `L` and `S`
+   might recur
+
+These arguments can be used to do compile-time filtering of signal types if
+desired. `signal` may also have arbitrary runtime arguments providing runtime
+context for the signal.
+
+IMPORTANT: `signal` may be called at any time from any execution context. It's
+up to `signal` to take care of its own thread safety and avoid data races.
+
+=== Raising a debug signal
+
+During operation, a sender (or actually, the operation state that is doing
+work) may raise a debug signal by calling `debug_signal`:
+
+[source,cpp]
+----
+namespace async {
+template <stdx::ct_string Signal, stdx::ct_string LinkName, typename Ctx,
+          queryable Q, typename... Args>
+auto debug_signal(Q &&q, Args &&...args) -> void;
+}
+
+template <typename Rcvr>
+struct my_op_state {
+  Rcvr r;
+
+  auto start() & -> void {
+      async::debug_signal<"start", "my_sender", my_op_state>(get_env(r));
+      // ...
+  }
+};
+----
+
+`debug_signal` takes template arguments:
+
+ - `Signal`: the (name of the) debug signal
+ - `LinkName`: the name of the sender or adaptor that is raising the signal
+ - `Ctx`: an opaque type for disambiguation
+
+and runtime arguments:
+
+ - `q`: a queryable object that responds to the `get_debug_interface` query -
+   usually the environment of a connected receiver
+ - `args...`: any runtime context arguments to be forwarded to `signal`
+
+Generic senders and adaptors will typically send well-known signals at transition points:
+
+ - `start`
+ - `set_value`
+ - `set_error`
+ - `set_stopped`
+
+=== Naming senders and operations
+
+When raising a debug signal, we know the name of the signal and the name of the
+sender or adaptor that is raising it. But we don't know the name of the overall
+operation or sender chain. This is supplied from outside, using the environment
+of the external receiver.
+
+The provision of that receiver typically happens inside a sender consumer like
+xref:sender_consumers.adoc#_start_detached[`start_detached`]. By providing a
+string name to `start_detached`, the internal receiver that is connected will
+have an environment that responds to the `get_debug_interface` query. The value
+of that query will be an interface whose `signal` function calls the injected
+debug handler's `signal` function, providing the given name as the `C` argument.
+
+[source,cpp]
+----
+auto s0 = async::fixed_priority_scheduler<0, "fp_sched[0]">{}.schedule()
+        | async::then<"answer0">([] { return 24; });
+auto s1 = async::fixed_priority_scheduler<1, "fp_sched[1]">{}.schedule()
+        | async::then<"answer1">([] { return 18; });
+auto result = start_detached<"my op">(async::when_all(s1, s0));
+----
+
+The debug signals produced by this code could be:
+
+ - `"my op" "when_all"    "start"`
+ - `"my op" "fp sched[1]" "start"`
+ - `"my op" "fp sched[1]" "set_value"`
+ - `"my op" "answer1"     "set_value"`
+ - `"my op" "fp sched[0]" "start"`
+ - `"my op" "fp sched[0]" "set_value"`
+ - `"my op" "answer0"     "set_value"`
+ - `"my op" "when_all"    "set_value"`
+
+Things to note here:
+
+ - `when_all` started first, because ultimately what was passed to
+   `start_detached` (the outer layer of the onion) was `when_all`.
+ - likewise, `when_all` is the last thing to complete.
+ - the call to `when_all` is not named, so we get the default name `"when_all"`
+ - `then` does not produce a `"start"` debug signal of its own.
+ - `fp sched[1]` ran before `fp sched[0]` even though presumably `0` is a higher
+   priority than `1`. What happened was that `when_all` started `fp sched[1]`
+   first - and this caused an immediate interrupt. That interrupt did not return
+   until the `answer1` sender had completed.
+
+Other orderings are possible, of course, according to exactly how a sender chain
+is executed. But the usual invariants apply.
