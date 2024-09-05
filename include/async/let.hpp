@@ -3,11 +3,13 @@
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
 
 #include <boost/mp11/algorithm.hpp>
@@ -99,13 +101,13 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
             ops->template complete_first<T, T(Args...)>(
                 std::forward<Args>(args)...);
         } else {
-            T{}(std::move(ops->rcvr), std::forward<Args>(args)...);
+            ops->template passthrough<T>(std::forward<Args>(args)...);
         }
     }
 };
 
-template <typename Sndr, typename Rcvr, typename Func, typename Sigs,
-          channel_tag... Tags>
+template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Func,
+          typename Sigs, channel_tag... Tags>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using first_rcvr = receiver<op_state, Rcvr, Tags...>;
@@ -140,6 +142,7 @@ struct op_state {
                 }});
         };
 
+        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
         if constexpr (std::is_copy_constructible_v<
                           std::remove_cvref_t<decltype(sent_args)>>) {
             async::start(make_op_state(sent_args));
@@ -148,7 +151,16 @@ struct op_state {
         }
     }
 
-    constexpr auto start() & -> void { async::start(std::get<0>(state)); }
+    template <channel_tag Tag, typename... Args>
+    auto passthrough(Args &&...args) -> void {
+        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
+        Tag{}(std::move(rcvr), std::forward<Args>(args)...);
+    }
+
+    constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        async::start(std::get<0>(state));
+    }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
         return prop{
@@ -181,7 +193,8 @@ struct op_state {
     state_t state;
 };
 
-template <typename S, typename F, channel_tag... Tags> struct sender {
+template <stdx::ct_string Name, typename S, typename F, channel_tag... Tags>
+struct sender {
     using is_sender = void;
 
     [[no_unique_address]] S s;
@@ -221,7 +234,7 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
     template <receiver_from<sender> R>
     [[nodiscard]] constexpr auto connect(R &&r)
         && -> _let::op_state<
-               S, std::remove_cvref_t<R>, F,
+               Name, S, std::remove_cvref_t<R>, F,
                boost::mp11::mp_first<raw_completions<env_of_t<R>>>, Tags...> {
         return {std::move(s), std::forward<R>(r), std::move(f)};
     }
@@ -232,7 +245,7 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
                      boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
                                               is_multishot_sender<R>>::value
     [[nodiscard]] constexpr auto connect(R &&r) const
-        & -> _let::op_state<S, std::remove_cvref_t<R>, F,
+        & -> _let::op_state<Name, S, std::remove_cvref_t<R>, F,
                             boost::mp11::mp_first<raw_completions<env_of_t<R>>>,
                             Tags...> {
         return {s, std::forward<R>(r), f};
@@ -246,14 +259,16 @@ template <typename S, typename F, channel_tag... Tags> struct sender {
     }
 };
 
-template <typename F, template <typename...> typename Sndr> struct pipeable {
+template <stdx::ct_string Name, typename F,
+          template <stdx::ct_string, typename...> typename Sndr>
+struct pipeable {
     [[no_unique_address]] F f;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return Sndr<std::remove_cvref_t<S>, F>{std::forward<S>(s),
-                                               std::forward<Self>(self).f};
+        return Sndr<Name, std::remove_cvref_t<S>, F>{
+            std::forward<S>(s), std::forward<Self>(self).f};
     }
 };
 } // namespace async::_let
