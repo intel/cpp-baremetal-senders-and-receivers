@@ -5,18 +5,22 @@
 #include <async/just.hpp>
 #include <async/let.hpp>
 
+#include <stdx/ct_string.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <type_traits>
+#include <utility>
+
 namespace {
-template <typename S, typename F>
+template <stdx::ct_string Name, typename S, typename F>
 using multilet_sender =
-    async::_let::sender<S, F, async::set_value_t, async::set_stopped_t>;
+    async::_let::sender<Name, S, F, async::set_value_t, async::set_stopped_t>;
 
 template <typename F>
 [[nodiscard]] constexpr auto multilet(F &&f)
-    -> async::_let::pipeable<std::remove_cvref_t<F>, multilet_sender> {
+    -> async::_let::pipeable<"", std::remove_cvref_t<F>, multilet_sender> {
     return {std::forward<F>(f)};
 }
 struct wrapped_int {
@@ -75,14 +79,14 @@ TEST_CASE("multi-channel let can be single shot with passthrough",
 }
 
 namespace {
-template <typename S, typename F>
+template <stdx::ct_string Name, typename S, typename F>
 using allchannel_sender =
-    async::_let::sender<S, F, async::set_value_t, async::set_error_t,
+    async::_let::sender<Name, S, F, async::set_value_t, async::set_error_t,
                         async::set_stopped_t>;
 
 template <typename F>
 [[nodiscard]] constexpr auto all_let(F &&f)
-    -> async::_let::pipeable<std::remove_cvref_t<F>, allchannel_sender> {
+    -> async::_let::pipeable<"", std::remove_cvref_t<F>, allchannel_sender> {
     return {std::forward<F>(f)};
 }
 } // namespace

@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/let_error.hpp>
@@ -11,7 +12,16 @@
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
+#include <stdx/ct_format.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <functional>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 TEST_CASE("let_error", "[let_error]") {
     int value{};
@@ -236,4 +246,68 @@ TEST_CASE(
                    });
     [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
     static_assert(not async::synchronous<decltype(op)>);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just_error"_cts and L != "just_stopped"_cts) {
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("let_error can be debugged with a string", "[let_error]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just_error(42) |
+             async::let_error([](int i) { return async::just_error(i); });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op let_error start"s, "op let_error set_error"s});
+}
+
+TEST_CASE("let_error can be named and debugged with a string", "[let_error]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s =
+        async::just_error(42) | async::let_error<"let_error_name">(
+                                    [](int i) { return async::just_error(i); });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events == std::vector{"op let_error_name start"s,
+                                      "op let_error_name set_error"s});
+}
+
+TEST_CASE("let_error produces debug signal on non-handled channel",
+          "[let_error]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just_stopped() |
+             async::let_error([] { return async::just_error(42); });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op let_error start"s, "op let_error set_stopped"s});
 }

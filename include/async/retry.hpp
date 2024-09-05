@@ -5,6 +5,7 @@
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
@@ -33,14 +34,14 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     template <typename... Args>
     auto set_value(Args &&...args) const && -> void {
-        async::set_value(std::move(ops->rcvr), std::forward<Args>(args)...);
+        ops->template passthrough<set_value_t>(std::forward<Args>(args)...);
     }
     template <typename... Args>
     auto set_error(Args &&...args) const && -> void {
         ops->retry(std::forward<Args>(args)...);
     }
     auto set_stopped() const && -> void {
-        async::set_stopped(std::move(ops->rcvr));
+        ops->template passthrough<set_stopped_t>();
     }
 };
 
@@ -58,7 +59,8 @@ template <typename Pred> struct callable_with {
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
+template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred>
+struct op_state {
     using receiver_t = receiver<op_state, Rcvr>;
     using value_completions = error_signatures_of_t<Sndr, env_of_t<receiver_t>>;
     static_assert(
@@ -75,6 +77,7 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
     constexpr op_state(op_state &&) = delete;
 
     constexpr auto start() & -> void {
+        debug_signal<"start", Name, op_state>(get_env(rcvr));
         auto &op = state.emplace(stdx::with_result_of{
             [&] { return connect(sndr, receiver_t{this}); }});
         async::start(op);
@@ -83,12 +86,20 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
     template <typename... Args> auto retry(Args &&...args) -> void {
         if constexpr (not std::same_as<
                           Pred, std::remove_cvref_t<decltype(never_stop)>>) {
+            debug_signal<"eval_predicate", Name, op_state>(get_env(rcvr));
             if (pred(args...)) {
+                debug_signal<set_error_t::name, Name, op_state>(get_env(rcvr));
                 set_error(std::move(rcvr), std::forward<Args>(args)...);
                 return;
             }
         }
         start();
+    }
+
+    template <channel_tag Tag, typename... Args>
+    auto passthrough(Args &&...args) -> void {
+        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
+        Tag{}(std::move(rcvr), std::forward<Args>(args)...);
     }
 
     [[nodiscard]] constexpr auto query(async::get_env_t) const {
@@ -103,7 +114,7 @@ template <typename Sndr, typename Rcvr, typename Pred> struct op_state {
     std::optional<state_t> state{};
 };
 
-template <typename Sndr, typename Pred> struct sender {
+template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
     using is_sender = void;
     [[no_unique_address]] Sndr sndr;
     [[no_unique_address]] Pred p;
@@ -128,38 +139,42 @@ template <typename Sndr, typename Pred> struct sender {
 
     template <receiver_from<Sndr> R>
         requires multishot_sender<Sndr, R>
-    [[nodiscard]] constexpr auto
-    connect(R &&r) const & -> op_state<Sndr, std::remove_cvref_t<R>, Pred> {
+    [[nodiscard]] constexpr auto connect(
+        R &&r) const & -> op_state<Name, Sndr, std::remove_cvref_t<R>, Pred> {
         return {sndr, std::forward<R>(r), p};
     }
 };
 
-template <typename Pred> struct pipeable {
+template <stdx::ct_string Name, typename Pred> struct pipeable {
     Pred p;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<std::remove_cvref_t<S>, Pred>{std::forward<S>(s),
-                                                    std::forward<Self>(self).p};
+        return sender<Name, std::remove_cvref_t<S>, Pred>{
+            std::forward<S>(s), std::forward<Self>(self).p};
     }
 };
 } // namespace _retry
 
-template <typename P>
+template <stdx::ct_string Name = "retry_until", typename P>
 [[nodiscard]] constexpr auto
-retry_until(P &&p) -> _retry::pipeable<std::remove_cvref_t<P>> {
+retry_until(P &&p) -> _retry::pipeable<Name, std::remove_cvref_t<P>> {
     return {std::forward<P>(p)};
 }
 
-template <sender S, typename P> [[nodiscard]] auto retry_until(S &&s, P &&p) {
-    return std::forward<S>(s) | retry_until(std::forward<P>(p));
+template <stdx::ct_string Name = "retry_until", sender S, typename P>
+[[nodiscard]] auto retry_until(S &&s, P &&p) {
+    return std::forward<S>(s) | retry_until<Name>(std::forward<P>(p));
 }
 
-[[nodiscard]] constexpr auto retry() { return retry_until(_retry::never_stop); }
+template <stdx::ct_string Name = "retry"> [[nodiscard]] constexpr auto retry() {
+    return retry_until<Name>(_retry::never_stop);
+}
 
-template <sender S> [[nodiscard]] auto retry(S &&s) {
-    return std::forward<S>(s) | retry();
+template <stdx::ct_string Name = "retry", sender S>
+[[nodiscard]] auto retry(S &&s) {
+    return std::forward<S>(s) | retry<Name>();
 }
 
 } // namespace async

@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
@@ -12,7 +13,14 @@
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 
+#include <stdx/ct_format.hpp>
+
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
+
+#include <concepts>
+#include <string>
+#include <vector>
 
 TEST_CASE("repeat advertises what it sends", "[repeat]") {
     [[maybe_unused]] auto s = async::just(42) | async::repeat();
@@ -163,4 +171,84 @@ TEST_CASE("repeat op state may not be synchronous", "[repeat]") {
     auto s = async::repeat_until(sub, [&](auto i) { return i == 42; });
     auto op = async::connect(s, receiver{[] {}});
     static_assert(not async::synchronous<decltype(op)>);
+}
+
+namespace {
+std::vector<std::string> debug_events{};
+
+struct debug_handler {
+    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
+              typename Ctx>
+    constexpr auto signal(auto &&...) {
+        using namespace stdx::literals;
+        if constexpr (L != "just"_cts and L != "just_error"_cts) {
+            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        }
+    }
+};
+} // namespace
+
+template <> inline auto async::injected_debug_handler<> = debug_handler{};
+
+TEST_CASE("repeat_until can be debugged", "[repeat]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s =
+        async::just(42) | async::repeat_until([](auto i) { return i == 42; });
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op repeat_until start"s,
+                                      "op repeat_until eval_predicate"s,
+                                      "op repeat_until set_value"s});
+}
+
+TEST_CASE("repeat_n can be debugged", "[repeat]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just(42) | async::repeat_n(0);
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op repeat_n start"s,
+                                      "op repeat_n eval_predicate"s,
+                                      "op repeat_n set_value"s});
+}
+
+TEST_CASE("repeat can be debugged", "[repeat]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just_error(42) | async::repeat();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op repeat start"s, "op repeat set_error"s});
+}
+
+TEST_CASE("repeat can be named and debugged", "[repeat]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::just_error(42) | async::repeat<"repeat_name">();
+    auto op = async::connect(
+        s, with_env{universal_receiver{},
+                    async::prop{async::get_debug_interface_t{},
+                                async::debug::named_interface<"op">{}}});
+
+    async::start(op);
+    CHECK(debug_events ==
+          std::vector{"op repeat_name start"s, "op repeat_name set_error"s});
 }
