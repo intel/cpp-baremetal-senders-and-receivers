@@ -12,9 +12,13 @@
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/format.h>
 
+#include <atomic>
 #include <chrono>
 #include <concepts>
+#include <condition_variable>
 #include <functional>
+#include <mutex>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -213,9 +217,12 @@ namespace {
 std::vector<std::string> debug_events{};
 
 struct debug_handler {
+    std::mutex m{};
+
     template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
               typename Ctx>
-    constexpr auto signal(auto &&...) {
+    auto signal(auto &&...) {
+        std::lock_guard lock{m};
         debug_events.push_back(fmt::format("{} {} {}", C, L, S));
     }
 };
@@ -264,4 +271,83 @@ TEST_CASE("time_scheduler produces set_stopped debug signal",
     async::timer_mgr::service_task();
     CHECK(debug_events ==
           std::vector{"op sched start"s, "op sched set_stopped"s});
+}
+
+namespace {
+template <typename Domain> struct std_hal {
+    using time_point_t = std::chrono::steady_clock::time_point;
+    using task_t = async::timer_task<time_point_t>;
+
+    static inline std::mutex m{};
+    static inline std::condition_variable cv{};
+    static inline std::thread t{};
+    static inline time_point_t next_wakeup{};
+    static inline std::atomic<bool> running{};
+    static inline std::atomic<bool> stopping{};
+
+    static auto enable() -> void {
+        if (not running.exchange(true)) {
+            t = std::thread{[] {
+                while (not stopping) {
+                    {
+                        std::unique_lock lock{m};
+                        cv.wait_until(lock, next_wakeup);
+                    }
+                    if (not stopping and now() >= next_wakeup) {
+                        async::timer_mgr::service_task<Domain>();
+                    }
+                }
+            }};
+        }
+    }
+    static auto disable() -> void { set_event_time(time_point_t::max()); }
+    static auto set_event_time(time_point_t tp) -> void {
+        {
+            std::lock_guard lock{m};
+            next_wakeup = tp;
+        }
+        cv.notify_one();
+    }
+    static auto now() -> time_point_t {
+        return std::chrono::steady_clock::now();
+    }
+
+    static auto stop() {
+        stopping = true;
+        cv.notify_one();
+        t.join();
+        stopping = false;
+        running = false;
+    }
+};
+
+struct std_domain;
+using std_timer_manager_t = async::generic_timer_manager<std_hal<std_domain>>;
+} // namespace
+template <>
+[[maybe_unused]] inline auto async::injected_timer_manager<std_domain> =
+    std_timer_manager_t{};
+
+TEST_CASE("std domain time_scheduler", "[time_scheduler]") {
+    constexpr auto scheduler_factory =
+        async::time_scheduler_factory<std_domain>;
+    auto s = scheduler_factory(10ms);
+
+    std::mutex m{};
+    std::condition_variable cv{};
+    int var{};
+    async::sender auto sndr = async::start_on(s, async::just_result_of([&] {
+                                                  {
+                                                      std::lock_guard lock{m};
+                                                      var = 42;
+                                                  }
+                                                  cv.notify_one();
+                                              }));
+    auto op = async::connect(sndr, universal_receiver{});
+    async::start(op);
+    {
+        std::unique_lock lock{m};
+        cv.wait(lock, [&] { return var == 42; });
+    }
+    std_hal<std_domain>::stop();
 }
