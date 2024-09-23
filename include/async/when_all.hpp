@@ -413,11 +413,8 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
     }
 
     template <typename R>
-        requires(... and
-                 multishot_sender<typename Sndrs::sender_t,
-                                  detail::universal_receiver<overriding_env<
-                                      get_stop_token_t, inplace_stop_token,
-                                      std::remove_cvref_t<R>>>>)
+        requires(... and multishot_sender<typename Sndrs::sender_t,
+                                          std::remove_cvref_t<R>>)
     [[nodiscard]] constexpr auto connect(
         R &&r) const & -> op_state_t<Name, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender const &, R>();
