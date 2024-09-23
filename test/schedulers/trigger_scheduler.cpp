@@ -108,7 +108,6 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable before start",
 
     r.request_stop();
     async::start(op);
-    async::triggers<name>.run();
     CHECK(var == 17);
     CHECK(async::triggers<name>.empty());
 }
@@ -125,7 +124,6 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable after start",
 
     async::start(op);
     r.request_stop();
-    async::triggers<name>.run();
     CHECK(var == 17);
     CHECK(async::triggers<name>.empty());
 }
@@ -209,7 +207,6 @@ TEST_CASE("trigger_scheduler produces set_stopped debug signal",
     async::start(op);
     CHECK(debug_events == std::vector{"op sched start"s});
     stop.request_stop();
-    async::triggers<"sched">.run();
     CHECK(debug_events ==
           std::vector{"op sched start"s, "op sched set_stopped"s});
 }

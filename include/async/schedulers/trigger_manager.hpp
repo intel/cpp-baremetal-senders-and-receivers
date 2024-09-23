@@ -4,7 +4,7 @@
 #include <conc/concurrency.hpp>
 
 #include <stdx/ct_string.hpp>
-#include <stdx/intrusive_forward_list.hpp>
+#include <stdx/intrusive_list.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <array>
@@ -18,6 +18,7 @@ namespace async {
 // NOLINTNEXTLINE(*-special-member-functions)
 template <typename... Args> struct trigger_task {
     bool pending{};
+    trigger_task *prev{};
     trigger_task *next{};
 
     virtual auto run(Args const &...) -> void = 0;
@@ -38,7 +39,7 @@ template <stdx::ct_string Name, typename... Args> struct trigger_manager {
 
   private:
     struct mutex;
-    std::array<stdx::intrusive_forward_list<task_t>, 1> tasks{};
+    std::array<stdx::intrusive_list<task_t>, 1> tasks{};
     std::atomic<int> task_count{};
 
   public:
@@ -50,6 +51,17 @@ template <stdx::ct_string Name, typename... Args> struct trigger_manager {
                 tasks[0].push_back(std::addressof(t));
             }
             return added;
+        });
+    }
+
+    auto dequeue(task_t &t) -> bool {
+        return conc::call_in_critical_section<mutex>([&]() -> bool {
+            if (std::exchange(t.pending, false)) {
+                tasks[0].remove(std::addressof(t));
+                --task_count;
+                return true;
+            }
+            return false;
         });
     }
 

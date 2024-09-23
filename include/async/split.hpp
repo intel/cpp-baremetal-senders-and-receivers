@@ -106,7 +106,7 @@ struct op_state : op_state_base<S, Uniq> {
 
     struct stop_callback_fn {
         auto operator()() -> void { stop_source->request_stop(); }
-        inplace_stop_source *stop_source;
+        inplace_stop_source *stop_source{};
     };
 
     template <stdx::same_as_unqualified<Rcvr> R>
