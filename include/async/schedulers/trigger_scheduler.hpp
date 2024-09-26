@@ -11,41 +11,82 @@
 
 #include <stdx/ct_string.hpp>
 
+#include <optional>
+
 namespace async {
 namespace trigger_mgr {
+template <typename Rcvr, typename Ops> struct op_state_base {
+    auto check_stopped() -> bool {
+        return get_stop_token(get_env(as_derived().rcvr)).stop_requested();
+    }
+
+    auto emplace_stop_cb() -> void {
+        auto &self = as_derived();
+        stop_cb.emplace(async::get_stop_token(get_env(self.rcvr)),
+                        stop_callback_fn{std::addressof(self)});
+    }
+
+    auto clear_stop_cb() -> void { stop_cb.reset(); }
+
+  private:
+    auto as_derived() -> Ops & { return static_cast<Ops &>(*this); }
+
+    struct stop_callback_fn {
+        auto operator()() -> void {
+            if (ops->stop()) {
+                ops->complete_stopped();
+            }
+        }
+        Ops *ops;
+    };
+
+    using stop_token_t = stop_token_of_t<env_of_t<Rcvr>>;
+    using stop_callback_t = stop_callback_for_t<stop_token_t, stop_callback_fn>;
+    std::optional<stop_callback_t> stop_cb{};
+};
+
+template <typename Rcvr, typename Ops>
+    requires unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>
+struct op_state_base<Rcvr, Ops> {
+    auto check_stopped() -> bool { return false; }
+    auto emplace_stop_cb() -> void {}
+    auto clear_stop_cb() -> void {}
+};
+
 template <stdx::ct_string Name, typename Rcvr, typename... Args>
-struct op_state final : trigger_task<Args...> {
+struct op_state final : op_state_base<Rcvr, op_state<Name, Rcvr, Args...>>,
+                        trigger_task<Args...> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
 
     auto run(Args const &...args) -> void final {
-        if (not check_stopped()) {
-            debug_signal<"set_value", Name, op_state>(get_env(rcvr));
-            set_value(std::move(rcvr), args...);
-        }
+        this->clear_stop_cb();
+        debug_signal<"set_value", Name, op_state>(get_env(rcvr));
+        set_value(std::move(rcvr), args...);
     }
 
     constexpr auto start() & -> void {
         debug_signal<"start", Name, op_state>(get_env(rcvr));
-        if (not check_stopped()) {
-            triggers<Name, Args...>.enqueue(*this);
+        if (this->check_stopped()) {
+            complete_stopped();
+            return;
         }
+        triggers<Name, Args...>.enqueue(*this);
+        this->emplace_stop_cb();
+    }
+
+    auto stop() -> bool {
+        this->clear_stop_cb();
+        return triggers<Name, Args...>.dequeue(*this);
+    }
+
+    auto complete_stopped() {
+        debug_signal<"set_stopped", Name, op_state>(get_env(rcvr));
+        set_stopped(std::move(rcvr));
     }
 
     [[no_unique_address]] Rcvr rcvr;
-
-  private:
-    auto check_stopped() -> bool {
-        if constexpr (not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
-            if (get_stop_token(get_env(rcvr)).stop_requested()) {
-                debug_signal<"set_stopped", Name, op_state>(get_env(rcvr));
-                set_stopped(std::move(rcvr));
-                return true;
-            }
-        }
-        return false;
-    }
 };
 } // namespace trigger_mgr
 

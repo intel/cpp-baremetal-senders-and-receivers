@@ -58,10 +58,14 @@ template <typename Source> struct stop_token {
     operator==(stop_token, stop_token) noexcept -> bool = default;
 };
 
-// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
 struct stop_callback_base {
     virtual auto run() -> void = 0;
 
+    constexpr stop_callback_base() = default;
+    constexpr stop_callback_base(stop_callback_base &&) = delete;
+    virtual ~stop_callback_base() = default;
+
+    bool pending{};
     stop_callback_base *prev{};
     stop_callback_base *next{};
 };
@@ -93,7 +97,7 @@ struct inplace_stop_source {
                             return nullptr;
                         }
                         auto cb = callbacks.pop_front();
-                        cb->prev = cb->next = nullptr;
+                        cb->pending = false;
                         return cb;
                     });
             };
@@ -109,13 +113,18 @@ struct inplace_stop_source {
         return conc::call_in_critical_section<mutex>([&] {
             if (not requested) {
                 callbacks.push_back(cb);
+                cb->pending = true;
                 return true;
             }
             return false;
         });
     }
     auto unregister_callback(stop_callback_base *cb) -> void {
-        conc::call_in_critical_section<mutex>([&] { callbacks.remove(cb); });
+        conc::call_in_critical_section<mutex>([&] {
+            if (std::exchange(cb->pending, false)) {
+                callbacks.remove(cb);
+            }
+        });
     }
 
   private:
@@ -161,7 +170,7 @@ struct never_stop_source {
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-template <typename F> struct inplace_stop_callback final : stop_callback_base {
+template <typename F> struct inplace_stop_callback : stop_callback_base {
     inplace_stop_callback(never_stop_token, F const &f) : callback(f) {}
     inplace_stop_callback(never_stop_token, F &&f) : callback(std::move(f)) {}
 
@@ -180,14 +189,13 @@ template <typename F> struct inplace_stop_callback final : stop_callback_base {
             callback();
         }
     }
-    inplace_stop_callback(inplace_stop_callback &&) = delete;
     ~inplace_stop_callback() {
-        if (next != nullptr or prev != nullptr) {
+        if (source) {
             source->unregister_callback(this);
         }
     }
 
-    auto run() -> void override { callback(); }
+    auto run() -> void final { callback(); }
 
     inplace_stop_source *source{};
     F callback;
