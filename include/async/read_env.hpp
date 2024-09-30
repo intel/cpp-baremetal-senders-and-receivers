@@ -36,8 +36,10 @@ template <stdx::ct_string Name, typename R, typename Tag> struct op_state {
     [[no_unique_address]] R receiver;
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(receiver));
-        debug_signal<"set_value", Name, op_state>(get_env(receiver));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(receiver));
+        debug_signal<"set_value", debug::erased_context_for<op_state>>(
+            get_env(receiver));
         set_value(std::move(receiver), Tag{}(get_env(receiver)));
     }
 
@@ -83,4 +85,14 @@ template <stdx::ct_string Name = "">
 [[nodiscard]] constexpr auto get_scheduler() -> sender auto {
     return read_env<Name>(get_scheduler_t{});
 }
+
+template <typename> struct read_env_t;
+
+template <stdx::ct_string Name, typename R, typename Tag>
+struct debug::context_for<_read_env::op_state<Name, R, Tag>> {
+    using tag = read_env_t<Tag>;
+    constexpr static auto name = Name;
+    using children = stdx::type_list<>;
+    using type = _read_env::op_state<Name, R, Tag>;
+};
 } // namespace async

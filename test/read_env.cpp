@@ -14,7 +14,9 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/ct_format.hpp>
+#include <stdx/type_traits.hpp>
 
+#include <boost/mp11/list.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/format.h>
 
@@ -73,10 +75,15 @@ namespace {
 std::vector<std::string> debug_events{};
 
 struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
-              typename Ctx>
+    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
     constexpr auto signal(auto &&...) {
-        debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        if constexpr (stdx::is_specialization_of_v<async::debug::tag_of<Ctx>,
+                                                   async::read_env_t>) {
+            static_assert(
+                boost::mp11::mp_empty<async::debug::children_of<Ctx>>::value);
+            debug_events.push_back(
+                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
+        }
     }
 };
 } // namespace

@@ -219,12 +219,13 @@ namespace {
 std::vector<std::string> debug_events{};
 
 struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
-              typename Ctx>
+    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
     constexpr auto signal(auto &&...) {
         using namespace stdx::literals;
-        if constexpr (L != "just"_cts) {
-            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
+                                     async::sequence_t>) {
+            debug_events.push_back(
+                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
         }
     }
 };

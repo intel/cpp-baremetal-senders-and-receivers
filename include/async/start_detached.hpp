@@ -88,13 +88,13 @@ struct op_state : op_state_base<StopSource, Env> {
           ops{connect(std::forward<S>(s), receiver_t{this})} {}
 
     template <stdx::ct_string S> auto die() {
-        debug_signal<S, "start_detached", op_state>(this->e);
+        debug_signal<S, debug::erased_context_for<op_state>>(this->e);
         set_stop_source<Uniq, Alloc, StopSource>(nullptr);
         Alloc::template destruct<Uniq>(this);
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", "start_detached", op_state>(this->e);
+        debug_signal<"start", debug::erased_context_for<op_state>>(this->e);
         async::start(ops);
     }
 
@@ -201,4 +201,15 @@ template <typename Uniq> auto stop_detached() {
 template <stdx::ct_string Name> auto stop_detached() {
     return stop_detached<stdx::cts_t<Name>>();
 }
+
+struct start_detached_t;
+
+template <typename... Ts>
+struct debug::context_for<_start_detached::op_state<Ts...>> {
+    using tag = start_detached_t;
+    constexpr static auto name = stdx::ct_string{"start_detached"};
+    using children = stdx::type_list<>;
+    // context_for<typename _start_detached::op_state<Ts...>::ops_t>>;
+    using type = _start_detached::op_state<Ts...>;
+};
 } // namespace async

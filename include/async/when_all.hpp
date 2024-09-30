@@ -137,7 +137,8 @@ struct error_op_state<E, boost::mp11::mp_list<Sndrs...>> {
     template <stdx::ct_string Name, typename Op, typename R>
     [[nodiscard]] auto release_error(R &&r) -> bool {
         if (caught_error) {
-            debug_signal<set_error_t::name, Name, Op>(get_env(r));
+            debug_signal<set_error_t::name, debug::erased_context_for<Op>>(
+                get_env(r));
             set_error(std::forward<R>(r), std::move(*e));
             return true;
         }
@@ -169,6 +170,9 @@ struct op_state
                    inplace_stop_token>... {
     template <typename S>
     using sub_op_state_t = sub_op_state<op_state, Rcvr, S, inplace_stop_token>;
+
+    using child_ops_t =
+        stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
 
     struct stop_callback_fn {
         auto operator()() -> void { stop_source->request_stop(); }
@@ -209,14 +213,17 @@ struct op_state
         stop_cb.reset();
         if (this->template release_error<Name, op_state>(std::move(rcvr))) {
         } else if (stop_source.stop_requested()) {
-            debug_signal<set_stopped_t::name, Name, op_state>(get_env(rcvr));
+            debug_signal<set_stopped_t::name,
+                         debug::erased_context_for<op_state>>(get_env(rcvr));
             set_stopped(std::move(rcvr));
         } else {
             using value_senders =
                 boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
                                         single_value_sender_t>;
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
-                debug_signal<set_value_t::name, Name, op_state>(get_env(rcvr));
+                debug_signal<set_value_t::name,
+                             debug::erased_context_for<op_state>>(
+                    get_env(rcvr));
                 set_value(
                     std::move(rcvr),
                     static_cast<sub_op_state_t<Ss> &&>(*this).v.value()...);
@@ -225,11 +232,13 @@ struct op_state
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
                         stop_callback_fn{std::addressof(stop_source)});
         if (stop_source.stop_requested()) {
-            debug_signal<set_stopped_t::name, Name, op_state>(get_env(rcvr));
+            debug_signal<set_stopped_t::name,
+                         debug::erased_context_for<op_state>>(get_env(rcvr));
             set_stopped(std::move(rcvr));
         } else {
             count = sizeof...(Sndrs);
@@ -259,6 +268,9 @@ struct nostop_op_state
     template <typename S>
     using sub_op_state_t =
         sub_op_state<nostop_op_state, Rcvr, S, never_stop_token>;
+
+    using child_ops_t =
+        stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
 
     template <typename S, typename R>
     constexpr nostop_op_state(S &&s, R &&r)
@@ -290,7 +302,8 @@ struct nostop_op_state
                 boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
                                         single_value_sender_t>;
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
-                debug_signal<set_value_t::name, Name, nostop_op_state>(
+                debug_signal<set_value_t::name,
+                             debug::erased_context_for<nostop_op_state>>(
                     get_env(rcvr));
                 set_value(
                     std::move(rcvr),
@@ -300,7 +313,8 @@ struct nostop_op_state
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, nostop_op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<nostop_op_state>>(
+            get_env(rcvr));
         count = sizeof...(Sndrs);
         (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
     }
@@ -319,6 +333,9 @@ struct sync_op_state
     template <typename S>
     using sub_op_state_t =
         sub_op_state<sync_op_state, Rcvr, S, never_stop_token>;
+
+    using child_ops_t =
+        stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
 
     template <typename S, typename R>
     constexpr sync_op_state(S &&s, R &&r)
@@ -343,7 +360,8 @@ struct sync_op_state
                 boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
                                         single_value_sender_t>;
             [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
-                debug_signal<set_value_t::name, Name, sync_op_state>(
+                debug_signal<set_value_t::name,
+                             debug::erased_context_for<sync_op_state>>(
                     get_env(rcvr));
                 set_value(
                     std::move(rcvr),
@@ -353,7 +371,8 @@ struct sync_op_state
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, sync_op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<sync_op_state>>(
+            get_env(rcvr));
         (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
         complete();
     }
@@ -431,20 +450,25 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
 };
 
 template <stdx::ct_string Name, typename Rcvr> struct op_state<Name, Rcvr> {
+    using child_ops_t = stdx::type_list<>;
+
     [[no_unique_address]] Rcvr rcvr;
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
             if (async::get_stop_token(async::get_env(rcvr)).stop_requested()) {
-                debug_signal<set_stopped_t::name, Name, op_state>(
+                debug_signal<set_stopped_t::name,
+                             debug::erased_context_for<op_state>>(
                     get_env(rcvr));
                 set_stopped(std::move(rcvr));
                 return;
             }
         }
-        debug_signal<set_value_t::name, Name, op_state>(get_env(rcvr));
+        debug_signal<set_value_t::name, debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         set_value(std::move(rcvr));
     }
 
@@ -493,4 +517,33 @@ template <stdx::ct_string Name = "when_all", sender... Sndrs>
         }(std::make_index_sequence<sizeof...(Sndrs)>{});
     }
 }
+
+struct when_all_t;
+
+template <stdx::ct_string Name, typename... Ts>
+struct debug::context_for<_when_all::op_state<Name, Ts...>> {
+    using tag = when_all_t;
+    constexpr static auto name = Name;
+    using type = _when_all::op_state<Name, Ts...>;
+    using children = boost::mp11::mp_transform<debug::erased_context_for,
+                                               typename type::child_ops_t>;
+};
+
+template <stdx::ct_string Name, typename... Ts>
+struct debug::context_for<_when_all::nostop_op_state<Name, Ts...>> {
+    using tag = when_all_t;
+    constexpr static auto name = Name;
+    using type = _when_all::nostop_op_state<Name, Ts...>;
+    using children = boost::mp11::mp_transform<debug::erased_context_for,
+                                               typename type::child_ops_t>;
+};
+
+template <stdx::ct_string Name, typename... Ts>
+struct debug::context_for<_when_all::sync_op_state<Name, Ts...>> {
+    using tag = when_all_t;
+    constexpr static auto name = Name;
+    using type = _when_all::sync_op_state<Name, Ts...>;
+    using children = boost::mp11::mp_transform<debug::erased_context_for,
+                                               typename type::child_ops_t>;
+};
 } // namespace async

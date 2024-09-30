@@ -35,16 +35,16 @@ template <typename V, typename RL, typename Env> struct receiver {
 
     template <typename... Args>
     constexpr auto set_value(Args &&...args) const && -> void {
-        debug_signal<"set_value", "sync_wait", receiver>(env);
+        debug_signal<"set_value", debug::erased_context_for<receiver>>(env);
         values.emplace(stdx::make_tuple(std::forward<Args>(args)...));
         loop.finish();
     }
     constexpr auto set_error(auto &&...) const && -> void {
-        debug_signal<"set_error", "sync_wait", receiver>(env);
+        debug_signal<"set_error", debug::erased_context_for<receiver>>(env);
         loop.finish();
     }
     constexpr auto set_stopped() const && -> void {
-        debug_signal<"set_stopped", "sync_wait", receiver>(env);
+        debug_signal<"set_stopped", debug::erased_context_for<receiver>>(env);
         loop.finish();
     }
 };
@@ -68,7 +68,7 @@ template <typename Uniq, sender S, typename Env> auto wait(S &&s, Env &&e) {
     auto r = receiver<V, decltype(rl), E>{values, rl, std::move(new_env)};
 
     auto op_state = connect(std::forward<S>(s), r);
-    debug_signal<"start", "sync_wait", decltype(r)>(r.env);
+    debug_signal<"start", debug::erased_context_for<decltype(r)>>(r.env);
     start(op_state);
     rl.run();
     return values;
@@ -108,4 +108,14 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
 [[nodiscard]] auto sync_wait(S &&s, Env &&e = {}) {
     return std::forward<S>(s) | sync_wait<Name>(std::forward<Env>(e));
 }
+
+struct sync_wait_t;
+
+template <typename... Ts>
+struct debug::context_for<_sync_wait::receiver<Ts...>> {
+    using tag = sync_wait_t;
+    constexpr static auto name = stdx::ct_string{"sync_wait"};
+    using children = stdx::type_list<>;
+    using type = _sync_wait::receiver<Ts...>;
+};
 } // namespace async

@@ -11,19 +11,19 @@
 #include <async/then.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
+#include <stdx/type_traits.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
 namespace {
+template <typename R> struct test_op_state {
+    [[no_unique_address]] R receiver;
+
+    constexpr auto start() & -> void { async::set_value(std::move(receiver)); }
+};
+
 template <auto> class test_scheduler {
-    template <typename R> struct op_state {
-        [[no_unique_address]] R receiver;
-
-        constexpr auto start() & -> void {
-            async::set_value(std::move(receiver));
-        }
-    };
-
     struct sender {
         using is_sender = void;
         using completion_signatures =
@@ -37,7 +37,7 @@ template <auto> class test_scheduler {
 
         template <async::receiver_from<sender> R>
         [[nodiscard]] constexpr static auto
-        connect(R &&r) -> op_state<std::remove_cvref_t<R>> {
+        connect(R &&r) -> test_op_state<std::remove_cvref_t<R>> {
             return {std::forward<R>(r)};
         }
     };
@@ -53,6 +53,13 @@ template <auto> class test_scheduler {
     static inline int schedule_calls{};
 };
 } // namespace
+
+template <typename R> struct async::debug::context_for<test_op_state<R>> {
+    using tag = void;
+    constexpr static auto name = stdx::ct_string{"test"};
+    using type = test_op_state<R>;
+    using children = stdx::type_list<>;
+};
 
 TEST_CASE("continue_on", "[continue_on]") {
     static_assert(async::scheduler<test_scheduler<0>>);

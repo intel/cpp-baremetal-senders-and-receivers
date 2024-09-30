@@ -3,10 +3,12 @@
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
 #include <stdx/function_traits.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
@@ -251,4 +253,15 @@ constexpr auto make_variant_sender(bool b, F1 &&f1, F2 &&f2) {
     return boost::mp11::mp_apply<_variant::sender, senders>{
         select(b, std::forward<F1>(f1), std::forward<F2>(f2))};
 }
+
+struct variant_t;
+
+template <typename... Ops>
+struct debug::context_for<_variant::op_state<Ops...>> {
+    using tag = variant_t;
+    constexpr static auto name = stdx::ct_string{"variant"};
+    using type = _variant::op_state<Ops...>;
+    using children = boost::mp11::mp_transform<debug::erased_context_for,
+                                               typename type::variant_t>;
+};
 } // namespace async

@@ -11,6 +11,7 @@
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
+#include <stdx/type_traits.hpp>
 
 #include <concepts>
 #include <type_traits>
@@ -24,9 +25,11 @@ struct op_state {
     [[no_unique_address]] stdx::tuple<Vs...> values;
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(receiver));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(receiver));
         std::move(values).apply([&]<typename... Ts>(Ts &&...ts) {
-            debug_signal<Tag::name, Name, op_state>(get_env(receiver));
+            debug_signal<Tag::name, debug::erased_context_for<op_state>>(
+                get_env(receiver));
             Tag{}(std::move(receiver), std::forward<Ts>(ts)...);
         });
     }
@@ -78,4 +81,22 @@ template <stdx::ct_string Name = "just_stopped">
 [[nodiscard]] constexpr auto just_stopped() -> sender auto {
     return _just::sender<Name, set_stopped_t>{};
 }
+
+struct just_t;
+struct just_error_t;
+struct just_stopped_t;
+
+template <typename Tag>
+using just_tag_for =
+    stdx::conditional_t<std::same_as<Tag, set_value_t>, just_t,
+                        stdx::conditional_t<std::same_as<Tag, set_error_t>,
+                                            just_error_t, just_stopped_t>>;
+
+template <stdx::ct_string Name, typename Tag, typename R, typename... Vs>
+struct debug::context_for<_just::op_state<Name, Tag, R, Vs...>> {
+    using tag = just_tag_for<Tag>;
+    constexpr static auto name = Name;
+    using children = stdx::type_list<>;
+    using type = _just::op_state<Name, Tag, R, Vs...>;
+};
 } // namespace async

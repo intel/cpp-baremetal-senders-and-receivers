@@ -23,7 +23,8 @@ struct op_state_base : Task {
     constexpr explicit(true) op_state_base(R &&r) : rcvr{std::forward<R>(r)} {}
 
     auto run() -> void final {
-        debug_signal<"set_value", Name, op_state_base>(get_env(rcvr));
+        debug_signal<"set_value", debug::erased_context_for<op_state_base>>(
+            get_env(rcvr));
         set_value(std::move(rcvr));
     }
 
@@ -45,7 +46,9 @@ struct op_state<Domain, Name, Duration, Rcvr, Task> final
         : op_state_base<Rcvr, Name, Task>{std::forward<R>(r)}, d{dur} {}
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(this->rcvr));
+        debug_signal<"start", debug::erased_context_for<
+                                  op_state_base<Rcvr, Name, Task>>>(
+            get_env(this->rcvr));
         detail::run_after<Domain>(*this, d);
     }
 
@@ -63,10 +66,14 @@ struct op_state<Domain, Name, Duration, Rcvr, Task> final
         : op_state_base<Rcvr, Name, Task>{std::forward<R>(r)}, d{dur} {}
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(this->rcvr));
+        debug_signal<"start", debug::erased_context_for<
+                                  op_state_base<Rcvr, Name, Task>>>(
+            get_env(this->rcvr));
         auto token = get_stop_token(get_env(this->rcvr));
         if (token.stop_requested()) {
-            debug_signal<"set_stopped", Name, op_state>(get_env(this->rcvr));
+            debug_signal<"set_stopped", debug::erased_context_for<
+                                            op_state_base<Rcvr, Name, Task>>>(
+                get_env(this->rcvr));
             set_stopped(std::move(this->rcvr));
         } else {
             detail::run_after<Domain>(*this, d);
@@ -78,7 +85,10 @@ struct op_state<Domain, Name, Duration, Rcvr, Task> final
     struct stop_callback_fn {
         auto operator()() -> void {
             if (detail::cancel<Domain>(*ops)) {
-                debug_signal<"set_stopped", Name, op_state>(get_env(ops->rcvr));
+                debug_signal<
+                    "set_stopped",
+                    debug::erased_context_for<op_state_base<Rcvr, Name, Task>>>(
+                    get_env(ops->rcvr));
                 set_stopped(std::move(ops->rcvr));
             }
         }
@@ -149,4 +159,20 @@ template <typename Domain = timer_mgr::default_domain,
           stdx::ct_string Name = "time_scheduler">
 constexpr auto time_scheduler_factory =
     []<typename D>(D d) -> time_scheduler<Domain, Name, D> { return {d}; };
+
+struct time_scheduler_sender_t;
+
+template <stdx::ct_string Name, typename Rcvr, typename Task>
+struct debug::context_for<timer_mgr::op_state_base<Rcvr, Name, Task>> {
+    using tag = time_scheduler_sender_t;
+    constexpr static auto name = Name;
+    using type = timer_mgr::op_state_base<Rcvr, Name, Task>;
+    using children = stdx::type_list<>;
+};
+
+template <typename Domain, stdx::ct_string Name, typename Duration,
+          typename Rcvr, typename Task>
+struct debug::context_for<
+    timer_mgr::op_state<Domain, Name, Duration, Rcvr, Task>>
+    : debug::context_for<timer_mgr::op_state_base<Rcvr, Name, Task>> {};
 } // namespace async

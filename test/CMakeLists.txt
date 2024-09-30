@@ -24,6 +24,7 @@ add_tests(
     concepts
     continue_on
     debug
+    debug_context
     env
     forwarding_query
     freestanding_sync_wait
