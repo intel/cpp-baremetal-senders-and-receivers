@@ -20,9 +20,9 @@ using sender = _let::sender<Name, S, F, set_error_t>;
 
 template <stdx::ct_string Name = "let_error", stdx::callable F>
 [[nodiscard]] constexpr auto let_error(F &&f) {
-    return _compose::adaptor{stdx::tuple{
+    return _compose::adaptor{
         _let::pipeable<Name, std::remove_cvref_t<F>, _let_error::sender>{
-            std::forward<F>(f)}}};
+            std::forward<F>(f)}};
 }
 
 template <stdx::ct_string Name = "let_error", sender S, stdx::callable F>

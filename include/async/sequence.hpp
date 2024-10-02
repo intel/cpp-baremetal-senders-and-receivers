@@ -161,8 +161,8 @@ template <stdx::ct_string Name, std::invocable F> struct pipeable {
 
 template <stdx::ct_string Name = "sequence", std::invocable F>
 [[nodiscard]] constexpr auto sequence(F &&f) {
-    return _compose::adaptor{stdx::tuple{
-        _sequence::pipeable<Name, std::remove_cvref_t<F>>{std::forward<F>(f)}}};
+    return _compose::adaptor{
+        _sequence::pipeable<Name, std::remove_cvref_t<F>>{std::forward<F>(f)}};
 }
 
 template <stdx::ct_string Name = "sequence", sender S, std::invocable F>
