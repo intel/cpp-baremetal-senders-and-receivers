@@ -19,7 +19,8 @@
 #include <utility>
 #include <variant>
 
-namespace async::_let {
+namespace async {
+namespace _let {
 namespace detail {
 template <channel_tag Tag, typename F, typename... Ts>
 auto invoke(F &&f, Ts &&...ts)
@@ -142,7 +143,8 @@ struct op_state {
                 }});
         };
 
-        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
+        debug_signal<Tag::name, debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         if constexpr (std::is_copy_constructible_v<
                           std::remove_cvref_t<decltype(sent_args)>>) {
             async::start(make_op_state(sent_args));
@@ -153,12 +155,14 @@ struct op_state {
 
     template <channel_tag Tag, typename... Args>
     auto passthrough(Args &&...args) -> void {
-        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
+        debug_signal<Tag::name, debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         async::start(std::get<0>(state));
     }
 
@@ -271,4 +275,18 @@ struct pipeable {
             std::forward<S>(s), std::forward<Self>(self).f};
     }
 };
-} // namespace async::_let
+} // namespace _let
+
+template <typename...> struct let_t;
+
+template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Func,
+          typename Sigs, channel_tag... Tags>
+struct debug::context_for<
+    _let::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>> {
+    using tag = let_t<Tags...>;
+    constexpr static auto name = Name;
+    using type = _let::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>;
+    using children = boost::mp11::mp_transform<debug::erased_context_for,
+                                               typename type::state_t>;
+};
+} // namespace async

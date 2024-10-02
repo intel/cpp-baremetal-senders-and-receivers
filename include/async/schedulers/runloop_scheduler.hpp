@@ -38,42 +38,44 @@ template <typename Name> constexpr auto get_name() {
 }
 } // namespace detail
 
+struct op_state_base {
+    virtual auto execute() -> void = 0;
+    op_state_base *next{};
+    op_state_base *prev{};
+};
+
+template <typename> class run_loop;
+
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+template <typename Uniq, typename Rcvr> struct op_state : op_state_base {
+    template <typename R>
+    op_state(run_loop<Uniq> *rl, R &&r) : loop{rl}, rcvr{std::forward<R>(r)} {}
+    op_state(op_state &&) = delete;
+
+    auto execute() -> void override {
+        if (get_stop_token(get_env(rcvr)).stop_requested()) {
+            debug_signal<"set_stopped", debug::erased_context_for<op_state>>(
+                get_env(rcvr));
+            set_stopped(std::move(rcvr));
+        } else {
+            debug_signal<"set_value", debug::erased_context_for<op_state>>(
+                get_env(rcvr));
+            set_value(std::move(rcvr));
+        }
+    }
+
+    constexpr auto start() & -> void {
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
+        loop->push_back(this);
+    }
+
+    run_loop<Uniq> *loop{};
+    [[no_unique_address]] Rcvr rcvr;
+};
+
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 template <typename Uniq = decltype([] {})> class run_loop {
-    struct op_state_base {
-        virtual auto execute() -> void = 0;
-        op_state_base *next{};
-        op_state_base *prev{};
-    };
-
-    // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-    template <typename Rcvr> struct op_state : op_state_base {
-        template <typename R>
-        op_state(run_loop *rl, R &&r) : loop{rl}, rcvr{std::forward<R>(r)} {}
-        op_state(op_state &&) = delete;
-
-        auto execute() -> void override {
-            if (get_stop_token(get_env(rcvr)).stop_requested()) {
-                debug_signal<"set_stopped", detail::get_name<Uniq>(), op_state>(
-                    get_env(rcvr));
-                set_stopped(std::move(rcvr));
-            } else {
-                debug_signal<"set_value", detail::get_name<Uniq>(), op_state>(
-                    get_env(rcvr));
-                set_value(std::move(rcvr));
-            }
-        }
-
-        constexpr auto start() & -> void {
-            debug_signal<"start", detail::get_name<Uniq>(), op_state>(
-                get_env(rcvr));
-            loop->push_back(this);
-        }
-
-        run_loop *loop{};
-        [[no_unique_address]] Rcvr rcvr;
-    };
-
     struct scheduler {
         struct sender {
             using is_sender = void;
@@ -88,7 +90,7 @@ template <typename Uniq = decltype([] {})> class run_loop {
 
             template <receiver R>
             [[nodiscard]] constexpr auto
-            connect(R &&r) const -> op_state<std::remove_cvref_t<R>> {
+            connect(R &&r) const -> op_state<Uniq, std::remove_cvref_t<R>> {
                 check_connect<sender, R>();
                 return {loop, std::forward<R>(r)};
             }
@@ -180,6 +182,16 @@ template <typename Uniq = decltype([] {})> class run_loop {
 } // namespace _run_loop
 
 using _run_loop::run_loop;
+
+struct runloop_scheduler_sender_t;
+
+template <typename Uniq, typename R>
+struct debug::context_for<_run_loop::op_state<Uniq, R>> {
+    using tag = runloop_scheduler_sender_t;
+    constexpr static auto name = _run_loop::detail::get_name<Uniq>();
+    using children = stdx::type_list<>;
+    using type = _run_loop::op_state<Uniq, R>;
+};
 } // namespace async
 
 #undef HAS_CONDITION_VARIABLE

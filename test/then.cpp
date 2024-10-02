@@ -4,6 +4,7 @@
 #include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
+#include <async/just_result_of.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/then.hpp>
 
@@ -21,8 +22,7 @@
 TEST_CASE("then", "[then]") {
     int value{};
 
-    auto sched = async::inline_scheduler{};
-    auto s = sched.schedule();
+    auto s = async::just();
     auto n = async::then(s, [] { return 42; });
     auto op = async::connect(n, receiver{[&](auto i) { value = i; }});
     async::start(op);
@@ -40,16 +40,14 @@ TEST_CASE("then propagates a value", "[then]") {
 }
 
 TEST_CASE("then advertises what it sends", "[then]") {
-    auto sched = async::inline_scheduler{};
-    auto s = sched.schedule();
+    auto s = async::just();
     [[maybe_unused]] auto n = async::then(s, [] { return 42; });
     static_assert(async::sender_of<decltype(n), async::set_value_t(int)>);
 }
 
 TEST_CASE("then can send a reference", "[then]") {
     int value{};
-    auto sched = async::inline_scheduler{};
-    auto s = sched.schedule();
+    auto s = async::just();
     [[maybe_unused]] auto n = async::then(s, [&]() -> int & { return value; });
     static_assert(async::sender_of<decltype(n), async::set_value_t(int &)>);
 }
@@ -57,8 +55,7 @@ TEST_CASE("then can send a reference", "[then]") {
 TEST_CASE("then is pipeable", "[then]") {
     int value{};
 
-    auto sched = async::inline_scheduler{};
-    auto n = sched.schedule() | async::then([] { return 42; });
+    auto n = async::just() | async::then([] { return 42; });
     auto op = async::connect(n, receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
@@ -69,9 +66,8 @@ TEST_CASE("then is adaptor-pipeable", "[then]") {
 
     auto n = async::then([] { return 42; }) |
              async::then([](int i) { return i * 2; });
-    auto sched = async::inline_scheduler{};
-    auto op = async::connect(sched.schedule() | n,
-                             receiver{[&](auto i) { value = i; }});
+    auto op =
+        async::connect(async::just() | n, receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 84);
 }
@@ -79,8 +75,7 @@ TEST_CASE("then is adaptor-pipeable", "[then]") {
 TEST_CASE("then can send nothing", "[then]") {
     int value{};
 
-    auto sched = async::inline_scheduler{};
-    auto s = sched.schedule();
+    auto s = async::just();
     auto n1 = async::then(s, [] {});
     static_assert(async::sender_of<decltype(n1), async::set_value_t()>);
     auto n2 = async::then(n1, [] {});
@@ -93,8 +88,7 @@ TEST_CASE("then can send nothing", "[then]") {
 TEST_CASE("move-only value", "[then]") {
     int value{};
 
-    auto sched = async::inline_scheduler{};
-    auto n = sched.schedule() | async::then([] { return move_only{42}; });
+    auto n = async::just() | async::then([] { return move_only{42}; });
     auto op = async::connect(std::move(n),
                              receiver{[&](auto mo) { value = mo.value; }});
     async::start(op);
@@ -103,8 +97,7 @@ TEST_CASE("move-only value", "[then]") {
 
 TEST_CASE("move-only lambda", "[then]") {
     int value{};
-    auto sched = async::inline_scheduler{};
-    auto n = sched.schedule() |
+    auto n = async::just() |
              async::then([mo = move_only{42}]() -> move_only<int> const && {
                  return std::move(mo);
              });
@@ -246,12 +239,15 @@ namespace {
 std::vector<std::string> debug_events{};
 
 struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
-              typename Ctx>
+    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
     constexpr auto signal(auto &&...) {
         using namespace stdx::literals;
-        if constexpr (L != "just"_cts) {
-            debug_events.push_back(fmt::format("{} {} {}", C, L, S));
+        if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
+                                     async::then_t>) {
+            static_assert(not boost::mp11::mp_empty<
+                          async::debug::children_of<Ctx>>::value);
+            debug_events.push_back(
+                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
         }
     }
 };

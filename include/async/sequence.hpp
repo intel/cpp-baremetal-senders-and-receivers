@@ -53,7 +53,8 @@ struct op_state {
     constexpr op_state(op_state &&) = delete;
 
     template <typename... Args> auto complete_first() -> void {
-        debug_signal<set_value_t::name, Name, op_state>(get_env(rcvr));
+        debug_signal<set_value_t::name, debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         auto &op = state.template emplace<1>(stdx::with_result_of{
             [&] { return connect(std::move(func)(), std::move(rcvr)); }});
         async::start(op);
@@ -61,12 +62,14 @@ struct op_state {
 
     template <channel_tag Tag, typename... Args>
     auto passthrough(Args &&...args) -> void {
-        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
+        debug_signal<Tag::name, debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         async::start(std::get<0>(state));
     }
 
@@ -171,4 +174,18 @@ template <stdx::ct_string Name = "seq", sender S>
 [[nodiscard]] constexpr auto seq(S &&s) {
     return sequence<Name>(_sequence::detail::wrapper{std::forward<S>(s)});
 }
+
+struct sequence_t;
+
+template <typename...> struct undef;
+
+template <stdx::ct_string Name, typename Sndr, typename Func, typename Rcvr>
+struct debug::context_for<_sequence::op_state<Name, Sndr, Func, Rcvr>> {
+    using tag = sequence_t;
+    constexpr static auto name = Name;
+    using type = _sequence::op_state<Name, Sndr, Func, Rcvr>;
+    using children =
+        stdx::type_list<debug::erased_context_for<typename type::first_ops>,
+                        debug::erased_context_for<typename type::second_ops>>;
+};
 } // namespace async

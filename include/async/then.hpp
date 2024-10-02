@@ -99,7 +99,8 @@ constexpr auto invoke =
 };
 } // namespace detail
 
-template <stdx::ct_string Name, typename Tag, typename R, typename... Fs>
+template <stdx::ct_string Name, typename Tag, typename S, typename R,
+          typename... Fs>
 struct receiver {
     using is_receiver = void;
     [[no_unique_address]] R r;
@@ -119,6 +120,8 @@ struct receiver {
         handle<set_error_t>(std::forward<Args>(args)...);
     }
     constexpr auto set_stopped() && -> void { handle<set_stopped_t>(); }
+
+    using sender_t = S;
 
   private:
     template <typename T, typename... Args>
@@ -141,12 +144,14 @@ struct receiver {
             auto filtered_results =
                 stdx::filter<detail::nonvoid_result_t>(std::move(results));
 
-            debug_signal<set_value_t::name, Name, receiver>(get_env(r));
+            debug_signal<set_value_t::name,
+                         debug::erased_context_for<receiver>>(get_env(r));
             std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
                 async::set_value(std::move(r), std::forward<Ts>(ts)...);
             });
         } else {
-            debug_signal<T::name, Name, receiver>(get_env(r));
+            debug_signal<T::name, debug::erased_context_for<receiver>>(
+                get_env(r));
             T{}(std::move(r), std::forward<Args>(args)...);
         }
     }
@@ -195,7 +200,7 @@ struct sender {
     [[nodiscard]] constexpr auto connect(R &&r) && {
         check_connect<sender &&, R>();
         return async::connect(
-            std::move(s), receiver<Name, Tag, std::remove_cvref_t<R>, Fs...>{
+            std::move(s), receiver<Name, Tag, S, std::remove_cvref_t<R>, Fs...>{
                               std::forward<R>(r), std::move(fs)});
     }
 
@@ -204,7 +209,7 @@ struct sender {
     [[nodiscard]] constexpr auto connect(R &&r) const & {
         check_connect<sender const &, R>();
         return async::connect(
-            s, receiver<Name, Tag, std::remove_cvref_t<R>, Fs...>{
+            s, receiver<Name, Tag, S, std::remove_cvref_t<R>, Fs...>{
                    std::forward<R>(r), fs});
     }
 
@@ -297,4 +302,22 @@ template <stdx::ct_string Name = "upon_stopped", sender S, stdx::callable F>
     return std::forward<S>(s) | upon_stopped<Name>(std::forward<F>(f));
 }
 
+struct then_t;
+struct upon_error_t;
+struct upon_stopped_t;
+
+template <typename Tag>
+using then_tag_for =
+    stdx::conditional_t<std::same_as<Tag, set_value_t>, then_t,
+                        stdx::conditional_t<std::same_as<Tag, set_error_t>,
+                                            upon_error_t, upon_stopped_t>>;
+
+template <stdx::ct_string Name, typename Tag, typename... Ts>
+struct debug::context_for<_then::receiver<Name, Tag, Ts...>> {
+    using tag = then_tag_for<Tag>;
+    constexpr static auto name = Name;
+    using type = _then::receiver<Name, Tag, Ts...>;
+    using children = stdx::type_list<debug::erased_context_for<
+        connect_result_t<typename type::sender_t &&, type &&>>>;
+};
 } // namespace async

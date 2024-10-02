@@ -77,7 +77,8 @@ struct op_state {
     constexpr op_state(op_state &&) = delete;
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         auto &op = state.emplace(stdx::with_result_of{
             [&] { return connect(sndr, receiver_t{this}); }});
         async::start(op);
@@ -86,9 +87,12 @@ struct op_state {
     template <typename... Args> auto retry(Args &&...args) -> void {
         if constexpr (not std::same_as<
                           Pred, std::remove_cvref_t<decltype(never_stop)>>) {
-            debug_signal<"eval_predicate", Name, op_state>(get_env(rcvr));
+            debug_signal<"eval_predicate", debug::erased_context_for<op_state>>(
+                get_env(rcvr));
             if (pred(args...)) {
-                debug_signal<set_error_t::name, Name, op_state>(get_env(rcvr));
+                debug_signal<set_error_t::name,
+                             debug::erased_context_for<op_state>>(
+                    get_env(rcvr));
                 set_error(std::move(rcvr), std::forward<Args>(args)...);
                 return;
             }
@@ -98,7 +102,8 @@ struct op_state {
 
     template <channel_tag Tag, typename... Args>
     auto passthrough(Args &&...args) -> void {
-        debug_signal<Tag::name, Name, op_state>(get_env(rcvr));
+        debug_signal<Tag::name, debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
     }
 
@@ -177,4 +182,14 @@ template <stdx::ct_string Name = "retry", sender S>
     return std::forward<S>(s) | retry<Name>();
 }
 
+struct retry_t;
+
+template <stdx::ct_string Name, typename... Ts>
+struct debug::context_for<_retry::op_state<Name, Ts...>> {
+    using tag = retry_t;
+    constexpr static auto name = Name;
+    using type = _retry::op_state<Name, Ts...>;
+    using children =
+        stdx::type_list<debug::erased_context_for<typename type::state_t>>;
+};
 } // namespace async

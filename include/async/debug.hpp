@@ -1,6 +1,7 @@
 #pragma once
 
 #include <async/concepts.hpp>
+#include <async/debug_context.hpp>
 #include <async/forwarding_query.hpp>
 
 #include <stdx/ct_string.hpp>
@@ -11,8 +12,7 @@
 namespace async {
 namespace debug {
 struct null_handler {
-    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
-              typename Ctx>
+    template <stdx::ct_string C, stdx::ct_string S, contextlike Ctx>
     constexpr auto signal(auto &&...) -> void {}
 };
 } // namespace debug
@@ -41,23 +41,21 @@ constexpr static auto get_handler() -> auto & {
     }
 }
 
-template <stdx::ct_string ChainName, stdx::ct_string LinkName,
-          stdx::ct_string Signal, typename Ctx, typename... DummyArgs,
-          typename... Args>
+template <stdx::ct_string ChainName, stdx::ct_string Signal, contextlike Ctx,
+          typename... DummyArgs, typename... Args>
 auto signal(Args &&...args) -> void {
-    auto &handler = get_handler<ChainName, LinkName, DummyArgs...>();
-    handler.template signal<ChainName, LinkName, Signal, Ctx>(
+    auto &handler = get_handler<ChainName, name_of<Ctx>, DummyArgs...>();
+    handler.template signal<ChainName, Signal, Ctx>(
         std::forward<Args>(args)...);
 }
 
 template <stdx::ct_string ChainName, typename... Ts>
 struct named_interface : stdx::tuple<Ts...> {
-    template <stdx::ct_string Signal, stdx::ct_string LinkName, typename Ctx,
-              typename... Args>
+    template <stdx::ct_string Signal, contextlike Ctx, typename... Args>
     constexpr auto signal(Args &&...args) const -> void {
         this->apply([&](Ts const &...ts) {
-            debug::signal<ChainName, LinkName, Signal, Ctx>(
-                ts..., std::forward<Args>(args)...);
+            debug::signal<ChainName, Signal, Ctx>(ts...,
+                                                  std::forward<Args>(args)...);
         });
     }
 };
@@ -88,10 +86,10 @@ constexpr inline struct get_debug_interface_t : forwarding_query_t {
     }
 } get_debug_interface{};
 
-template <stdx::ct_string Signal, stdx::ct_string LinkName, typename Ctx,
-          queryable Q, typename... Args>
+template <stdx::ct_string Signal, debug::contextlike Ctx, queryable Q,
+          typename... Args>
 constexpr auto debug_signal(Q &&q, Args &&...args) -> void {
-    get_debug_interface(q).template signal<Signal, LinkName, Ctx>(
+    get_debug_interface(q).template signal<Signal, Ctx>(
         std::forward<Args>(args)...);
 }
 } // namespace async

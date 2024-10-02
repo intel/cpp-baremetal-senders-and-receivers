@@ -10,6 +10,7 @@
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
+#include <stdx/type_traits.hpp>
 #include <stdx/utility.hpp>
 
 #include <boost/mp11/algorithm.hpp>
@@ -29,7 +30,8 @@ struct op_state : Fs... {
     [[no_unique_address]] R receiver;
 
     auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(receiver));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(receiver));
         using split_returns =
             boost::mp11::mp_partition<boost::mp11::mp_list<Fs...>,
                                       has_void_result>;
@@ -39,7 +41,8 @@ struct op_state : Fs... {
         }(boost::mp11::mp_front<split_returns>{});
 
         [&]<typename... Ts>(boost::mp11::mp_list<Ts...>) {
-            debug_signal<Tag::name, Name, op_state>(get_env(receiver));
+            debug_signal<Tag::name, debug::erased_context_for<op_state>>(
+                get_env(receiver));
             Tag{}(std::move(receiver), static_cast<Ts &>(*this)()...);
         }(boost::mp11::mp_back<split_returns>{});
     }
@@ -95,4 +98,20 @@ template <stdx::ct_string Name = "just_error_result_of", std::invocable... Fs>
                                    std::remove_cvref_t<Fs>...>{
         std::forward<Fs>(fs)...};
 }
+
+struct just_result_of_t;
+struct just_error_result_of_t;
+
+template <typename Tag>
+using just_result_of_tag_for =
+    stdx::conditional_t<std::same_as<Tag, set_value_t>, just_result_of_t,
+                        just_error_result_of_t>;
+
+template <stdx::ct_string Name, typename Tag, typename R, typename... Fs>
+struct debug::context_for<_just_result_of::op_state<Name, Tag, R, Fs...>> {
+    using tag = async::just_result_of_tag_for<Tag>;
+    constexpr static auto name = Name;
+    using children = stdx::type_list<>;
+    using type = _just_result_of::op_state<Name, Tag, R, Fs...>;
+};
 } // namespace async

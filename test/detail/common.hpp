@@ -3,6 +3,7 @@
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug_context.hpp>
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
 #include <async/get_completion_scheduler.hpp>
@@ -11,6 +12,8 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
+#include <stdx/ct_string.hpp>
+#include <stdx/type_traits.hpp>
 
 #include <condition_variable>
 #include <iterator>
@@ -98,15 +101,13 @@ template <typename F> struct stoppable_receiver {
 };
 template <typename F> stoppable_receiver(F) -> stoppable_receiver<F>;
 
+template <typename R> struct singleshot_op_state {
+    [[no_unique_address]] R receiver;
+
+    constexpr auto start() & -> void { async::set_value(std::move(receiver)); }
+};
+
 class singleshot_scheduler {
-    template <typename R> struct op_state {
-        [[no_unique_address]] R receiver;
-
-        constexpr auto start() & -> void {
-            async::set_value(std::move(receiver));
-        }
-    };
-
     struct sender {
         using is_sender = void;
         using completion_signatures =
@@ -122,7 +123,7 @@ class singleshot_scheduler {
 
         template <async::receiver_from<sender> R>
         [[nodiscard]] constexpr auto
-        connect(R &&r) && -> op_state<std::remove_cvref_t<R>> {
+        connect(R &&r) && -> singleshot_op_state<std::remove_cvref_t<R>> {
             return {std::forward<R>(r)};
         }
     };
@@ -166,6 +167,11 @@ struct custom_env {
     [[nodiscard]] constexpr static auto query(get_nofwd_t) -> int { return 17; }
 };
 
+template <typename R> struct custom_op_state {
+    auto start() -> void { async::set_value(std::move(r)); }
+    [[no_unique_address]] R r;
+};
+
 struct custom_sender {
     using is_sender = void;
     using completion_signatures =
@@ -176,14 +182,9 @@ struct custom_sender {
         return {};
     }
 
-    template <typename R> struct op_state {
-        auto start() -> void { async::set_value(std::move(r)); }
-        [[no_unique_address]] R r;
-    };
-
     template <typename R>
     [[nodiscard]] constexpr static auto
-    connect(R &&r) -> op_state<std::remove_cvref_t<R>> {
+    connect(R &&r) -> custom_op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };
@@ -250,3 +251,25 @@ template <typename T, typename Env> struct with_env : T {
 };
 template <typename T, typename Env> with_env(T, Env) -> with_env<T, Env>;
 } // namespace
+
+template <typename R> struct async::debug::context_for<singleshot_op_state<R>> {
+    using tag = void;
+    constexpr static auto name = stdx::ct_string{"singleshot"};
+    using type = singleshot_op_state<R>;
+    using children = stdx::type_list<>;
+};
+
+template <typename R> struct async::debug::context_for<custom_op_state<R>> {
+    using tag = void;
+    constexpr static auto name = stdx::ct_string{"custom"};
+    using type = custom_op_state<R>;
+    using children = stdx::type_list<>;
+};
+
+template <typename R>
+struct async::debug::context_for<stoppable_just_op_state<R>> {
+    using tag = void;
+    constexpr static auto name = stdx::ct_string{"stoppable_just"};
+    using type = stoppable_just_op_state<R>;
+    using children = stdx::type_list<>;
+};

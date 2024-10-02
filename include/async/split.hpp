@@ -4,12 +4,14 @@
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
+#include <stdx/type_traits.hpp>
 #include <stdx/utility.hpp>
 
 #include <boost/mp11/algorithm.hpp>
@@ -232,4 +234,14 @@ template <sender S, typename Uniq = decltype([] {})>
 [[nodiscard]] constexpr auto split(S &&s) -> sender auto {
     return std::forward<S>(s) | split<Uniq>();
 }
+
+struct split_t;
+
+template <typename... Ops> struct debug::context_for<_split::op_state<Ops...>> {
+    using tag = split_t;
+    constexpr static auto name = stdx::ct_string{"split"};
+    using type = _split::op_state<Ops...>;
+    using children = stdx::type_list<
+        debug::erased_context_for<typename type::single_op_state_t>>;
+};
 } // namespace async

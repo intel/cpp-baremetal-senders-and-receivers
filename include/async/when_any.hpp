@@ -14,6 +14,7 @@
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
+#include <stdx/type_traits.hpp>
 #include <stdx/utility.hpp>
 
 #include <atomic>
@@ -203,6 +204,9 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
     template <typename S>
     using sub_op_state_t = sub_op_state<op_state, Rcvr, S, inplace_stop_token>;
 
+    using child_ops_t =
+        stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
+
     struct stop_callback_fn {
         auto operator()() -> void { stop_source->request_stop(); }
         inplace_stop_source *stop_source;
@@ -241,33 +245,37 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
             if (async::get_stop_token(async::get_env(rcvr)).stop_requested()) {
-                debug_signal<set_stopped_t::name, Name, op_state>(
+                debug_signal<set_stopped_t::name,
+                             debug::erased_context_for<op_state>>(
                     get_env(rcvr));
                 set_stopped(std::move(rcvr));
                 return;
             }
         }
         std::visit(
-            stdx::overload{[&]<typename T>(T &&t) {
-                               std::forward<T>(t).apply(
-                                   [&]<typename Tag, typename... Args>(
-                                       Tag tag, Args &&...args) {
-                                       debug_signal<Tag::name, Name, op_state>(
-                                           get_env(rcvr));
-                                       tag(std::move(rcvr),
-                                           std::forward<Args>(args)...);
-                                   });
-                           },
-                           [](std::monostate) {}},
+            stdx::overload{
+                [&]<typename T>(T &&t) {
+                    std::forward<T>(t).apply(
+                        [&]<typename Tag, typename... Args>(Tag tag,
+                                                            Args &&...args) {
+                            debug_signal<Tag::name,
+                                         debug::erased_context_for<op_state>>(
+                                get_env(rcvr));
+                            tag(std::move(rcvr), std::forward<Args>(args)...);
+                        });
+                },
+                [](std::monostate) {}},
             std::move(completions));
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
                         stop_callback_fn{std::addressof(stop_source)});
         if (stop_source.stop_requested()) {
-            debug_signal<set_stopped_t::name, Name, op_state>(get_env(rcvr));
+            debug_signal<set_stopped_t::name,
+                         debug::erased_context_for<op_state>>(get_env(rcvr));
             set_stopped(std::move(rcvr));
         } else {
             count = sizeof...(Sndrs);
@@ -299,6 +307,9 @@ struct nostop_op_state
     template <typename S>
     using sub_op_state_t =
         sub_op_state<nostop_op_state, Rcvr, S, never_stop_token>;
+
+    using child_ops_t =
+        stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
 
     template <typename S, typename R>
     constexpr nostop_op_state(S &&s, R &&r)
@@ -335,7 +346,8 @@ struct nostop_op_state
                     std::forward<T>(t).apply(
                         [&]<typename Tag, typename... Args>(Tag tag,
                                                             Args &&...args) {
-                            debug_signal<Tag::name, Name, nostop_op_state>(
+                            debug_signal<Tag::name, debug::erased_context_for<
+                                                        nostop_op_state>>(
                                 get_env(rcvr));
                             tag(std::move(rcvr), std::forward<Args>(args)...);
                         });
@@ -345,7 +357,8 @@ struct nostop_op_state
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, nostop_op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<nostop_op_state>>(
+            get_env(rcvr));
         count = sizeof...(Sndrs);
         (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
     }
@@ -410,9 +423,12 @@ struct sender : Sndrs... {
 
 template <stdx::ct_string Name, typename StopPolicy, typename Rcvr>
 struct op_state<Name, StopPolicy, Rcvr> {
+    using child_ops_t = stdx::type_list<>;
+
     struct stop_callback_fn {
         auto operator()() -> void {
-            debug_signal<set_stopped_t::name, Name, op_state>(
+            debug_signal<set_stopped_t::name,
+                         debug::erased_context_for<op_state>>(
                 get_env(ops->rcvr));
             set_stopped(std::move(ops->rcvr));
             ops->stop_cb.reset();
@@ -421,7 +437,8 @@ struct op_state<Name, StopPolicy, Rcvr> {
     };
 
     constexpr auto start() & -> void {
-        debug_signal<"start", Name, op_state>(get_env(rcvr));
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
         if constexpr (unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>) {
             static_assert(stdx::always_false_v<Rcvr>,
                           "Starting when_any<> but the connected receiver "
@@ -517,4 +534,24 @@ template <stdx::ct_string Name = "stop_when", sender Sndr, sender Trigger>
 [[nodiscard]] constexpr auto stop_when(Sndr &&s, Trigger &&t) -> sender auto {
     return std::forward<Sndr>(s) | stop_when<Name>(std::forward<Trigger>(t));
 }
+
+struct when_any_t;
+
+template <stdx::ct_string Name, typename... Ts>
+struct debug::context_for<_when_any::op_state<Name, Ts...>> {
+    using tag = when_any_t;
+    constexpr static auto name = Name;
+    using type = _when_any::op_state<Name, Ts...>;
+    using children = boost::mp11::mp_transform<debug::erased_context_for,
+                                               typename type::child_ops_t>;
+};
+
+template <stdx::ct_string Name, typename... Ts>
+struct debug::context_for<_when_any::nostop_op_state<Name, Ts...>> {
+    using tag = when_any_t;
+    constexpr static auto name = Name;
+    using type = _when_any::nostop_op_state<Name, Ts...>;
+    using children = boost::mp11::mp_transform<debug::erased_context_for,
+                                               typename type::child_ops_t>;
+};
 } // namespace async
