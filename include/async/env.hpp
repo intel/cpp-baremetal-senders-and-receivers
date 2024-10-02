@@ -51,12 +51,17 @@ template <typename Query> struct has_query {
 };
 } // namespace detail
 
-template <typename... Envs> struct env : stdx::tuple<Envs...> {
+template <typename... Envs> struct env {
+    template <typename... Es>
+    constexpr env(Es &&...es) : children{std::forward<Es>(es)...} {}
+
+    stdx::tuple<Envs...> children{};
+
     template <detail::valid_query_over<Envs...> Query>
     constexpr auto query(Query q) const -> decltype(auto) {
-        using I = boost::mp11::mp_find_if_q<stdx::tuple<Envs...>,
+        using I = boost::mp11::mp_find_if_q<boost::mp11::mp_list<Envs...>,
                                             detail::has_query<Query>>;
-        return q(this->operator[](I{}));
+        return q(children[I{}]);
     }
 };
 template <typename... Envs>

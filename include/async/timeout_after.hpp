@@ -40,10 +40,10 @@ template <typename Domain = timer_mgr::default_domain,
                   "set_stopped cannot send values");
     static_assert(not std::is_same_v<Tag, set_error_t> or sizeof...(Vs) == 1,
                   "set_error should send one value only");
-    return _compose::adaptor{stdx::tuple{
+    return _compose::adaptor{
         _timeout_after::pipeable<Domain, Tag, std::remove_cvref_t<Duration>,
                                  std::remove_cvref_t<Vs>...>{
-            std::forward<Duration>(d), {std::forward<Vs>(vs)...}}}};
+            std::forward<Duration>(d), {std::forward<Vs>(vs)...}}};
 }
 
 template <typename Domain = timer_mgr::default_domain,
