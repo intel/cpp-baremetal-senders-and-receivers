@@ -158,6 +158,14 @@ TEST_CASE("seq(sender) is shorthand for sequence([] { return sender; })",
     CHECK(value == 42);
 }
 
+TEST_CASE("seq(s1, s2) is the same as s1 | seq(s2)", "[sequence]") {
+    int value{};
+    auto s = async::seq(async::just(), async::just(42));
+    auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
 TEST_CASE("seq(sender) with move-only sender", "[sequence]") {
     int value{};
     auto s = async::just() | async::seq(async::just(move_only{42}));

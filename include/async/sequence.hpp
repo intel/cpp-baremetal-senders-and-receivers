@@ -175,6 +175,11 @@ template <stdx::ct_string Name = "seq", sender S>
     return sequence<Name>(_sequence::detail::wrapper{std::forward<S>(s)});
 }
 
+template <stdx::ct_string Name = "seq", sender S1, sender S2>
+[[nodiscard]] constexpr auto seq(S1 &&s1, S2 &&s2) -> sender auto {
+    return std::forward<S1>(s1) | seq<Name>(std::forward<S2>(s2));
+}
+
 struct sequence_t;
 
 template <typename...> struct undef;
