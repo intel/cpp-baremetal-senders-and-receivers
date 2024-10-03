@@ -24,10 +24,9 @@ has one member function (template): `signal`.
 #include <async/debug.hpp>
 
 struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string L, stdx::ct_string S,
-              typename Ctx>
+    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
     constexpr auto signal(auto &&...) {
-        fmt::print("{} {} {}", C, L, S));
+        fmt::print("{} {} {}", C, async::debug::name_of<Ctx>, S);
     }
 };
 
@@ -38,16 +37,19 @@ NOTE: The injection mechanism uses the same pattern as for other global
 concerns, like the xref:schedulers.adoc#_time_scheduler[timer manager] or the
 xref:schedulers.adoc#_fixed_priority_scheduler[priority task manager].
 
-`signal` has four template arguments:
+`signal` has three template arguments:
 
  - `C`: a compile-time string representing the name of the whole sender
    __chain__
- - `L`: a compile-time string representing the name of the __link__ in the
-   chain, i.e. a single sender adaptor
  - `S`: a compile-time string which is the debug signal raised
- - `Ctx`: an opaque type intended just to disambiguate a case where the same
-   link can occur multiple times in a chain, in which case `C`, `L` and `S`
-   might recur
+ - `Ctx`: a debug context
+
+A debug context type `Ctx` adheres to the following API:
+
+ - `async::debug::name_of<Ctx>` is a https://intel.github.io/cpp-std-extensions/#_ct_string_hpp[compile-time string]
+ - `async::debug::tag_of<Ctx>` is a tag type that represents the sender or adaptor type
+ - `async::debug::type_of<Ctx>` is the opaque "internal" type that the context is for (e.g. the operation state that is executing)
+ - `async::debug::children_of<Ctx>` is a type list containing the child context(s)
 
 These arguments can be used to do compile-time filtering of signal types if
 desired. `signal` may also have arbitrary runtime arguments providing runtime
@@ -63,34 +65,49 @@ work) may raise a debug signal by calling `debug_signal`:
 
 [source,cpp]
 ----
+// the signature of debug_signal
 namespace async {
-template <stdx::ct_string Signal, stdx::ct_string LinkName, typename Ctx,
-          queryable Q, typename... Args>
+template <stdx::ct_string Signal, typename Ctx, queryable Q, typename... Args>
 auto debug_signal(Q &&q, Args &&...args) -> void;
 }
 
+// the operation state will raise a debug signal when it is started
 template <typename Rcvr>
 struct my_op_state {
   Rcvr r;
 
   auto start() & -> void {
-      async::debug_signal<"start", "my_sender", my_op_state>(get_env(r));
+      async::debug_signal<"start", async::debug::erased_context_for<my_op_state>>(get_env(r));
       // ...
   }
+};
+
+// and we provide a specialization of debug_context_for that fulfils the API
+struct my_sender_t;
+
+template <typename Rcvr>
+async::debug::debug_context_for<my_op_state<Rcvr>> {
+  using tag = my_sender_t;
+  constexpr static auto name = stdx::ct_string{"my sender"};
+  using type = my_op_state<Rcvr>;
+  using children = stdx::type_list<>;
 };
 ----
 
 `debug_signal` takes template arguments:
 
  - `Signal`: the (name of the) debug signal
- - `LinkName`: the name of the sender or adaptor that is raising the signal
- - `Ctx`: an opaque type for disambiguation
+ - `Ctx`: the debug context for this signal
 
 and runtime arguments:
 
  - `q`: a queryable object that responds to the `get_debug_interface` query -
    usually the environment of a connected receiver
  - `args...`: any runtime context arguments to be forwarded to `signal`
+
+The context for a signal is obtained through
+`async::debug::erased_context_for<T>` which in turn picks up a specialization of
+`async::debug::debug_context_for`.
 
 Generic senders and adaptors will typically send well-known signals at transition points:
 
@@ -124,14 +141,14 @@ auto result = start_detached<"my op">(async::when_all(s1, s0));
 
 The debug signals produced by this code could be:
 
- - `"my op" "when_all"    "start"`
- - `"my op" "fp sched[1]" "start"`
- - `"my op" "fp sched[1]" "set_value"`
- - `"my op" "answer1"     "set_value"`
- - `"my op" "fp sched[0]" "start"`
- - `"my op" "fp sched[0]" "set_value"`
- - `"my op" "answer0"     "set_value"`
- - `"my op" "when_all"    "set_value"`
+ - `"my op" "start"     context["when all"]`
+ - `"my op" "start"     context["fp_sched[1]"]`
+ - `"my op" "set_value" context["fp_sched[1]"]`
+ - `"my op" "set_value" context["answer1"]`
+ - `"my op" "start"     context["fp_sched[0]"]`
+ - `"my op" "set_value" context["fp_sched[0]"]`
+ - `"my op" "set_value" context["answer0"]`
+ - `"my op" "set_value" context["when_all"]`
 
 Things to note here:
 
