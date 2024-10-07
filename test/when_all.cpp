@@ -77,6 +77,43 @@ TEST_CASE("basic operation", "[when_all]") {
     CHECK(value == 59);
 }
 
+TEST_CASE("basic operation sending multiple values", "[when_all]") {
+    int value{};
+    auto s1 = async::just(42, 17);
+    auto s2 = async::just(1337);
+    static_assert(
+        async::_when_all::single_sender<decltype(s1), async::set_value_t,
+                                        async::empty_env>);
+    auto w = async::when_all(s1, s2);
+
+    auto op = async::connect(w, receiver{[&](auto i, auto j, auto k) {
+                                 CHECK(i == 42);
+                                 CHECK(j == 17);
+                                 CHECK(k == 1337);
+                                 value = i + j + k;
+                             }});
+    async::start(op);
+    CHECK(value == 1396);
+}
+
+TEST_CASE("basic operation sending void values", "[when_all]") {
+    int value{};
+    auto s1 = async::just(42, 17);
+    auto s2 = async::just();
+    static_assert(
+        async::_when_all::single_sender<decltype(s1), async::set_value_t,
+                                        async::empty_env>);
+    auto w = async::when_all(s1, s2);
+
+    auto op = async::connect(w, receiver{[&](auto i, auto j) {
+                                 CHECK(i == 42);
+                                 CHECK(j == 17);
+                                 value = i + j;
+                             }});
+    async::start(op);
+    CHECK(value == 59);
+}
+
 TEST_CASE("when_all with thread scheduler", "[when_all]") {
     std::uniform_int_distribution<> dis{5, 10};
     auto const d1 = std::chrono::milliseconds{dis(get_rng())};

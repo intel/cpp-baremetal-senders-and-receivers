@@ -10,6 +10,8 @@
 
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
+#include <stdx/tuple.hpp>
+#include <stdx/tuple_algorithms.hpp>
 #include <stdx/type_traits.hpp>
 #include <stdx/utility.hpp>
 
@@ -56,26 +58,32 @@ template <typename SubOps> struct sub_receiver {
 template <typename S, typename Tag, typename E>
 concept single_sender = requires {
     typename async::detail::gather_signatures<
-        Tag, completion_signatures_of_t<S, E>, std::type_identity_t,
+        Tag, completion_signatures_of_t<S, E>, stdx::tuple,
         std::type_identity_t>;
 };
 
 template <typename E, typename S> struct sub_op_storage {
-    auto store(auto &&...) -> void {}
+    using values_t = stdx::tuple<>;
 
-    using values_t = detail::type_list<>;
+    auto store(auto &&...) -> void {}
+    auto load() -> values_t { return {}; }
 };
 
 template <typename E, single_sender<set_value_t, E> S>
 struct sub_op_storage<E, S> {
-    template <typename... Args> auto store(Args &&...args) -> void {
-        v.emplace(std::forward<Args>(args)...);
-    }
-    using value_t = value_types_of_t<typename S::sender_t, E, std::optional,
-                                     std::type_identity_t>;
-    using values_t = detail::type_list<typename value_t::value_type>;
+    using values_t = value_types_of_t<typename S::sender_t, E, stdx::tuple,
+                                      std::type_identity_t>;
+    using ref_values_t =
+        boost::mp11::mp_transform<std::add_lvalue_reference_t, values_t>;
 
-    value_t v{};
+    template <typename... Args> auto store(Args &&...args) -> void {
+        v = stdx::make_tuple(std::forward<Args>(args)...);
+    }
+    auto load() -> ref_values_t {
+        return v->apply([](auto &...args) { return ref_values_t{args...}; });
+    }
+
+    std::optional<values_t> v{};
 };
 
 template <typename Ops, typename R, typename S, typename StopToken>
@@ -224,9 +232,11 @@ struct op_state
                 debug_signal<set_value_t::name,
                              debug::erased_context_for<op_state>>(
                     get_env(rcvr));
-                set_value(
-                    std::move(rcvr),
-                    static_cast<sub_op_state_t<Ss> &&>(*this).v.value()...);
+                stdx::tuple_cat(
+                    static_cast<sub_op_state_t<Ss> &&>(*this).load()...)
+                    .apply([&](auto &...args) {
+                        set_value(std::move(rcvr), std::move(args)...);
+                    });
             }(value_senders{});
         }
     }
@@ -305,9 +315,11 @@ struct nostop_op_state
                 debug_signal<set_value_t::name,
                              debug::erased_context_for<nostop_op_state>>(
                     get_env(rcvr));
-                set_value(
-                    std::move(rcvr),
-                    static_cast<sub_op_state_t<Ss> &&>(*this).v.value()...);
+                stdx::tuple_cat(
+                    static_cast<sub_op_state_t<Ss> &&>(*this).load()...)
+                    .apply([&](auto &...args) {
+                        set_value(std::move(rcvr), std::move(args)...);
+                    });
             }(value_senders{});
         }
     }
@@ -363,9 +375,11 @@ struct sync_op_state
                 debug_signal<set_value_t::name,
                              debug::erased_context_for<sync_op_state>>(
                     get_env(rcvr));
-                set_value(
-                    std::move(rcvr),
-                    static_cast<sub_op_state_t<Ss> &&>(*this).v.value()...);
+                stdx::tuple_cat(
+                    static_cast<sub_op_state_t<Ss> &&>(*this).load()...)
+                    .apply([&](auto &...args) {
+                        set_value(std::move(rcvr), std::move(args)...);
+                    });
             }(value_senders{});
         }
     }

@@ -381,9 +381,11 @@ auto then_sndr = async::upon_stopped(sndr, [] { return 42; });
 
 Found in the header: `async/when_all.hpp`
 
-`when_all` takes a number of senders (which must all produce a single value) and
-after they all complete, forwards all the values. If any of them produces an
-error or is cancelled, `when_all` cancels the remaining senders.
+`when_all` takes a number of senders and after they all complete, forwards all
+the values. If any of them produces an error or is cancelled, `when_all` cancels
+the remaining senders.
+
+Each sender passed to `when_all` must complete with `set_value` in exactly one way.
 
 [source,cpp]
 ----
