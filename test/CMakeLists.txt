@@ -14,7 +14,6 @@ function(add_tests)
             async
             fmt::fmt-header-only
             pthread)
-        target_compile_features("${name}_test" PRIVATE cxx_std_23)
     endforeach()
 endfunction()
 
