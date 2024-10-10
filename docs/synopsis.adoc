@@ -58,6 +58,9 @@ in pipe-composition syntax.
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/get_scheduler.hpp[get_scheduler.hpp]
 * `get_scheduler` - a query used to retrieve a scheduler from a sender's attributes
 
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[incite_on.hpp]
+* `incite_on` - a xref:sender_adaptors.adoc#_incite_on[sender adaptor] that incites execution on another scheduler
+
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[just.hpp]
 * `just` - a xref:sender_factories.adoc#_just[sender factory] that sends on the value channel
 * `just_error` - a xref:sender_factories.adoc#_just_error[sender factory] that sends on the error channel
@@ -220,6 +223,7 @@ contains traits and metaprogramming constructs used by many senders.
 * xref:environments.adoc#_environments[`get_env`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/env.hpp[`#include <async/env.hpp>`]
 * `get_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
 * `get_stop_token` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
+* xref:sender_adaptors.adoc#_incite_on[`incite_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[`#include <async/incite_on.hpp>`]
 * xref:debug.adoc#_handling_a_debug_signal[`injected_debug_handler<>`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
 * `injected_task_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * `injected_timer_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]

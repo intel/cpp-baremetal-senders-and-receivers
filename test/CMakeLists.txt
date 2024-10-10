@@ -28,6 +28,7 @@ add_tests(
     forwarding_query
     freestanding_sync_wait
     hosted_sync_wait
+    incite_on
     just
     just_error
     just_error_result_of

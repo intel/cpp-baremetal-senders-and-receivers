@@ -18,6 +18,51 @@ auto transferred = async::then(t, [] (int i) { return std::to_string(i); });
 // then on s2 it will convert 42 to a string, producing "42"
 ----
 
+WARNING: If the upstream sender _causes_ the downstream scheduler to run, using
+`continue_on` is incorrect: xref:sender_adaptors.adoc#_incite_on[`incite_on`]
+should be used instead.
+
+=== `incite_on`
+
+Found in the header: `async/incite_on.hpp`
+
+`incite_on` is like xref:sender_adaptors.adoc#_continue_on[`continue_on`] but is
+for the use case where running a sender causes a scheduler to be triggered. It
+is intended for use with xref:schedulers.adoc#_trigger_scheduler[`trigger_scheduler`].
+
+[source,cpp]
+----
+auto sndr = async::just([] { send_request(); });
+          | async::incite_on(trigger_scheduler<"msg">{})
+          | async::then([] (auto msg) { /* handle response */ });
+
+auto on_recv_message(auto msg) {
+  async::run_triggers<"msg">(msg);
+}
+
+// when sndr runs:
+// send_message will send a request
+// time passes...
+// when the response is received, its handler calls run_triggers
+// sndr continues on the trigger scheduler
+----
+
+The sender upstream of `incite_on` must complete by sending a function. When
+that function is called it will in some way cause the downstream scheduled
+sender to run. This may happen indirectly (e.g. as above, via another
+asynchronous mechanism like message reception), or directly. The upstream sender
+must complete successfully in one way -- with this function -- although it may
+still send an error, or be cancelled.
+
+`continue_on` would be incorrect in this circumstance, because once the `just`
+completes and sends a message, `continue_on(trigger_scheduler{})` is racing with
+message reception. If the message is received before the `trigger_scheduler` is
+ready to fire, the trigger would be missed.
+
+NOTE: The incited scheduler must produce a sender which completes
+asynchronously. A synchronous scheduler would require no incitement, and
+`continue_on` would be correct.
+
 === `let_error`
 
 Found in the header: `async/let_error.hpp`
