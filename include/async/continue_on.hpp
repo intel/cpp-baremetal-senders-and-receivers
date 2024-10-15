@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>

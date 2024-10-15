@@ -1,3 +1,8 @@
+add_compile_fail_test("incite_on_multiple_completions.cpp" LIBRARIES async
+                      pthread)
+add_compile_fail_test("incite_on_synchronous_scheduler.cpp" LIBRARIES async
+                      pthread)
+add_compile_fail_test("incite_on_without_function.cpp" LIBRARIES async pthread)
 add_compile_fail_test("just_connect.cpp" LIBRARIES async pthread)
 add_compile_fail_test("just_error_connect.cpp" LIBRARIES async pthread)
 add_compile_fail_test("just_error_result_of_connect.cpp" LIBRARIES async
