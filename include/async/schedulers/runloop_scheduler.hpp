@@ -18,7 +18,6 @@
 #include <stdx/concepts.hpp>
 #include <stdx/intrusive_list.hpp>
 
-#include <atomic>
 #if HAS_CONDITION_VARIABLE
 #include <condition_variable>
 #include <mutex>

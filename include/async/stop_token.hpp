@@ -3,10 +3,10 @@
 #include <async/forwarding_query.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/atomic.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/intrusive_list.hpp>
 
-#include <atomic>
 #include <concepts>
 #include <type_traits>
 #include <utility>
@@ -128,7 +128,7 @@ struct inplace_stop_source {
     }
 
   private:
-    std::atomic<bool> requested{};
+    stdx::atomic<bool> requested{};
     stdx::intrusive_list<stop_callback_base> callbacks{};
 };
 

@@ -3,12 +3,12 @@
 #include <async/schedulers/timer_manager_interface.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/atomic.hpp>
 #include <stdx/function_traits.hpp>
 #include <stdx/intrusive_list.hpp>
 #include <stdx/tuple.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <concepts>
 #include <iterator>
 #include <memory>
@@ -51,7 +51,7 @@ template <detail::timer_hal H> struct generic_timer_manager {
   private:
     struct mutex;
     stdx::intrusive_list<task_t> task_queue{};
-    std::atomic<int> task_count{};
+    stdx::atomic<int> task_count{};
 
     auto schedule(task_t *t) -> void {
         if (std::empty(task_queue)) {

@@ -2,12 +2,12 @@
 
 #include <conc/concurrency.hpp>
 
+#include <stdx/atomic.hpp>
 #include <stdx/bit.hpp>
 #include <stdx/bitset.hpp>
 #include <stdx/compiler.hpp>
 
 #include <array>
-#include <atomic>
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -58,8 +58,8 @@ template <typename Name, typename T> struct static_allocator_t<Name, T, 1> {
     constexpr static inline auto alignment = alignof(T);
     constexpr static inline auto size = sizeof(T);
 
+    stdx::atomic<bool> used{};
     alignas(alignment) std::array<std::byte, size> data{};
-    std::atomic<bool> used{};
 
     template <typename... Args>
     auto construct(Args &&...args) LIFETIMEBOUND -> T * {

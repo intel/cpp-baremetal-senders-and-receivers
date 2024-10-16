@@ -10,6 +10,7 @@
 #include <async/type_traits.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/atomic.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
@@ -17,7 +18,6 @@
 #include <stdx/type_traits.hpp>
 #include <stdx/utility.hpp>
 
-#include <atomic>
 #include <concepts>
 #include <cstddef>
 #include <optional>
@@ -293,7 +293,7 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
 
     [[no_unique_address]] Rcvr rcvr;
     completions_t completions{};
-    std::atomic<std::size_t> count{};
+    stdx::atomic<std::size_t> count{};
     inplace_stop_source stop_source{};
     std::optional<stop_callback_t> stop_cb{};
 };
@@ -369,7 +369,7 @@ struct nostop_op_state
 
     [[no_unique_address]] Rcvr rcvr;
     completions_t completions{};
-    std::atomic<std::size_t> count{};
+    stdx::atomic<std::size_t> count{};
     [[no_unique_address]] never_stop_source stop_source{};
 };
 
