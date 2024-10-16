@@ -15,8 +15,8 @@ else()
     cpmaddpackage("gh:intel/cicd-repo-infrastructure#3e2bef0")
 endif()
 
-add_versioned_package("gh:intel/cpp-std-extensions#67120f7")
-add_versioned_package("gh:intel/cpp-baremetal-concurrency#659771e")
+add_versioned_package("gh:intel/cpp-baremetal-concurrency#06e5901")
+add_versioned_package("gh:intel/cpp-std-extensions#a36370b")
 add_versioned_package("gh:boostorg/mp11#boost-1.83.0")
 
 add_library(async INTERFACE)

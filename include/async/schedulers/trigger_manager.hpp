@@ -3,12 +3,12 @@
 #include <async/schedulers/requeue_policy.hpp>
 #include <conc/concurrency.hpp>
 
+#include <stdx/atomic.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/intrusive_list.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <array>
-#include <atomic>
 #include <concepts>
 #include <iterator>
 #include <memory>
@@ -40,7 +40,7 @@ template <stdx::ct_string Name, typename... Args> struct trigger_manager {
   private:
     struct mutex;
     std::array<stdx::intrusive_list<task_t>, 1> tasks{};
-    std::atomic<int> task_count{};
+    stdx::atomic<int> task_count{};
 
   public:
     auto enqueue(task_t &t) -> bool {
