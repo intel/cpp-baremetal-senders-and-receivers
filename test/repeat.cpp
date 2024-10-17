@@ -4,6 +4,7 @@
 #include <async/connect.hpp>
 #include <async/debug.hpp>
 #include <async/just.hpp>
+#include <async/just_result_of.hpp>
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
@@ -254,4 +255,22 @@ TEST_CASE("repeat can be named and debugged", "[repeat]") {
     async::start(op);
     CHECK(debug_events ==
           std::vector{"op repeat_name start"s, "op repeat_name set_error"s});
+}
+
+TEST_CASE(
+    "repeat_until with a synchronous sender does not cause stack overflow",
+    "[repeat]") {
+    int var{};
+
+    auto sub = async::just_result_of([&] {
+        ++var;
+        return var;
+    });
+    auto s = sub | async::repeat_until([&](auto i) { return i == 1'000'000; });
+    auto op = async::connect(s, receiver{[&](auto i) {
+                                 CHECK(i == 1'000'000);
+                                 var = -1;
+                             }});
+    async::start(op);
+    CHECK(var == -1);
 }
