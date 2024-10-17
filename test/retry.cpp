@@ -4,6 +4,7 @@
 #include <async/connect.hpp>
 #include <async/debug.hpp>
 #include <async/just.hpp>
+#include <async/just_result_of.hpp>
 #include <async/retry.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
@@ -210,4 +211,21 @@ TEST_CASE("retry can be named and debugged", "[retry]") {
     async::start(op);
     CHECK(debug_events ==
           std::vector{"op retry_name start"s, "op retry_name set_value"s});
+}
+
+TEST_CASE("retry_until with a synchronous sender does not cause stack overflow",
+          "[retry]") {
+    int var{};
+
+    auto sub = async::just_error_result_of([&] {
+        ++var;
+        return var;
+    });
+    auto s = sub | async::retry_until([&](auto i) { return i == 1'000'000; });
+    auto op = async::connect(s, error_receiver{[&](auto i) {
+                                 CHECK(i == 1'000'000);
+                                 var = -1;
+                             }});
+    async::start(op);
+    CHECK(var == -1);
 }

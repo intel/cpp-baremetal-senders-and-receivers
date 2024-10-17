@@ -66,6 +66,7 @@ struct op_state {
     static_assert(
         boost::mp11::mp_all_of_q<value_completions, callable_with<Pred>>::value,
         "Predicate is not callable with value completions of sender");
+    using state_t = async::connect_result_t<Sndr &, receiver_t>;
 
     template <stdx::same_as_unqualified<Sndr> S,
               stdx::same_as_unqualified<Rcvr> R,
@@ -77,11 +78,27 @@ struct op_state {
     constexpr op_state(op_state &&) = delete;
 
     constexpr auto start() & -> void {
-        debug_signal<"start", debug::erased_context_for<op_state>>(
-            get_env(rcvr));
-        auto &op = state.emplace(stdx::with_result_of{
+        setup();
+        if constexpr (synchronous_t<state_t>::value) {
+            run_sync();
+        } else {
+            debug_signal<"start", debug::erased_context_for<op_state>>(
+                get_env(rcvr));
+            async::start(*state);
+        }
+    }
+
+    constexpr auto setup() -> void {
+        state.emplace(stdx::with_result_of{
             [&] { return connect(sndr, receiver_t{this}); }});
-        async::start(op);
+    }
+
+    constexpr auto run_sync() -> void {
+        while (state.has_value()) {
+            debug_signal<"start", debug::erased_context_for<op_state>>(
+                get_env(rcvr));
+            async::start(*state);
+        }
     }
 
     template <typename... Args> auto repeat(Args &&...args) -> void {
@@ -94,10 +111,15 @@ struct op_state {
                              debug::erased_context_for<op_state>>(
                     get_env(rcvr));
                 set_value(std::move(rcvr), std::forward<Args>(args)...);
+                state.reset();
                 return;
             }
         }
-        start();
+        if constexpr (not synchronous_t<state_t>::value) {
+            start();
+        } else {
+            setup();
+        }
     }
 
     template <channel_tag Tag, typename... Args>
@@ -105,6 +127,7 @@ struct op_state {
         debug_signal<Tag::name, debug::erased_context_for<op_state>>(
             get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
+        state.reset();
     }
 
     [[nodiscard]] constexpr auto query(async::get_env_t) const {
@@ -115,7 +138,6 @@ struct op_state {
     [[no_unique_address]] Rcvr rcvr;
     [[no_unique_address]] Pred pred;
 
-    using state_t = async::connect_result_t<Sndr &, receiver_t>;
     std::optional<state_t> state{};
 };
 
