@@ -18,6 +18,7 @@
 #include <stdx/concepts.hpp>
 #include <stdx/intrusive_list.hpp>
 
+#include <cstdint>
 #if HAS_CONDITION_VARIABLE
 #include <condition_variable>
 #include <mutex>
@@ -37,6 +38,7 @@ template <typename Name> constexpr auto get_name() {
 }
 } // namespace detail
 
+// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
 struct op_state_base {
     virtual auto execute() -> void = 0;
     op_state_base *next{};
@@ -169,13 +171,13 @@ template <typename Uniq = decltype([] {})> class run_loop {
     }
 
   private:
-    enum struct state_t { starting, running, finishing };
+    enum struct state_t : std::uint8_t { starting, running, finishing };
 
     state_t state{state_t::starting};
     stdx::intrusive_list<op_state_base> tasks{};
 #if HAS_CONDITION_VARIABLE
-    std::mutex m{};
-    std::condition_variable cv{};
+    std::mutex m;
+    std::condition_variable cv;
 #endif
 };
 } // namespace _run_loop

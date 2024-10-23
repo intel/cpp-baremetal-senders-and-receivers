@@ -51,7 +51,7 @@ template <detail::timer_hal H> struct generic_timer_manager {
   private:
     struct mutex;
     stdx::intrusive_list<task_t> task_queue{};
-    stdx::atomic<int> task_count{};
+    stdx::atomic<int> task_count;
 
     auto schedule(task_t *t) -> void {
         if (std::empty(task_queue)) {

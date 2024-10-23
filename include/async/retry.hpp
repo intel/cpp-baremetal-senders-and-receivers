@@ -58,8 +58,8 @@ template <typename Pred> struct callable_with {
     template <typename Sig> using fn = is_callable<Pred, Sig>;
 };
 
-// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using receiver_t = receiver<op_state, Rcvr>;
     using value_completions = error_signatures_of_t<Sndr, env_of_t<receiver_t>>;

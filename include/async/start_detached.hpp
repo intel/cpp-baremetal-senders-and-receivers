@@ -61,7 +61,7 @@ struct op_state_base {
                            decltype(std::declval<StopSource>().get_token())>,
                       Env const &>;
 
-    constexpr op_state_base(Env &&env) : e{std::move(env)} {}
+    constexpr explicit(true) op_state_base(Env &&env) : e{std::move(env)} {}
     constexpr op_state_base(op_state_base &&) = delete;
 
     template <stdx::ct_string> auto die() {}
