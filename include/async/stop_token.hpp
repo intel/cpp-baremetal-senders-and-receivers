@@ -58,6 +58,7 @@ template <typename Source> struct stop_token {
     operator==(stop_token, stop_token) noexcept -> bool = default;
 };
 
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct stop_callback_base {
     virtual auto run() -> void = 0;
 
@@ -128,7 +129,7 @@ struct inplace_stop_source {
     }
 
   private:
-    stdx::atomic<bool> requested{};
+    stdx::atomic<bool> requested;
     stdx::intrusive_list<stop_callback_base> callbacks{};
 };
 
@@ -189,8 +190,8 @@ template <typename F> struct inplace_stop_callback : stop_callback_base {
             callback();
         }
     }
-    ~inplace_stop_callback() {
-        if (source) {
+    ~inplace_stop_callback() override {
+        if (source != nullptr) {
             source->unregister_callback(this);
         }
     }

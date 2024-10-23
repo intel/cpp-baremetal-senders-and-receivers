@@ -40,7 +40,7 @@ struct priority_task_manager {
     struct mutex;
     std::array<stdx::intrusive_forward_list<task_t>, NumPriorities>
         task_queues{};
-    stdx::atomic<int> task_count{};
+    stdx::atomic<int> task_count;
 
   public:
     constexpr static auto create_task = async::create_task<task_t>;

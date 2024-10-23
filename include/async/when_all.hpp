@@ -160,7 +160,7 @@ struct error_op_state<E, boost::mp11::mp_list<Sndrs...>> {
         completion_signatures<set_error_t(typename error_t::value_type)>;
 
     error_t e{};
-    stdx::atomic<bool> caught_error{};
+    stdx::atomic<bool> caught_error;
 };
 
 template <typename E> struct is_error_sender {
@@ -265,8 +265,8 @@ struct op_state
         stop_callback_for_t<stop_token_of_t<env_of_t<Rcvr>>, stop_callback_fn>;
 
     [[no_unique_address]] Rcvr rcvr;
-    stdx::atomic<std::size_t> count{};
-    inplace_stop_source stop_source{};
+    stdx::atomic<std::size_t> count;
+    inplace_stop_source stop_source;
     std::optional<stop_callback_t> stop_cb{};
 };
 
@@ -334,7 +334,7 @@ struct nostop_op_state
     [[nodiscard]] auto get_stop_token() const -> never_stop_token { return {}; }
 
     [[no_unique_address]] Rcvr rcvr;
-    stdx::atomic<std::size_t> count{};
+    stdx::atomic<std::size_t> count;
 };
 
 template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>

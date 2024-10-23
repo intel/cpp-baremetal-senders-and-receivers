@@ -13,7 +13,8 @@ namespace async {
 namespace _compose {
 template <typename... As> struct adaptor {
     template <typename... Ts>
-    constexpr adaptor(Ts &&...ts) : as{std::forward<Ts>(ts)...} {}
+    constexpr explicit(true) adaptor(Ts &&...ts)
+        : as{std::forward<Ts>(ts)...} {}
 
     using is_adaptor_composition = void;
     stdx::tuple<As...> as;

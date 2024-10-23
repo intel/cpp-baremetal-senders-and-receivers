@@ -293,8 +293,8 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
 
     [[no_unique_address]] Rcvr rcvr;
     completions_t completions{};
-    stdx::atomic<std::size_t> count{};
-    inplace_stop_source stop_source{};
+    stdx::atomic<std::size_t> count;
+    inplace_stop_source stop_source;
     std::optional<stop_callback_t> stop_cb{};
 };
 
@@ -363,13 +363,11 @@ struct nostop_op_state
         (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
     }
 
-    [[nodiscard]] auto get_stop_token() const -> never_stop_token {
-        return stop_source.get_token();
-    }
+    [[nodiscard]] auto get_stop_token() const -> never_stop_token { return {}; }
 
     [[no_unique_address]] Rcvr rcvr;
     completions_t completions{};
-    stdx::atomic<std::size_t> count{};
+    stdx::atomic<std::size_t> count;
     [[no_unique_address]] never_stop_source stop_source{};
 };
 

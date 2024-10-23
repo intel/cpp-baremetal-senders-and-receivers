@@ -40,7 +40,7 @@ template <stdx::ct_string Name, typename... Args> struct trigger_manager {
   private:
     struct mutex;
     std::array<stdx::intrusive_list<task_t>, 1> tasks{};
-    stdx::atomic<int> task_count{};
+    stdx::atomic<int> task_count;
 
   public:
     auto enqueue(task_t &t) -> bool {

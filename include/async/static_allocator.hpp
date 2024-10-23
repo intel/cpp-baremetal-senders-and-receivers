@@ -58,7 +58,7 @@ template <typename Name, typename T> struct static_allocator_t<Name, T, 1> {
     constexpr static inline auto alignment = alignof(T);
     constexpr static inline auto size = sizeof(T);
 
-    stdx::atomic<bool> used{};
+    stdx::atomic<bool> used;
     alignas(alignment) std::array<std::byte, size> data{};
 
     template <typename... Args>

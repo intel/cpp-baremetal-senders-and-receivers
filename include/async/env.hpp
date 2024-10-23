@@ -53,6 +53,7 @@ template <typename Query> struct has_query {
 
 template <typename... Envs> struct env {
     template <typename... Es>
+    // NOLINTNEXTLINE(google-explicit-constructor)
     constexpr env(Es &&...es) : children{std::forward<Es>(es)...} {}
 
     stdx::tuple<Envs...> children{};
@@ -79,7 +80,7 @@ constexpr inline struct get_env_t {
     }
 
     [[nodiscard]] constexpr auto operator()(auto &&) const -> empty_env {
-        return {};
+        return empty_env{};
     }
 } get_env{};
 
