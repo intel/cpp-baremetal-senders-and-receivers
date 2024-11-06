@@ -79,7 +79,7 @@ template <typename Uniq, typename Env> struct pipeable {
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
-    friend auto operator|(S &&s, Self &&self) {
+    [[nodiscard]] friend auto operator|(S &&s, Self &&self) {
         return wait<Uniq>(std::forward<S>(s), std::forward<Self>(self).e);
     }
 };
