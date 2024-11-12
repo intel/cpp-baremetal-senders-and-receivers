@@ -357,3 +357,143 @@ TEST_CASE("queue a task on interrupt during servicing", "[timer_manager]") {
     CHECK(hal::calls.back() == 2);
     CHECK(hal::enabled);
 }
+
+namespace {
+struct interaction_hal {
+    using time_point_t = int;
+    using task_t = async::timer_task<time_point_t>;
+
+    enum struct call_type { enable, disable, set_event_time, now };
+
+    static inline time_point_t current_time{};
+    static inline std::vector<call_type> calls{};
+
+    static auto enable() -> void { calls.push_back(call_type::enable); }
+    static auto disable() -> void { calls.push_back(call_type::disable); }
+    static auto set_event_time(time_point_t) -> void {
+        calls.push_back(call_type::set_event_time);
+    }
+    static auto now() -> time_point_t {
+        calls.push_back(call_type::now);
+        return current_time;
+    }
+};
+
+using interaction_manager_t = async::generic_timer_manager<interaction_hal>;
+} // namespace
+
+TEST_CASE("HAL interaction starts with enable", "[timer_manager]") {
+    interaction_hal::calls.clear();
+
+    auto m = interaction_manager_t{};
+    int var{};
+    auto t = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t, 3);
+    REQUIRE(interaction_hal::calls.size() == 3);
+    CHECK(interaction_hal::calls[0] == interaction_hal::call_type::enable);
+    CHECK(interaction_hal::calls[1] == interaction_hal::call_type::now);
+    CHECK(interaction_hal::calls[2] ==
+          interaction_hal::call_type::set_event_time);
+}
+
+TEST_CASE("HAL interaction calls now for later task", "[timer_manager]") {
+    interaction_hal::calls.clear();
+
+    auto m = interaction_manager_t{};
+    int var{};
+    auto t1 = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t1, 3);
+    auto t2 = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t2, 4);
+    REQUIRE(interaction_hal::calls.size() == 4);
+    CHECK(interaction_hal::calls[3] == interaction_hal::call_type::now);
+}
+
+TEST_CASE("HAL interaction calls now and set_event_time for earlier task",
+          "[timer_manager]") {
+    interaction_hal::calls.clear();
+
+    auto m = interaction_manager_t{};
+    int var{};
+    auto t1 = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t1, 3);
+    auto t2 = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t2, 2);
+    REQUIRE(interaction_hal::calls.size() == 5);
+    CHECK(interaction_hal::calls[3] == interaction_hal::call_type::now);
+    CHECK(interaction_hal::calls[4] ==
+          interaction_hal::call_type::set_event_time);
+}
+
+TEST_CASE("HAL interaction calls set_event_time for next task",
+          "[timer_manager]") {
+    interaction_hal::calls.clear();
+
+    auto m = interaction_manager_t{};
+    int var{};
+    auto t1 = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t1, 3);
+    auto t2 = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t2, 4);
+    m.service_task();
+    REQUIRE(interaction_hal::calls.size() == 5);
+    CHECK(interaction_hal::calls[4] ==
+          interaction_hal::call_type::set_event_time);
+}
+
+TEST_CASE("HAL interaction ends with disable", "[timer_manager]") {
+    interaction_hal::calls.clear();
+
+    auto m = interaction_manager_t{};
+    int var{};
+    auto t = interaction_manager_t::create_task([&] { var = 42; });
+    m.run_after(t, 3);
+    m.service_task();
+    REQUIRE(not interaction_hal::calls.empty());
+    CHECK(interaction_hal::calls.back() == interaction_hal::call_type::disable);
+}
+
+namespace {
+struct fused_enable_hal {
+    using time_point_t = int;
+    using task_t = async::timer_task<time_point_t>;
+
+    enum struct call_type {
+        enable,
+        disable,
+        set_event_time,
+        now,
+        fused_enable
+    };
+
+    static inline time_point_t current_time{};
+    static inline std::vector<call_type> calls{};
+
+    static auto enable(auto dur) -> time_point_t {
+        calls.push_back(call_type::fused_enable);
+        return current_time + dur;
+    }
+    static auto disable() -> void { calls.push_back(call_type::disable); }
+    static auto set_event_time(time_point_t) -> void {
+        calls.push_back(call_type::set_event_time);
+    }
+    static auto now() -> time_point_t {
+        calls.push_back(call_type::now);
+        return current_time;
+    }
+};
+
+using fused_enable_manager_t = async::generic_timer_manager<fused_enable_hal>;
+} // namespace
+
+TEST_CASE("HAL interaction can use enable with duration", "[timer_manager]") {
+    fused_enable_hal::calls.clear();
+
+    auto m = fused_enable_manager_t{};
+    int var{};
+    auto t = fused_enable_manager_t::create_task([&] { var = 42; });
+    m.run_after(t, 3);
+    REQUIRE(fused_enable_hal::calls.size() == 1);
+    CHECK(fused_enable_hal::calls[0] ==
+          fused_enable_hal::call_type::fused_enable);
+}

@@ -171,6 +171,7 @@ struct hal {
     using task_t = async::timer_task<time_point_t>;
 
     static auto enable() -> void;
+    static auto enable(auto duration) -> time_point_t; // optional
     static auto disable() -> void;
     static auto set_event_time(time_point_t tp) -> void;
     static auto now() -> time_point_t;
@@ -216,6 +217,59 @@ async::start_on(async::time_scheduler{10ms},
 async::timer_mgr::service_task();
 // x is now 42
 ----
+
+==== HAL interaction
+
+The various HAL functions are called as follows:
+
+On queueing the first task (consuming a `time_scheduler` sender), _either_:
+
+ - `enable()`
+ - `now()`
+ - `set_event_time(time_point)`
+
+_or_ (if this function is optionally available):
+
+ - `enable(duration)`
+
+NOTE: The second case allows the HAL to fuse enabling and setting the expiry
+time, if it's possible to do that more efficiently. The return value should be
+equivalent to `now() + duration`. The type of `duration` is equivalent to the
+type obtained by subtracting two `time_point_t`​s.
+
+On queueing a new task which _is not_ the next to expire:
+
+ - `now()`
+
+On queueing a new task which _is_ the next to expire:
+
+ - `now()`
+ - `set_event_time(time_point)`
+
+On processing a task (not the last) with `service_task()`:
+
+ - `set_event_time(time_point)`
+
+On processing the last currently queued task with `service_task()`:
+
+ - `disable()`
+
+Note that interaction with the HAL starts with a single `enable()` call, and
+ends with a single `disable()` call. This means that when `enable()` is called,
+the HAL is free to reset its timer. And when `disable()` is called, the HAL is
+free to disable the timer or even remove power. In between `enable()` and
+`disable()` calls, the timer should be free-running. It should not be reset
+while running: this will invalidate timing data in the task queue.
+
+NOTE: `enable()` is called to start the timer, and `disable()` is called when no
+more timers are active. When one timer expires and another in the queue is set,
+`enable()` is _not_ called again for the second timer.
+
+NOTE: `enable()` is called from the context which consumes the `time_scheduler`
+sender to kick off the work. `disable()` is called from the timer interrupt
+context that processes the last task in the queue. And in general, each call to
+`set_event_time()` to schedule the next timer task executes in the previous
+task's timer interrupt context.
 
 ==== time domains
 

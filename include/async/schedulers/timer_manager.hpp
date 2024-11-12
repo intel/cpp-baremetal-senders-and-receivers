@@ -18,29 +18,29 @@
 namespace async {
 namespace detail {
 template <typename T>
-concept timer_hal =
+concept basic_timer_hal =
     timeable_task<typename T::task_t> and
     requires(typename T::time_point_t tp, typename T::task_t &task) {
         { T::now() } -> std::same_as<typename T::time_point_t>;
-        { T::enable() } -> std::same_as<void>;
         { T::disable() } -> std::same_as<void>;
         { T::set_event_time(tp) } -> std::same_as<void>;
         { task.expiration_time } -> std::same_as<typename T::time_point_t &>;
     };
-} // namespace detail
 
-namespace archetypes {
-struct timer_hal {
-    using time_point_t = int;
-    using task_t = timer_task<time_point_t>;
-
-    static auto now() -> time_point_t { return {}; }
-    static auto enable() -> void {}
-    static auto disable() -> void {}
-    static auto set_event_time(time_point_t) -> void {}
+template <typename T>
+concept separate_enable_timer_hal = basic_timer_hal<T> and requires {
+    { T::enable() } -> std::same_as<void>;
 };
-} // namespace archetypes
-static_assert(detail::timer_hal<archetypes::timer_hal>);
+
+template <typename T>
+concept fused_enable_timer_hal =
+    basic_timer_hal<T> and requires(typename T::time_point_t tp) {
+        { T::enable(tp - tp) } -> std::same_as<typename T::time_point_t>;
+    };
+
+template <typename T>
+concept timer_hal = separate_enable_timer_hal<T> or fused_enable_timer_hal<T>;
+} // namespace detail
 
 template <detail::timer_hal H> struct generic_timer_manager {
     using time_point_t = typename H::time_point_t;
@@ -53,12 +53,18 @@ template <detail::timer_hal H> struct generic_timer_manager {
     stdx::intrusive_list<task_t> task_queue{};
     stdx::atomic<int> task_count;
 
-    auto schedule(task_t *t) -> void {
+    auto schedule(task_t *t, duration_t d) -> void {
         if (std::empty(task_queue)) {
             task_queue.push_back(t);
-            H::set_event_time(t->expiration_time);
-            H::enable();
+            if constexpr (detail::fused_enable_timer_hal<H>) {
+                t->expiration_time = H::enable(d);
+            } else {
+                H::enable();
+                t->expiration_time = H::now() + d;
+                H::set_event_time(t->expiration_time);
+            }
         } else {
+            t->expiration_time = H::now() + d;
             auto pos = std::find_if(
                 std::begin(task_queue), std::end(task_queue),
                 [&](auto const &task) {
@@ -87,8 +93,7 @@ template <detail::timer_hal H> struct generic_timer_manager {
         return conc::call_in_critical_section<mutex>([&]() -> bool {
             if (auto const added = not std::exchange(t.pending, true); added) {
                 ++task_count;
-                t.expiration_time = H::now() + static_cast<duration_t>(d);
-                schedule(std::addressof(t));
+                schedule(std::addressof(t), d);
                 return true;
             }
             return false;
@@ -133,5 +138,4 @@ template <detail::timer_hal H> struct generic_timer_manager {
 
     [[nodiscard]] auto is_idle() const -> bool { return task_count == 0; }
 };
-static_assert(timer_manager<generic_timer_manager<archetypes::timer_hal>>);
 } // namespace async
