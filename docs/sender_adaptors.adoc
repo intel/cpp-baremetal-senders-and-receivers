@@ -63,6 +63,29 @@ NOTE: The incited scheduler must produce a sender which completes
 asynchronously. A synchronous scheduler would require no incitement, and
 `continue_on` would be correct.
 
+=== `into_variant`
+
+Found in the header: `async/into_variant.hpp`
+
+`into_variant` adapts a sender that has several possible value completions into
+a sender with a single value completion that is a variant of tuples, where each
+tuple represents one of the original sender's value completions.
+
+[source,cpp]
+----
+auto sndr = async::make_variant_sender(
+                selection,
+                [] { return async::just(42, 17); },
+                [] { return async::just(2.718f, 3.14f); })
+          | async::into_variant();
+
+// sndr will complete with set_value(variant<tuple<int, int>, tuple<float, float>>)
+----
+
+NOTE: Some sender consumers (like
+xref:sender_consumers.adoc#_sync_wait[`sync_wait`]) require the sender to have
+one possible value completion.
+
 === `let_error`
 
 Found in the header: `async/let_error.hpp`

@@ -29,6 +29,7 @@ add_tests(
     freestanding_sync_wait
     hosted_sync_wait
     incite_on
+    into_variant
     just
     just_error
     just_error_result_of
