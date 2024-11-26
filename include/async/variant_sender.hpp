@@ -108,7 +108,7 @@ template <typename... Options> struct matcher : Options... {
             ++index;
             return static_cast<F const &>(*this).test(args...);
         };
-        (... or f.template operator()<Options>());
+        [[maybe_unused]] auto x = (... or f.template operator()<Options>());
         return index;
     }
 };

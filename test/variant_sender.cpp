@@ -125,6 +125,8 @@ TEST_CASE("make_variant_sender (general choice)", "[variant_sender]") {
     auto const s = async::make_variant_sender(
         async::match([](auto i, auto j) { return i + j == 3; }) >>
             [](auto, auto) { return async::just(42); },
+        async::match([](auto i, auto j) { return i + j == 5; }) >>
+            [](auto, auto) { return async::just(17); },
         async::otherwise >> [](auto, auto) { return async::just_error(17); }, 1,
         2);
 

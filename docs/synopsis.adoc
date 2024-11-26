@@ -61,6 +61,9 @@ in pipe-composition syntax.
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[incite_on.hpp]
 * `incite_on` - a xref:sender_adaptors.adoc#_incite_on[sender adaptor] that incites execution on another scheduler
 
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/into_variant.hpp[into_variant.hpp]
+* `into_variant` - a xref:sender_adaptors.adoc#_into_variant[sender adaptor] that collapses value completions into a variant
+
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[just.hpp]
 * `just` - a xref:sender_factories.adoc#_just[sender factory] that sends on the value channel
 * `just_error` - a xref:sender_factories.adoc#_just_error[sender factory] that sends on the error channel
@@ -230,6 +233,7 @@ contains traits and metaprogramming constructs used by many senders.
 * xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/inline_scheduler.hpp[`#include <async/schedulers/inline_scheduler.hpp>`]
 * `inplace_stop_source` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stop_token.hpp[`#include <async/stop_token.hpp>`]
 * `inplace_stop_token`- https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stop_token.hpp[`#include <async/stop_token.hpp>`]
+* xref:sender_adaptors.adoc#_into_variant[`into_variant`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/into_variant.hpp[`#include <async/into_variant.hpp>`]
 * xref:sender_factories.adoc#_just[`just`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[`#include <async/just.hpp>`]
 * xref:sender_factories.adoc#_just_error[`just_error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[`#include <async/just.hpp>`]
 * xref:sender_factories.adoc#_just_error_result_of[`just_error_result_of`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just_result_of.hpp[`#include <async/just_result_of.hpp>`]
