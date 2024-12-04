@@ -186,8 +186,8 @@ TEST_CASE("first_successful policy", "[when_any]") {
 
 TEST_CASE("first_complete policy", "[when_any]") {
     int value{};
-    auto s1 = async::just_stopped();
-    auto s2 = async::just(17);
+    auto s1 = async::just(17);
+    auto s2 = async::just_stopped();
     auto w = async::stop_when(s1, s2);
 
     auto op = async::connect(w, stopped_receiver{[&] {
@@ -247,7 +247,7 @@ TEST_CASE("stop_when is pipeable", "[when_any]") {
                                  value = i;
                              }});
     async::start(op);
-    CHECK(value == 42);
+    CHECK(value == 17);
 }
 
 TEST_CASE("stop_when is adaptor-pipeable", "[when_any]") {
@@ -258,7 +258,7 @@ TEST_CASE("stop_when is adaptor-pipeable", "[when_any]") {
                                  value = i;
                              }});
     async::start(op);
-    CHECK(value == 42);
+    CHECK(value == 17);
 }
 
 TEST_CASE("when_any with zero args never completes", "[when_any]") {
