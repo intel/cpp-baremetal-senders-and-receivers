@@ -492,10 +492,9 @@ template <stdx::ct_string Name, typename Sndr> struct pipeable {
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Name, first_complete,
-                      sub_sender<std::remove_cvref_t<S>, 0>,
-                      sub_sender<Sndr, 1>>{std::forward<S>(s),
-                                           std::forward<Self>(self).sndr};
+        return sender<Name, first_complete, sub_sender<Sndr, 0>,
+                      sub_sender<std::remove_cvref_t<S>, 1>>{
+            std::forward<Self>(self).sndr, std::forward<S>(s)};
     }
 };
 } // namespace _when_any

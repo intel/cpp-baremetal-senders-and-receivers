@@ -1,6 +1,7 @@
 #include "detail/common.hpp"
 
 #include <async/just.hpp>
+#include <async/just_result_of.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
 #include <async/start_on.hpp>
@@ -118,6 +119,26 @@ TEST_CASE("timeout_after is pipeable", "[timeout_after]") {
     CHECK(async::timer_mgr::is_idle());
 }
 
+TEST_CASE("timeout_after can incite its own timeout", "[timeout_after]") {
+    current_time<default_domain, tp_t> = tp_t{};
+    int var{};
+    auto s =
+        async::start_on(async::time_scheduler{1s}, async::just_result_of([] {
+                            current_time<default_domain, tp_t> = tp_t{3s};
+                            CHECK(not async::timer_mgr::is_idle());
+                            async::timer_mgr::service_task();
+                            return 42;
+                        }));
+    auto to = s | async::timeout_after(2s, 17);
+    auto op = async::connect(to, error_receiver{[&](int i) { var = i; }});
+    async::start(op);
+
+    current_time<default_domain, tp_t> = tp_t{1s};
+    async::timer_mgr::service_task();
+    CHECK(var == 17);
+    CHECK(async::timer_mgr::is_idle());
+}
+
 namespace {
 struct alt_domain;
 using alt_timer_manager_t = async::generic_timer_manager<hal<alt_domain>>;
@@ -169,8 +190,8 @@ TEST_CASE("timeout_after can time out on custom channel", "[timeout_after]") {
         async::timeout_after<alt_domain, async::set_value_t>(s, 100ms, 1.0f);
     static_assert(
         std::same_as<async::completion_signatures_of_t<decltype(to)>,
-                     async::completion_signatures<async::set_value_t(int),
-                                                  async::set_value_t(float)>>);
+                     async::completion_signatures<async::set_value_t(float),
+                                                  async::set_value_t(int)>>);
 }
 
 TEST_CASE("timeout_after can complete with value after timeout",
