@@ -54,6 +54,7 @@ target_sources(
               include/async/read_env.hpp
               include/async/repeat.hpp
               include/async/retry.hpp
+              include/async/schedulers/get_expiration.hpp
               include/async/schedulers/inline_scheduler.hpp
               include/async/schedulers/priority_scheduler.hpp
               include/async/schedulers/requeue_policy.hpp

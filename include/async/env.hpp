@@ -9,12 +9,11 @@
 #include <utility>
 
 namespace async {
-template <typename Query, typename Value> struct prop {
+template <typename Query, typename Value> struct prop : Query {
     [[nodiscard]] constexpr auto query(Query) const noexcept -> Value const & {
         return value;
     }
 
-    [[no_unique_address]] Query _{};
     [[no_unique_address]] Value value{};
 };
 template <typename Query, typename Value>

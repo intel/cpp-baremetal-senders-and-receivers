@@ -56,6 +56,13 @@ struct undefined_timer_manager {
         return false;
     }
 
+    template <typename... Args> static auto run_at(Args &&...) -> bool {
+        static_assert(stdx::always_false_v<Args...>,
+                      "Inject a timer manager by specializing "
+                      "async::injected_timer_manager.");
+        return false;
+    }
+
     template <typename... Args> static auto service_task(Args &&...) -> void {
         static_assert(stdx::always_false_v<Args...>,
                       "Inject a timer manager by specializing "
@@ -94,6 +101,14 @@ template <typename Domain = default_domain, typename... DummyArgs,
     requires(sizeof...(DummyArgs) == 0)
 auto run_after(Args &&...args) -> bool {
     return get_injected_manager<Domain, DummyArgs...>().run_after(
+        std::forward<Args>(args)...);
+}
+
+template <typename Domain = default_domain, typename... DummyArgs,
+          typename... Args>
+    requires(sizeof...(DummyArgs) == 0)
+auto run_at(Args &&...args) -> bool {
+    return get_injected_manager<Domain, DummyArgs...>().run_at(
         std::forward<Args>(args)...);
 }
 

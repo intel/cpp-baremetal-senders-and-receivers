@@ -53,7 +53,27 @@ template <detail::timer_hal H> struct generic_timer_manager {
     stdx::intrusive_list<task_t> task_queue{};
     stdx::atomic<int> task_count;
 
-    auto schedule(task_t *t, duration_t d) -> void {
+    auto enqueue(task_t *t) -> void {
+        auto pos = std::find_if(std::begin(task_queue), std::end(task_queue),
+                                [&](auto const &task) { return *t < task; });
+        if (pos == std::begin(task_queue)) {
+            H::set_event_time(t->expiration_time);
+        }
+        task_queue.insert(pos, t);
+    }
+
+    auto schedule_at(task_t *t, time_point_t tp) -> void {
+        t->expiration_time = tp;
+        if (std::empty(task_queue)) {
+            task_queue.push_back(t);
+            H::enable();
+            H::set_event_time(t->expiration_time);
+        } else {
+            enqueue(t);
+        }
+    }
+
+    auto schedule_after(task_t *t, duration_t d) -> void {
         if (std::empty(task_queue)) {
             task_queue.push_back(t);
             if constexpr (detail::fused_enable_timer_hal<H>) {
@@ -65,15 +85,7 @@ template <detail::timer_hal H> struct generic_timer_manager {
             }
         } else {
             t->expiration_time = H::now() + d;
-            auto pos = std::find_if(
-                std::begin(task_queue), std::end(task_queue),
-                [&](auto const &task) {
-                    return task.expiration_time > t->expiration_time;
-                });
-            if (pos == std::begin(task_queue)) {
-                H::set_event_time(t->expiration_time);
-            }
-            task_queue.insert(pos, t);
+            enqueue(t);
         }
     }
 
@@ -93,7 +105,19 @@ template <detail::timer_hal H> struct generic_timer_manager {
         return conc::call_in_critical_section<mutex>([&]() -> bool {
             if (auto const added = not std::exchange(t.pending, true); added) {
                 ++task_count;
-                schedule(std::addressof(t), d);
+                schedule_after(std::addressof(t), d);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    template <std::derived_from<task_t> T, std::convertible_to<time_point_t> TP>
+    auto run_at(T &t, TP tp) -> bool {
+        return conc::call_in_critical_section<mutex>([&]() -> bool {
+            if (auto const added = not std::exchange(t.pending, true); added) {
+                ++task_count;
+                schedule_at(std::addressof(t), tp);
                 return true;
             }
             return false;
