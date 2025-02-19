@@ -79,12 +79,23 @@ TEST_CASE("nothing pending", "[timer_manager]") {
     CHECK(m.is_idle());
 }
 
-TEST_CASE("queue a task", "[timer_manager]") {
+TEST_CASE("queue a task (run_after)", "[timer_manager]") {
     hal::calls.clear();
     auto t = timer_manager_t::create_task([] {});
 
     auto m = timer_manager_t{};
     m.run_after(t, 3);
+    CHECK(not m.is_idle());
+    REQUIRE(hal::calls.size() == 1);
+    CHECK(hal::calls[0] == 3);
+}
+
+TEST_CASE("queue a task (run_at)", "[timer_manager]") {
+    hal::calls.clear();
+    auto t = timer_manager_t::create_task([] {});
+
+    auto m = timer_manager_t{};
+    m.run_at(t, 3);
     CHECK(not m.is_idle());
     REQUIRE(hal::calls.size() == 1);
     CHECK(hal::calls[0] == 3);

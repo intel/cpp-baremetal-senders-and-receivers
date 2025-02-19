@@ -277,3 +277,41 @@ TEST_CASE("time_scheduler produces set_stopped debug signal",
     CHECK(debug_events ==
           std::vector{"op sched start"s, "op sched set_stopped"s});
 }
+
+TEST_CASE("time_scheduler with no argument produces a scheduler that gets its "
+          "expiration time externally",
+          "[time_scheduler]") {
+    auto s = async::time_scheduler{};
+    int var{};
+    async::sender auto sndr =
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
+    auto r = with_env{universal_receiver{},
+                      async::prop{async::timer_mgr::get_expiration,
+                                  std::chrono::steady_clock::time_point{}}};
+    auto op = async::connect(sndr, r);
+
+    async::start(op);
+    CHECK(enabled<default_domain>);
+    async::timer_mgr::service_task();
+    CHECK(var == 42);
+    CHECK(async::timer_mgr::is_idle());
+    CHECK(not enabled<default_domain>);
+}
+
+TEST_CASE("time_scheduler with no argument is cancellable",
+          "[time_scheduler]") {
+    auto s = async::time_scheduler{};
+    int var{};
+    async::sender auto sndr =
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
+    auto r = with_env{stoppable_receiver{[&] { var = 17; }},
+                      async::prop{async::timer_mgr::get_expiration,
+                                  std::chrono::steady_clock::time_point{}}};
+    auto op = async::connect(sndr, r);
+
+    r.request_stop();
+    async::start(op);
+    CHECK(not enabled<default_domain>);
+    CHECK(var == 17);
+    CHECK(async::timer_mgr::is_idle());
+}

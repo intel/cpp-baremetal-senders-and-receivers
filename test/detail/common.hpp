@@ -246,7 +246,7 @@ template <typename T, typename Env> struct with_env : T {
     [[no_unique_address]] Env e;
 
     [[nodiscard]] constexpr auto query(async::get_env_t) const noexcept {
-        return e;
+        return async::env{e, async::get_env(static_cast<T const &>(*this))};
     }
 };
 template <typename T, typename Env> with_env(T, Env) -> with_env<T, Env>;
