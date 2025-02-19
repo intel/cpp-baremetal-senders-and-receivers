@@ -218,6 +218,11 @@ async::timer_mgr::service_task();
 // x is now 42
 ----
 
+It is also possible to create a `time_scheduler` without specifying a duration:
+in this case it will use the connect receiver's environment to obtain an
+`expiration_provider` in order to compute the expiration time. The xref:sender_adaptors.adoc#_periodic[`periodic`]
+adapter uses such an environment to achieve drift-free periodic scheduling.
+
 ==== HAL interaction
 
 The various HAL functions are called as follows:
