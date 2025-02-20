@@ -39,6 +39,7 @@ add_tests(
     let_multichannel
     let_stopped
     let_value
+    periodic
     read_env
     repeat
     retry

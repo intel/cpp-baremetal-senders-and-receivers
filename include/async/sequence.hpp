@@ -182,8 +182,6 @@ template <stdx::ct_string Name = "seq", sender S1, sender S2>
 
 struct sequence_t;
 
-template <typename...> struct undef;
-
 template <stdx::ct_string Name, typename Sndr, typename Func, typename Rcvr>
 struct debug::context_for<_sequence::op_state<Name, Sndr, Func, Rcvr>> {
     using tag = sequence_t;

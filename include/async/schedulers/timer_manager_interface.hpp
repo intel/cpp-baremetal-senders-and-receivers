@@ -9,6 +9,13 @@
 #include <functional>
 
 namespace async {
+namespace timer_mgr {
+template <typename D> struct time_point_for {
+    using type = D;
+};
+template <typename D> using time_point_for_t = typename time_point_for<D>::type;
+} // namespace timer_mgr
+
 template <typename T>
 concept timeable_task =
     stdx::double_linkable<T> and std::strict_weak_order<std::less<>, T, T> and
@@ -18,11 +25,26 @@ concept timeable_task =
         t->expiration_time;
     };
 
+namespace archetypes {
+template <typename D> struct expiration_provider {
+    using time_point_t = timer_mgr::time_point_for_t<D>;
+
+    template <typename>
+    [[nodiscard]] auto compute_expiration() const -> time_point_t {
+        return {};
+    }
+};
+} // namespace archetypes
+
 template <typename T>
 concept timer_manager =
     timeable_task<typename T::task_t> and
     requires(T &t, typename T::task_t &task, typename T::duration_t d) {
         { t.run_after(task, d) } -> std::convertible_to<bool>;
+        {
+            t.run_at(task,
+                     archetypes::expiration_provider<typename T::duration_t>{})
+        } -> std::convertible_to<bool>;
         { t.service_task() } -> std::same_as<void>;
         { t.is_idle() } -> std::convertible_to<bool>;
         typename T::time_point_t;
@@ -141,10 +163,5 @@ template <typename Domain = default_domain, typename... DummyArgs>
 auto is_idle() -> bool {
     return detail::get_injected_manager<Domain, DummyArgs...>().is_idle();
 }
-
-template <typename D> struct time_point_for {
-    using type = D;
-};
-template <typename D> using time_point_for_t = typename time_point_for<D>::type;
 } // namespace timer_mgr
 } // namespace async

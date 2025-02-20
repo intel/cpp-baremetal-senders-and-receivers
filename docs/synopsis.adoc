@@ -86,6 +86,11 @@ by `let_error.hpp`, `let_stopped.hpp`, and `let_value.hpp`
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_value.hpp[let_value.hpp]
 * `let_value` - a xref:sender_adaptors.adoc#_let_value[sender adaptor] that can make runtime decisions on the value channel
 
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/periodic.hpp[periodic.hpp]
+* `periodic` - a xref:sender_adaptors.adoc#_periodic[sender adaptor] that repeats a sender indefinitely, periodically without drift
+* `periodic_n` - a xref:sender_adaptors.adoc#_periodic_n[sender adaptor] that repeats a sender a set number of times, periodically without drift
+* `periodic_until` - a xref:sender_adaptors.adoc#_periodic_until[sender adaptor] that repeats a sender until a condition becomes true, periodically without drift
+
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[read_env.hpp]
 * `get_scheduler` - a sender factory equivalent to `read_env(get_scheduler_t{})`
 * `get_stop_token` - a sender factory equivalent to `read_env(get_stop_token_t{})`
@@ -247,6 +252,9 @@ contains traits and metaprogramming constructs used by many senders.
 * `operation_state<O>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
 * `priority_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * `priority_task_manager<HAL, NumPriorities>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[`#include <async/schedulers/task_manager.hpp>`]
+* xref:sender_adaptors.adoc#_periodic[`periodic`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/periodic.hpp[`#include <async/periodic.hpp>`]
+* xref:sender_adaptors.adoc#_periodic_n[`periodic_n`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/periodic.hpp[`#include <async/periodic.hpp>`]
+* xref:sender_adaptors.adoc#_periodic_until[`periodic_until`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/periodic.hpp[`#include <async/periodic.hpp>`]
 * xref:sender_factories.adoc#_read_env[`read_env`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
 * `receiver<R>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
 * `receiver_base` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]

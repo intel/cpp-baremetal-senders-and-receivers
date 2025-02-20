@@ -278,16 +278,30 @@ TEST_CASE("time_scheduler produces set_stopped debug signal",
           std::vector{"op sched start"s, "op sched set_stopped"s});
 }
 
+namespace {
+struct expiration_provider {
+    static inline int calls{};
+
+    using time_point_t = std::chrono::steady_clock::time_point;
+
+    template <typename Hal> auto compute_expiration() const -> time_point_t {
+        ++calls;
+        return Hal::now();
+    }
+};
+} // namespace
+
 TEST_CASE("time_scheduler with no argument produces a scheduler that gets its "
           "expiration time externally",
           "[time_scheduler]") {
+    expiration_provider::calls = 0;
     auto s = async::time_scheduler{};
     int var{};
     async::sender auto sndr =
         async::start_on(s, async::just_result_of([&] { var = 42; }));
-    auto r = with_env{universal_receiver{},
-                      async::prop{async::timer_mgr::get_expiration,
-                                  std::chrono::steady_clock::time_point{}}};
+    auto r = with_env{
+        universal_receiver{},
+        async::prop{async::timer_mgr::get_expiration, expiration_provider{}}};
     auto op = async::connect(sndr, r);
 
     async::start(op);
@@ -296,19 +310,17 @@ TEST_CASE("time_scheduler with no argument produces a scheduler that gets its "
     CHECK(var == 42);
     CHECK(async::timer_mgr::is_idle());
     CHECK(not enabled<default_domain>);
+    CHECK(expiration_provider::calls == 1);
 }
 
 TEST_CASE("time_scheduler with no argument is cancellable",
           "[time_scheduler]") {
-    auto s = async::time_scheduler{};
     int var{};
-    async::sender auto sndr =
-        async::start_on(s, async::just_result_of([&] { var = 42; }));
-    auto r = with_env{stoppable_receiver{[&] { var = 17; }},
-                      async::prop{async::timer_mgr::get_expiration,
-                                  std::chrono::steady_clock::time_point{}}};
-    auto op = async::connect(sndr, r);
-
+    auto s = async::time_scheduler{}.schedule();
+    auto r = with_env{
+        stoppable_receiver{[&] { var = 17; }},
+        async::prop{async::timer_mgr::get_expiration, expiration_provider{}}};
+    auto op = async::connect(s, r);
     r.request_stop();
     async::start(op);
     CHECK(not enabled<default_domain>);
