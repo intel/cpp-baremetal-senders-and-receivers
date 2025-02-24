@@ -83,7 +83,7 @@ template <stdx::ct_string Name, typename... Args> struct trigger_manager {
 };
 
 template <stdx::ct_string Name, typename... Args>
-auto triggers = trigger_manager<Name, Args...>{};
+inline auto triggers = trigger_manager<Name, Args...>{};
 
 template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
           typename... Args>
