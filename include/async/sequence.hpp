@@ -170,14 +170,18 @@ template <stdx::ct_string Name = "sequence", sender S, std::invocable F>
     return std::forward<S>(s) | sequence<Name>(std::forward<F>(f));
 }
 
-template <stdx::ct_string Name = "seq", sender S>
-[[nodiscard]] constexpr auto seq(S &&s) {
-    return sequence<Name>(_sequence::detail::wrapper{std::forward<S>(s)});
-}
-
-template <stdx::ct_string Name = "seq", sender S1, sender S2>
-[[nodiscard]] constexpr auto seq(S1 &&s1, S2 &&s2) -> sender auto {
-    return std::forward<S1>(s1) | seq<Name>(std::forward<S2>(s2));
+template <stdx::ct_string Name = "seq", sender... S>
+    requires(sizeof...(S) > 0)
+[[nodiscard]] constexpr auto seq(S &&...s) {
+    if constexpr (sizeof...(S) == 1) {
+        return sequence<Name>(
+            _sequence::detail::wrapper{std::forward<S>(s)...});
+    } else {
+        return []<typename S1, typename... Ss>(S1 &&s1, Ss &&...ss) {
+            return (std::forward<S1>(s1) | ... |
+                    seq<Name>(std::forward<Ss>(ss)));
+        }(std::forward<S>(s)...);
+    }
 }
 
 struct sequence_t;
