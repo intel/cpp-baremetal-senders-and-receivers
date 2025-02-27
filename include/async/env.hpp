@@ -23,8 +23,8 @@ template <template <typename> typename Query, typename Value, typename... Ts>
 struct template_prop {
     template <typename T>
         requires(... or std::same_as<T, Ts>)
-    [[nodiscard]] constexpr auto
-    query(Query<T>) const noexcept -> Value const & {
+    [[nodiscard]] constexpr auto query(Query<T>) const noexcept
+        -> Value const & {
         return value;
     }
 

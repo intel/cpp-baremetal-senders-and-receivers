@@ -55,8 +55,9 @@ template <stdx::ct_string Name = "thread_scheduler"> class thread_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto
-    operator==(thread_scheduler, thread_scheduler) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(thread_scheduler,
+                                                   thread_scheduler)
+        -> bool = default;
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender { return {}; }

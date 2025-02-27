@@ -35,7 +35,7 @@ concurrent execution.
 
 C++20 is required. The following compilers are supported:
  
-- clang 14 through 18
+- clang 14 through 19
 - gcc 12 through 13
 
 See the [full documentation](https://intel.github.io/cpp-baremetal-senders-and-receivers/).

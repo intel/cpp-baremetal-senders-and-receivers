@@ -27,8 +27,8 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     Ops *ops;
 
-    [[nodiscard]] constexpr auto
-    query(async::get_env_t) const -> forwarding_env<env_of_t<Rcvr>> {
+    [[nodiscard]] constexpr auto query(async::get_env_t) const
+        -> forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(ops->rcvr);
     }
 
@@ -185,8 +185,8 @@ template <stdx::ct_string Name, typename Pred> struct pipeable {
 } // namespace _retry
 
 template <stdx::ct_string Name = "retry_until", typename P>
-[[nodiscard]] constexpr auto
-retry_until(P &&p) -> _retry::pipeable<Name, std::remove_cvref_t<P>> {
+[[nodiscard]] constexpr auto retry_until(P &&p)
+    -> _retry::pipeable<Name, std::remove_cvref_t<P>> {
     return {std::forward<P>(p)};
 }
 

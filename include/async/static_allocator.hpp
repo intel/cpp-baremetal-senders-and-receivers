@@ -40,7 +40,7 @@ template <typename Name, typename T, std::size_t N> struct static_allocator_t {
         if (idx == N) {
             return nullptr;
         }
-        auto const ptr = std::data(data) + idx * aligned_size;
+        auto const ptr = std::data(data) + (idx * aligned_size);
         return std::construct_at(stdx::bit_cast<T *>(ptr),
                                  std::forward<Args>(args)...);
     }

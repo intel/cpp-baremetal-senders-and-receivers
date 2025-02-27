@@ -49,8 +49,8 @@ template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
 
     struct multishot_sender : sender_base {
         template <receiver R>
-        [[nodiscard]] constexpr auto
-        connect(R &&r) const -> _inline_scheduler::op_state<Name, R> {
+        [[nodiscard]] constexpr auto connect(R &&r) const
+            -> _inline_scheduler::op_state<Name, R> {
             check_connect<multishot_sender, R>();
             return {std::forward<R>(r)};
         }
@@ -65,8 +65,9 @@ template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto
-    operator==(inline_scheduler, inline_scheduler) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(inline_scheduler,
+                                                   inline_scheduler)
+        -> bool = default;
 
   public:
     struct singleshot;

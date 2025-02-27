@@ -95,8 +95,9 @@ struct queryable_sender1 : async::sender_base {
 struct dependent_env {};
 
 struct queryable_sender2 : async::sender_base {
-    [[nodiscard, maybe_unused]] constexpr auto get_completion_signatures(
-        dependent_env const &) noexcept -> async::completion_signatures<> {
+    [[nodiscard, maybe_unused]] constexpr auto
+    get_completion_signatures(dependent_env const &) noexcept
+        -> async::completion_signatures<> {
         return {};
     }
 };

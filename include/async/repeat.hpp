@@ -26,8 +26,8 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     Ops *ops;
 
-    [[nodiscard]] constexpr auto
-    query(get_env_t) const -> forwarding_env<env_of_t<Rcvr>> {
+    [[nodiscard]] constexpr auto query(get_env_t) const
+        -> forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(ops->rcvr);
     }
 
@@ -184,8 +184,8 @@ template <stdx::ct_string Name, stdx::callable Pred> struct pipeable {
 } // namespace _repeat
 
 template <stdx::ct_string Name = "repeat_until", typename P>
-[[nodiscard]] constexpr auto
-repeat_until(P &&p) -> _repeat::pipeable<Name, std::remove_cvref_t<P>> {
+[[nodiscard]] constexpr auto repeat_until(P &&p)
+    -> _repeat::pipeable<Name, std::remove_cvref_t<P>> {
     return {std::forward<P>(p)};
 }
 

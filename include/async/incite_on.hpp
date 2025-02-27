@@ -26,8 +26,8 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     Ops *ops;
 
-    [[nodiscard]] constexpr auto
-    query(async::get_env_t) const -> forwarding_env<env_of_t<Rcvr>> {
+    [[nodiscard]] constexpr auto query(async::get_env_t) const
+        -> forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(ops->rcvr);
     }
 
@@ -131,7 +131,7 @@ template <typename Sched, typename S> struct sender {
 
     template <async::receiver R>
         requires multishot_sender<S> and std::copy_constructible<S> and
-                     std::copy_constructible<Sched>
+                 std::copy_constructible<Sched>
     [[nodiscard]] constexpr auto
     connect(R &&r) const & -> op_state<Sched, std::remove_cvref_t<R>, S> {
         check_connect<sender, R>();

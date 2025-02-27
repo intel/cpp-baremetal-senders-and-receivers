@@ -80,8 +80,8 @@ constexpr inline struct get_debug_interface_t : forwarding_query_t {
         return std::forward<T>(t).query(*this);
     }
 
-    [[nodiscard]] constexpr auto
-    operator()(auto &&) const -> debug::default_interface {
+    [[nodiscard]] constexpr auto operator()(auto &&) const
+        -> debug::default_interface {
         return {};
     }
 } get_debug_interface{};

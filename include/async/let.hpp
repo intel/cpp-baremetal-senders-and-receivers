@@ -80,8 +80,8 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
     using is_receiver = void;
     Ops *ops;
 
-    [[nodiscard]] constexpr auto
-    query(get_env_t) const -> forwarding_env<env_of_t<Rcvr>> {
+    [[nodiscard]] constexpr auto query(get_env_t) const
+        -> forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(ops->rcvr);
     }
 
@@ -169,9 +169,9 @@ struct op_state {
     [[nodiscard]] constexpr static auto query(get_env_t) {
         return prop{
             completes_synchronously_t{},
-            std::bool_constant < synchronous<first_ops> and
-                boost::mp11::mp_all_of<dependent_ops, synchronous_t>::value >
-                    {}};
+            std::bool_constant<
+                synchronous<first_ops> and
+                boost::mp11::mp_all_of<dependent_ops, synchronous_t>::value>{}};
     }
 
     template <typename Sig>
@@ -236,22 +236,20 @@ struct sender {
 
   public:
     template <receiver_from<sender> R>
-    [[nodiscard]] constexpr auto connect(R &&r)
-        && -> _let::op_state<
-               Name, S, std::remove_cvref_t<R>, F,
-               boost::mp11::mp_first<raw_completions<env_of_t<R>>>, Tags...> {
+    [[nodiscard]] constexpr auto connect(R &&r) && -> _let::op_state<
+        Name, S, std::remove_cvref_t<R>, F,
+        boost::mp11::mp_first<raw_completions<env_of_t<R>>>, Tags...> {
         return {std::move(s), std::forward<R>(r), std::move(f)};
     }
 
     template <receiver_from<sender> R>
         requires multishot_sender<S> and
-                     is_multishot_leftover_sender<R>::value and
-                     boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
-                                              is_multishot_sender<R>>::value
-    [[nodiscard]] constexpr auto connect(R &&r) const
-        & -> _let::op_state<Name, S, std::remove_cvref_t<R>, F,
-                            boost::mp11::mp_first<raw_completions<env_of_t<R>>>,
-                            Tags...> {
+                 is_multishot_leftover_sender<R>::value and
+                 boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
+                                          is_multishot_sender<R>>::value
+    [[nodiscard]] constexpr auto connect(R &&r) const & -> _let::op_state<
+        Name, S, std::remove_cvref_t<R>, F,
+        boost::mp11::mp_first<raw_completions<env_of_t<R>>>, Tags...> {
         return {s, std::forward<R>(r), f};
     }
 

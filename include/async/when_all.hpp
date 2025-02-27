@@ -433,8 +433,8 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
         detail::default_set_stopped<Sndrs, E>...>>;
 
     template <typename Env>
-    [[nodiscard]] constexpr static auto
-    get_completion_signatures(Env const &) -> signatures<Env> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> signatures<Env> {
         return {};
     }
 
@@ -446,8 +446,9 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
     }
 
     template <typename R>
-        requires(... and multishot_sender<typename Sndrs::sender_t,
-                                          std::remove_cvref_t<R>>)
+        requires(
+            ... and
+            multishot_sender<typename Sndrs::sender_t, std::remove_cvref_t<R>>)
     [[nodiscard]] constexpr auto connect(
         R &&r) const & -> op_state_t<Name, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender const &, R>();
@@ -508,8 +509,8 @@ template <stdx::ct_string Name> struct sender<Name> {
     }
 
     template <receiver_from<sender> R>
-    [[nodiscard]] constexpr static auto
-    connect(R &&r) -> op_state<Name, std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr static auto connect(R &&r)
+        -> op_state<Name, std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 

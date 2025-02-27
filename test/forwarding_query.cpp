@@ -6,8 +6,8 @@ namespace {
 struct query1 {};
 
 struct query2 {
-    [[nodiscard]] constexpr static auto
-    query(async::forwarding_query_t) -> bool {
+    [[nodiscard]] constexpr static auto query(async::forwarding_query_t)
+        -> bool {
         return true;
     }
 };

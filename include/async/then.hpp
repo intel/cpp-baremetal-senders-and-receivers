@@ -106,8 +106,8 @@ struct receiver {
     [[no_unique_address]] R r;
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
-    [[nodiscard]] constexpr auto
-    query(get_env_t) const -> forwarding_env<env_of_t<R>> {
+    [[nodiscard]] constexpr auto query(get_env_t) const
+        -> forwarding_env<env_of_t<R>> {
         return forward_env_of(r);
     }
 

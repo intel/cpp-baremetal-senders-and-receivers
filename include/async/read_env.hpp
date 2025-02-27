@@ -63,9 +63,9 @@ template <stdx::ct_string Name, typename Tag> struct sender {
     }
 
     template <receiver R>
-    [[nodiscard]] constexpr static auto
-    connect(R &&r) -> op_state<detail::get_name<Name, Tag>(),
-                               std::remove_cvref_t<R>, Tag> {
+    [[nodiscard]] constexpr static auto connect(R &&r)
+        -> op_state<detail::get_name<Name, Tag>(), std::remove_cvref_t<R>,
+                    Tag> {
         check_connect<sender, R>();
         return {std::forward<R>(r)};
     }

@@ -139,8 +139,9 @@ class time_scheduler {
 
         template <typename Env>
             requires unstoppable_token<stop_token_of_t<Env>>
-        [[nodiscard]] constexpr static auto get_completion_signatures(
-            Env const &) noexcept -> completion_signatures<set_value_t()> {
+        [[nodiscard]] constexpr static auto
+        get_completion_signatures(Env const &) noexcept
+            -> completion_signatures<set_value_t()> {
             return {};
         }
 
@@ -154,8 +155,9 @@ class time_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto
-    operator==(time_scheduler, time_scheduler) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(time_scheduler,
+                                                   time_scheduler)
+        -> bool = default;
 
   public:
     [[nodiscard]] constexpr auto schedule() -> sender {
@@ -201,8 +203,9 @@ class time_scheduler<Domain, Name, detail::no_duration_t, detail::no_task_t> {
 
         template <typename Env>
             requires unstoppable_token<stop_token_of_t<Env>>
-        [[nodiscard]] constexpr static auto get_completion_signatures(
-            Env const &) noexcept -> completion_signatures<set_value_t()> {
+        [[nodiscard]] constexpr static auto
+        get_completion_signatures(Env const &) noexcept
+            -> completion_signatures<set_value_t()> {
             return {};
         }
 
@@ -218,8 +221,9 @@ class time_scheduler<Domain, Name, detail::no_duration_t, detail::no_task_t> {
         }
     };
 
-    [[nodiscard]] friend constexpr auto
-    operator==(time_scheduler, time_scheduler) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(time_scheduler,
+                                                   time_scheduler)
+        -> bool = default;
 
   public:
     [[nodiscard]] constexpr auto schedule() -> sender { return {}; }

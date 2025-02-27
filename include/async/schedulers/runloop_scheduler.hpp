@@ -90,8 +90,8 @@ template <typename Uniq = decltype([] {})> class run_loop {
             }
 
             template <receiver R>
-            [[nodiscard]] constexpr auto
-            connect(R &&r) const -> op_state<Uniq, std::remove_cvref_t<R>> {
+            [[nodiscard]] constexpr auto connect(R &&r) const
+                -> op_state<Uniq, std::remove_cvref_t<R>> {
                 check_connect<sender, R>();
                 return {loop, std::forward<R>(r)};
             }
@@ -102,8 +102,8 @@ template <typename Uniq = decltype([] {})> class run_loop {
         [[nodiscard]] constexpr auto schedule() -> sender { return {loop}; }
 
         template <typename T>
-        [[nodiscard]] friend constexpr auto operator==(scheduler x,
-                                                       T const &y) -> bool {
+        [[nodiscard]] friend constexpr auto operator==(scheduler x, T const &y)
+            -> bool {
             if constexpr (std::same_as<T, scheduler>) {
                 return x.loop == y.loop;
             }
