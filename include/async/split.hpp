@@ -43,8 +43,8 @@ template <typename S, typename Uniq> struct single_receiver {
             std::forward<Args>(args)...);
     }
 
-    [[nodiscard]] constexpr auto
-    query(get_env_t) const -> prop<get_stop_token_t, inplace_stop_token> {
+    [[nodiscard]] constexpr auto query(get_env_t) const
+        -> prop<get_stop_token_t, inplace_stop_token> {
         return prop{get_stop_token_t{}, op_state_t::stop_source.get_token()};
     }
 
@@ -137,7 +137,7 @@ struct op_state : op_state_base<S, Uniq> {
         }
 
         if (next_ops = std::exchange(op_state_t::linked_ops, this);
-            not next_ops) {
+            next_ops == nullptr) {
             async::start(*op_state_t::single_ops);
         }
     }
@@ -193,8 +193,8 @@ template <typename Sndr, typename Uniq> struct sender {
     }
 
     template <receiver R>
-    [[nodiscard]] constexpr auto
-    connect(R &&r) -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
+    [[nodiscard]] constexpr auto connect(R &&r)
+        -> op_state<Sndr, std::remove_cvref_t<R>, Uniq> {
         check_connect<sender, R>();
         if (not op_state_t::single_ops) {
             op_state_t::single_ops.emplace(stdx::with_result_of{

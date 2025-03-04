@@ -76,8 +76,9 @@ class fixed_priority_scheduler {
 
         template <typename Env>
             requires unstoppable_token<stop_token_of_t<Env>>
-        [[nodiscard]] constexpr static auto get_completion_signatures(
-            Env const &) noexcept -> completion_signatures<set_value_t()> {
+        [[nodiscard]] constexpr static auto
+        get_completion_signatures(Env const &) noexcept
+            -> completion_signatures<set_value_t()> {
             return {};
         }
 
@@ -89,9 +90,9 @@ class fixed_priority_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto
-    operator==(fixed_priority_scheduler,
-               fixed_priority_scheduler) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(fixed_priority_scheduler,
+                                                   fixed_priority_scheduler)
+        -> bool = default;
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender {

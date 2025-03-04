@@ -23,8 +23,8 @@ struct receiver {
     using is_receiver = void;
     using sender_t = S;
 
-    [[nodiscard]] constexpr auto
-    query(async::get_env_t) const -> forwarding_env<env_of_t<Rcvr>> {
+    [[nodiscard]] constexpr auto query(async::get_env_t) const
+        -> forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(r);
     }
 

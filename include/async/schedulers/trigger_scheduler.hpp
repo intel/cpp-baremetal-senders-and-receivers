@@ -126,8 +126,9 @@ template <stdx::ct_string Name, typename... Args> class trigger_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto
-    operator==(trigger_scheduler, trigger_scheduler) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(trigger_scheduler,
+                                                   trigger_scheduler)
+        -> bool = default;
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender { return {}; }

@@ -49,8 +49,8 @@ template <typename Domain = timer_mgr::default_domain,
 template <typename Domain = timer_mgr::default_domain,
           channel_tag Tag = set_error_t, sender Sndr, typename Duration,
           typename... Vs>
-[[nodiscard]] constexpr auto timeout_after(Sndr &&s, Duration &&d,
-                                           Vs &&...vs) -> sender auto {
+[[nodiscard]] constexpr auto timeout_after(Sndr &&s, Duration &&d, Vs &&...vs)
+    -> sender auto {
     return std::forward<Sndr>(s) |
            timeout_after<Domain, Tag>(std::forward<Duration>(d),
                                       std::forward<Vs>(vs)...);

@@ -23,8 +23,8 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     Ops *ops;
 
-    [[nodiscard]] constexpr auto
-    query(async::get_env_t) const -> forwarding_env<env_of_t<Rcvr>> {
+    [[nodiscard]] constexpr auto query(async::get_env_t) const
+        -> forwarding_env<env_of_t<Rcvr>> {
         return forward_env_of(ops->rcvr);
     }
 
@@ -75,8 +75,8 @@ struct op_state {
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
         return prop{completes_synchronously_t{},
-                    std::bool_constant < synchronous<first_ops> and
-                        synchronous < second_ops >> {}};
+                    std::bool_constant<synchronous<first_ops> and
+                                       synchronous<second_ops>>{}};
     }
 
     [[no_unique_address]] Func func;
@@ -126,7 +126,7 @@ template <stdx::ct_string Name, typename S, std::invocable F> struct sender {
 
     template <async::receiver R>
         requires multishot_sender<S> and std::copy_constructible<S> and
-                     std::copy_constructible<F>
+                 std::copy_constructible<F>
     [[nodiscard]] constexpr auto
     connect(R &&r) const & -> op_state<Name, S, F, std::remove_cvref_t<R>> {
         check_connect<sender, R>();
@@ -142,8 +142,8 @@ template <stdx::ct_string Name, typename S, std::invocable F> struct sender {
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
         return prop{completes_synchronously_t{},
-                    std::bool_constant < synchronous<S> and
-                        synchronous < dependent_sender >> {}};
+                    std::bool_constant<synchronous<S> and
+                                       synchronous<dependent_sender>>{}};
     }
 };
 

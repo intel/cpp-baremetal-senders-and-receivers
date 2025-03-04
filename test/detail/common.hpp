@@ -136,8 +136,8 @@ class singleshot_scheduler {
 };
 
 struct none {
-    [[nodiscard]] friend constexpr auto operator==(none,
-                                                   none) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(none, none)
+        -> bool = default;
 };
 
 constexpr inline struct get_fwd_t : async::forwarding_query_t {
@@ -177,14 +177,14 @@ struct custom_sender {
     using completion_signatures =
         async::completion_signatures<async::set_value_t()>;
 
-    [[nodiscard]] constexpr static auto
-    query(async::get_env_t) noexcept -> custom_env {
+    [[nodiscard]] constexpr static auto query(async::get_env_t) noexcept
+        -> custom_env {
         return {};
     }
 
     template <typename R>
-    [[nodiscard]] constexpr static auto
-    connect(R &&r) -> custom_op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr static auto connect(R &&r)
+        -> custom_op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };
@@ -236,8 +236,8 @@ struct stoppable_just {
                                      async::set_stopped_t()>;
 
     template <async::receiver R>
-    [[nodiscard]] constexpr static auto
-    connect(R &&r) -> stoppable_just_op_state<std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr static auto connect(R &&r)
+        -> stoppable_just_op_state<std::remove_cvref_t<R>> {
         return {std::forward<R>(r)};
     }
 };

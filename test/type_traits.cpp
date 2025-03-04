@@ -105,8 +105,9 @@ struct queryable_sender1 {
 };
 
 struct queryable_sender2 {
-    [[nodiscard]] constexpr static auto get_completion_signatures(
-        auto &&) noexcept -> async::completion_signatures<> {
+    [[nodiscard]] constexpr static auto
+    get_completion_signatures(auto &&) noexcept
+        -> async::completion_signatures<> {
         return {};
     }
 

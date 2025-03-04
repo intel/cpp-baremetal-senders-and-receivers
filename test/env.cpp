@@ -77,8 +77,8 @@ TEST_CASE("env composition (by ref)", "[env]") {
 
 namespace {
 struct test_queryable {
-    [[nodiscard]] constexpr static auto
-    query(async::get_env_t) noexcept -> custom_env {
+    [[nodiscard]] constexpr static auto query(async::get_env_t) noexcept
+        -> custom_env {
         return {};
     }
 };

@@ -410,8 +410,9 @@ struct sender : Sndrs... {
     }
 
     template <typename R>
-        requires(... and multishot_sender<typename Sndrs::sender_t,
-                                          std::remove_cvref_t<R>>)
+        requires(
+            ... and
+            multishot_sender<typename Sndrs::sender_t, std::remove_cvref_t<R>>)
     [[nodiscard]] constexpr auto connect(R &&r) const
         & -> op_state_t<Name, StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender const &, R>();
@@ -469,14 +470,14 @@ struct sender<Name, StopPolicy> {
 
     template <typename Env>
         requires unstoppable_token<stop_token_of_t<Env>>
-    [[nodiscard]] constexpr static auto
-    get_completion_signatures(Env const &) -> completion_signatures<> {
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
+        -> completion_signatures<> {
         return {};
     }
 
     template <typename R>
-    [[nodiscard]] constexpr auto
-    connect(R &&r) const -> op_state<Name, StopPolicy, std::remove_cvref_t<R>> {
+    [[nodiscard]] constexpr auto connect(R &&r) const
+        -> op_state<Name, StopPolicy, std::remove_cvref_t<R>> {
         check_connect<sender const &, R>();
         return {std::forward<R>(r)};
     }

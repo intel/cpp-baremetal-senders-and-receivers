@@ -36,14 +36,15 @@ template <auto> class test_scheduler {
         }
 
         template <async::receiver_from<sender> R>
-        [[nodiscard]] constexpr static auto
-        connect(R &&r) -> test_op_state<std::remove_cvref_t<R>> {
+        [[nodiscard]] constexpr static auto connect(R &&r)
+            -> test_op_state<std::remove_cvref_t<R>> {
             return {std::forward<R>(r)};
         }
     };
 
-    [[nodiscard]] friend constexpr auto
-    operator==(test_scheduler, test_scheduler) -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(test_scheduler,
+                                                   test_scheduler)
+        -> bool = default;
 
   public:
     auto schedule() {

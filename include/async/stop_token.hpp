@@ -54,8 +54,9 @@ template <typename Source> struct stop_token {
     Source const *source{};
 
   private:
-    [[nodiscard]] friend constexpr auto
-    operator==(stop_token, stop_token) noexcept -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(stop_token,
+                                                   stop_token) noexcept
+        -> bool = default;
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
@@ -84,8 +85,8 @@ struct inplace_stop_source {
         return true;
     }
 
-    [[nodiscard]] constexpr auto
-    get_token() const noexcept -> stop_token<inplace_stop_source> {
+    [[nodiscard]] constexpr auto get_token() const noexcept
+        -> stop_token<inplace_stop_source> {
         return {this};
     }
 
@@ -146,8 +147,9 @@ struct never_stop_token {
     }
 
   private:
-    [[nodiscard]] friend constexpr auto
-    operator==(never_stop_token, never_stop_token) noexcept -> bool = default;
+    [[nodiscard]] friend constexpr auto operator==(never_stop_token,
+                                                   never_stop_token) noexcept
+        -> bool = default;
 };
 
 struct never_stop_source {
@@ -158,8 +160,8 @@ struct never_stop_source {
         return false;
     }
 
-    [[nodiscard]] constexpr static auto
-    get_token() noexcept -> never_stop_token {
+    [[nodiscard]] constexpr static auto get_token() noexcept
+        -> never_stop_token {
         return {};
     }
 
