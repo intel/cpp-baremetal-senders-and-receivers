@@ -1,12 +1,13 @@
 #pragma once
 
 #include <async/schedulers/requeue_policy.hpp>
-#include <conc/concurrency.hpp>
 
 #include <stdx/atomic.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/intrusive_list.hpp>
 #include <stdx/type_traits.hpp>
+
+#include <conc/concurrency.hpp>
 
 #include <array>
 #include <concepts>

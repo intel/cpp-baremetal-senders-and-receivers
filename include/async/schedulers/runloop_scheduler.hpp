@@ -13,10 +13,11 @@
 #include <async/get_completion_scheduler.hpp>
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
-#include <conc/concurrency.hpp>
 
 #include <stdx/concepts.hpp>
 #include <stdx/intrusive_list.hpp>
+
+#include <conc/concurrency.hpp>
 
 #include <cstdint>
 #if HAS_CONDITION_VARIABLE

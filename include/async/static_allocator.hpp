@@ -1,11 +1,11 @@
 #pragma once
 
-#include <conc/concurrency.hpp>
-
 #include <stdx/atomic.hpp>
 #include <stdx/bit.hpp>
 #include <stdx/bitset.hpp>
 #include <stdx/compiler.hpp>
+
+#include <conc/concurrency.hpp>
 
 #include <array>
 #include <cstddef>

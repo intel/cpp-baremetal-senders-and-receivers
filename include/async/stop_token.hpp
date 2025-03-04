@@ -1,11 +1,12 @@
 #pragma once
 
 #include <async/forwarding_query.hpp>
-#include <conc/concurrency.hpp>
 
 #include <stdx/atomic.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/intrusive_list.hpp>
+
+#include <conc/concurrency.hpp>
 
 #include <concepts>
 #include <type_traits>
