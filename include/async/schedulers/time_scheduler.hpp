@@ -173,15 +173,6 @@ class time_scheduler {
 namespace detail {
 struct no_duration_t {};
 struct no_task_t;
-
-template <typename Env> constexpr auto query_expiration(Env const &e) {
-    if constexpr (async::detail::valid_query_for<timer_mgr::get_expiration_t,
-                                                 Env>) {
-        return timer_mgr::get_expiration(e);
-    } else {
-        return 0;
-    }
-}
 } // namespace detail
 
 template <typename Domain, stdx::ct_string Name>
@@ -212,7 +203,9 @@ class time_scheduler<Domain, Name, detail::no_duration_t, detail::no_task_t> {
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const & {
             check_connect<sender, R>();
-            using TP = decltype(detail::query_expiration(get_env(r)));
+            using EP = std::remove_cvref_t<decltype(timer_mgr::get_expiration(
+                get_env(r)))>;
+            using TP = typename EP::time_point_t;
             using task_t = timer_task<TP>;
             return timer_mgr::op_state<Domain, Name, detail::no_duration_t,
                                        std::remove_cvref_t<R>, task_t,

@@ -90,17 +90,6 @@ TEST_CASE("queue a task (run_after)", "[timer_manager]") {
     CHECK(hal::calls[0] == 3);
 }
 
-TEST_CASE("queue a task (run_at)", "[timer_manager]") {
-    hal::calls.clear();
-    auto t = timer_manager_t::create_task([] {});
-
-    auto m = timer_manager_t{};
-    m.run_at(t, 3);
-    CHECK(not m.is_idle());
-    REQUIRE(hal::calls.size() == 1);
-    CHECK(hal::calls[0] == 3);
-}
-
 TEST_CASE("run a queued task", "[timer_manager]") {
     hal::calls.clear();
 
@@ -462,6 +451,31 @@ TEST_CASE("HAL interaction ends with disable", "[timer_manager]") {
     m.service_task();
     REQUIRE(not interaction_hal::calls.empty());
     CHECK(interaction_hal::calls.back() == interaction_hal::call_type::disable);
+}
+
+namespace {
+struct task_expiration_provider {
+    using time_point_t = interaction_hal::time_point_t;
+    template <typename H>
+    [[nodiscard]] auto compute_expiration() const -> time_point_t {
+        return H::now();
+    }
+};
+} // namespace
+
+TEST_CASE("HAL interaction queueing a task with run_at", "[timer_manager]") {
+    interaction_hal::calls.clear();
+
+    auto t = interaction_manager_t::create_task([] {});
+    auto m = interaction_manager_t{};
+
+    m.run_at(t, task_expiration_provider{});
+
+    REQUIRE(interaction_hal::calls.size() == 3);
+    CHECK(interaction_hal::calls[0] == interaction_hal::call_type::enable);
+    CHECK(interaction_hal::calls[1] == interaction_hal::call_type::now);
+    CHECK(interaction_hal::calls[2] ==
+          interaction_hal::call_type::set_event_time);
 }
 
 namespace {

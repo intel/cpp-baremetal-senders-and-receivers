@@ -41,12 +41,22 @@ concept fused_enable_timer_hal =
 
 template <typename T>
 concept timer_hal = separate_enable_timer_hal<T> or fused_enable_timer_hal<T>;
+
+template <typename P, typename H, typename Task>
+concept expiration_provider =
+    std::same_as<typename P::time_point_t, decltype(Task::expiration_time)> and
+    requires(P const &p) {
+        {
+            p.template compute_expiration<H>()
+        } -> std::same_as<typename P::time_point_t>;
+    };
 } // namespace detail
 
 template <detail::timer_hal H> struct generic_timer_manager {
     using time_point_t = typename H::time_point_t;
     using duration_t =
         decltype(std::declval<time_point_t>() - std::declval<time_point_t>());
+    using hal_t = H;
     using task_t = typename H::task_t;
 
   private:
@@ -63,13 +73,22 @@ template <detail::timer_hal H> struct generic_timer_manager {
         task_queue.insert(pos, t);
     }
 
-    auto schedule_at(task_t *t, time_point_t tp) -> void {
-        t->expiration_time = tp;
+    auto compute_next_event() -> void {
+        if (std::empty(task_queue)) {
+            H::disable();
+        } else {
+            H::set_event_time(std::begin(task_queue)->expiration_time);
+        }
+    }
+
+    template <typename EP> auto schedule_at(task_t *t, EP const &ep) -> void {
         if (std::empty(task_queue)) {
             task_queue.push_back(t);
             H::enable();
+            t->expiration_time = ep.template compute_expiration<hal_t>();
             H::set_event_time(t->expiration_time);
         } else {
+            t->expiration_time = ep.template compute_expiration<hal_t>();
             enqueue(t);
         }
     }
@@ -90,14 +109,6 @@ template <detail::timer_hal H> struct generic_timer_manager {
         }
     }
 
-    auto compute_next_event() -> void {
-        if (std::empty(task_queue)) {
-            H::disable();
-        } else {
-            H::set_event_time(std::begin(task_queue)->expiration_time);
-        }
-    }
-
   public:
     constexpr static auto create_task = async::create_task<task_t>;
 
@@ -113,23 +124,24 @@ template <detail::timer_hal H> struct generic_timer_manager {
         });
     }
 
-    template <std::derived_from<task_t> T, std::convertible_to<time_point_t> TP>
-    auto run_at(T &t, TP tp) -> bool {
-        return conc::call_in_critical_section<mutex>([&]() -> bool {
-            if (auto const added = not std::exchange(t.pending, true); added) {
-                ++task_count;
-                schedule_at(std::addressof(t), tp);
-                return true;
-            }
-            return false;
-        });
-    }
-
     template <typename T, typename D> auto run_after(T const &, D) -> bool {
         static_assert(stdx::always_false_v<D>,
                       "Invalid duration type: did you forget to specialize "
                       "async::timer_mgr::time_point_for?");
         return false;
+    }
+
+    template <std::derived_from<task_t> T,
+              detail::expiration_provider<hal_t, task_t> EP>
+    auto run_at(T &t, EP const &ep) -> bool {
+        return conc::call_in_critical_section<mutex>([&]() -> bool {
+            if (auto const added = not std::exchange(t.pending, true); added) {
+                ++task_count;
+                schedule_at(std::addressof(t), ep);
+                return true;
+            }
+            return false;
+        });
     }
 
     auto cancel(task_t &t) -> bool {

@@ -175,13 +175,104 @@ auto let_sndr = async::let_value(
 This works: using the helper function `make_variant_sender`, `let_value` can
 successfully make a runtime choice about which sender to proceed with.
 
+=== `periodic`
+
+Found in the header: `async/periodic.hpp`
+
+`periodic` takes a sender and repeats it indefinitely according to the given
+time period. When the sender completes with a value, it is reconnected and
+restarted (rescheduled). A `periodic` sender will not complete on the value
+channel, but can still be stopped, or complete with an error.
+
+[source,cpp]
+----
+auto s = time_scheduler{}.sender() | ... ;
+auto p = s | async::periodic(1s);
+// when p runs, s is scheduled for 1 second in the future. If s sends an error
+// or is stopped, p reflects that. If s completes successfully, the result is
+// discarded and s runs again, another second in the future.
+----
+
+NOTE: `periodic` works hand-in-glove (and only) with a
+xref:schedulers.adoc#_time_scheduler[`time_scheduler`] sender that is not given
+a duration.
+
+IMPORTANT: To avoid drift, `periodic` reschedules itself based not on the
+current time, but on its expiration time. However the periodic invariant breaks
+down if a task takes longer to complete than its period (which may happen if
+tasks can spike in the time taken to execute them). In that case, by default,
+`periodic` will reschedule immediately - but this behaviour can be
+parameterized.
+
+[source,cpp]
+----
+auto s = time_scheduler{}.sender() | ... ;
+
+// safe_immediate_expiry is the default behaviour: if the sender exceeds 1s, so
+// that its next execution time would occur in the past, then instead it will be
+// rescheduled immediately.
+auto p1 = s | async::periodic<"name", async::safe_immediate_expiry>(1s);
+
+// safe_quantized_expiry means that if the sender's next execution time would
+// occur in the past, instead it will be rescheduled for the next time its
+// "tick" would occur. i.e. one or more "ticks" will be skipped.
+auto p2 = s | async::periodic<"name", async::safe_quantized_expiry>(1s);
+
+// unsafe_expiry means that no checks happen: if the sender's next execution
+// time occurs in the past, so be it. This is unsafe since it has the potential
+// to cause a growing backlog.
+auto p3 = s | async::periodic<"name", async::unsafe_expiry>(1s);
+----
+
+The `"name"` given to the `periodic` adaptor here will show up in
+xref:debug.adoc#_naming_senders_and_operations[debug output].
+
+=== `periodic_n`
+
+Found in the header: `async/periodic.hpp`
+
+`periodic_n` works the same way as `periodic`, but repeats a given number of times.
+
+[source,cpp]
+----
+auto s = time_scheduler{}.sender() | ... ;
+auto p = s | async::periodic_n(1s, 5);
+// p repeats s 5 times
+----
+
+NOTE: `periodic_n` must always run at least once to be able to complete. So
+`periodic_n(1s, 1)` repeats once, i.e. runs twice. `periodic_n(1s, 0)` runs once
+(thus is equivalent to instead starting the sender chain with
+`time_scheduler{1s}.sender()`).
+
+=== `periodic_until`
+
+Found in the header: `async/periodic.hpp`
+
+`periodic_until` works the same way as `periodic`, but repeats the sender until a
+given predicate returns true.
+
+[source,cpp]
+----
+auto s = time_scheduler{}.sender() | ... ;
+auto p = s | async::periodic_until(1s, [] (auto&&...) { return true; });
+----
+
+NOTE: The arguments passed to the predicate are those in the value completion(s)
+of the sender.
+
+NOTE: `periodic` never completes other than by error or cancellation, but
+`periodic_n` and `periodic_until` both complete successfully with the same
+completion as the adapted sender.
+
 === `repeat`
 
 Found in the header: `async/repeat.hpp`
 
 `repeat` takes a sender and repeats it indefinitely. When the sender completes
-with a value, it is reconnected and restarted. This is useful for periodic
-tasks. A `repeat` sender can still be stopped, or complete with an error.
+with a value, it is reconnected and restarted. This is useful for tasks that
+should repeat immediately on finishing. A `repeat` sender can still be stopped,
+or complete with an error.
 
 [source,cpp]
 ----
@@ -191,9 +282,10 @@ auto s = some_sender | async::repeat();
 // and some_sender runs again.
 ----
 
-CAUTION: `repeat` can cause stack overflows if used with a scheduler that
-doesn't break the callstack, like
-xref:schedulers.adoc#_inline_scheduler[`inline_scheduler`].
+NOTE: The difference between `periodic` and `repeat` is that `periodic`
+interacts with the `time_scheduler` to eliminate any drift caused by
+bookkeeping. `repeat` of a periodic task may exhibit drift. `periodic` must work
+with a `time_scheduler` sender; `repeat` can work with any sender.
 
 === `repeat_n`
 
@@ -219,6 +311,10 @@ auto s = some_sender | async::repeat_until([] (auto&&...) { return true; });
 
 NOTE: The arguments passed to the predicate are those in the value completion(s)
 of the sender.
+
+NOTE: `repeat` never completes other than by error or cancellation, but
+`repeat_n` and `repeat_until` both complete successfully with the same
+completion as the adapted sender.
 
 === `retry`
 
