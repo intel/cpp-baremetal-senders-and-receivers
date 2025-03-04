@@ -8,7 +8,6 @@
 #include <async/env.hpp>
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
-#include <conc/concurrency.hpp>
 
 #include <stdx/atomic.hpp>
 #include <stdx/concepts.hpp>
@@ -17,6 +16,8 @@
 #include <stdx/tuple.hpp>
 #include <stdx/type_traits.hpp>
 #include <stdx/utility.hpp>
+
+#include <conc/concurrency.hpp>
 
 #include <concepts>
 #include <cstddef>

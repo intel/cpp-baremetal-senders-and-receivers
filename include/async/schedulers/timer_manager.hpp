@@ -1,12 +1,13 @@
 #pragma once
 
 #include <async/schedulers/timer_manager_interface.hpp>
-#include <conc/concurrency.hpp>
 
 #include <stdx/atomic.hpp>
 #include <stdx/function_traits.hpp>
 #include <stdx/intrusive_list.hpp>
 #include <stdx/tuple.hpp>
+
+#include <conc/concurrency.hpp>
 
 #include <algorithm>
 #include <concepts>
