@@ -6,6 +6,7 @@
 #define HAS_CONDITION_VARIABLE __has_include(<condition_variable>)
 #endif
 
+#include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>

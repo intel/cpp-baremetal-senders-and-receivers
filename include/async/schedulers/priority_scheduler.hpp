@@ -1,9 +1,11 @@
 #pragma once
 
+#include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
 #include <async/env.hpp>
+#include <async/get_completion_scheduler.hpp>
 #include <async/schedulers/task_manager_interface.hpp>
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
