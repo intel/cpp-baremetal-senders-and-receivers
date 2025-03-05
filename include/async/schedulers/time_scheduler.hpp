@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
