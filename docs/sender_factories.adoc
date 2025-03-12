@@ -49,6 +49,8 @@ is `"just_error"`.
 auto sndr = async::just_error<"oops">(42);
 ----
 
+NOTE: Unlike the value channel, only one value is normally sent on the error channel.
+
 === `just_error_result_of`
 
 Found in the header: `async/just_result_of.hpp`
@@ -78,9 +80,9 @@ auto sndr = async::just_error_result_of<"oops">([] { return 42; });
 NOTE: Do not rely on the order of evaluation of the functions given to
 `just_error_result_of`!
 
-NOTE: Only one value can be sent on the error channel. Hence `just_error` is a
-unary function. However `just_error_result_of` is an n-ary function: exactly one
-of the functions passed must return something other than `void`.
+NOTE: Only one value is normally sent on the error channel. So exactly one of
+the functions passed to `just_error_result_of` should return something other than
+`void`.
 
 === `just_result_of`
 

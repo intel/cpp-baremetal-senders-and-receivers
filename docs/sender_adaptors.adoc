@@ -514,6 +514,22 @@ auto sndr = async::start_on(my_scheduler{}, async::just(42))
 
 NOTE: `timeout_after` is implemented using xref:_when_any[`stop_when`].
 
+=== `transform_error`
+
+Found in the header: `async/then.hpp`
+
+`transform_error` works like `then`, but instead of applying the function to values, it applies to errors.
+
+[source,cpp]
+----
+auto sndr = async::just_error(42);
+auto te_sndr = async::transform_error(sndr, [] (int i) { return std::to_string(i); });
+// when run, te_sndr will produce the string "42" on the error channel
+----
+
+NOTE: Like `then`, `transform_error` can distribute the sent values to the
+functions by arity. However, only one value is normally sent on the error channel.
+
 === `upon_error`
 
 Found in the header: `async/then.hpp`
@@ -523,9 +539,13 @@ Found in the header: `async/then.hpp`
 [source,cpp]
 ----
 auto sndr = async::just_error(42);
-auto then_sndr = async::upon_error(sndr, [] (int i) { return std::to_string(i); });
-// when run, then_sndr will produce the string "42" as an error
+auto ue_sndr = async::upon_error(sndr, [] (int i) { return std::to_string(i); });
+// when run, ue_sndr will produce the string "42" on the value channel
 ----
+
+NOTE: The difference between `transform_error` and `upon_error` is that
+`transform_error` completes on the error channel, and `upon_error` completes on
+the value channel.
 
 === `upon_stopped`
 
@@ -537,8 +557,8 @@ values, it applies to the stopped signal. Therefore the function takes no argume
 [source,cpp]
 ----
 auto sndr = async::just_stopped();
-auto then_sndr = async::upon_stopped(sndr, [] { return 42; });
-// when run, then_sndr will produce 42
+auto us_sndr = async::upon_stopped(sndr, [] { return 42; });
+// when run, us_sndr will produce 42 on the value channel
 ----
 
 === `when_all`
