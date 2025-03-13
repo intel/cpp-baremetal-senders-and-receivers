@@ -50,6 +50,7 @@ add_tests(
     stop_token
     then
     timeout_after
+    transform_error
     type_traits
     upon_error
     upon_stopped

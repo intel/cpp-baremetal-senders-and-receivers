@@ -3,9 +3,13 @@
 
 - https://wg21.link/p2300[P2300] - the paper that sets out a complete
   motivation, examples and taxonomy of asynchronous building blocks
+- https://en.cppreference.com/w/cpp/execution[Execution control library] page on
+  https://cppreference.com/[cppreference.com]
 - https://www.youtube.com/watch?v=xLboNIf7BTg[Working with Asynchrony
-  Generically (Part 1)] - Eric Niebler's talk from CppCon 2021
+  Generically (Part 1)] - Eric Niebler, CppCon 2021
 - https://www.youtube.com/watch?v=6a0zzUBUNW4[Working with Asynchrony
-  Generically (Part 2)] - Eric Niebler's talk from CppCon 2021
+  Generically (Part 2)] - Eric Niebler, CppCon 2021
 - https://www.youtube.com/watch?v=xXncLUD-4bA[Using Sender/Receiver to Implement
-  Control Flow for Async Processing] - Steve Downey's talk from C++Now 2023
+  Control Flow for Async Processing] - Steve Downey, C++Now 2023
+- https://www.youtube.com/watch?v=eI5b-q4K9vo[Embedded Async Abstraction:
+  Implementing Senders and Receivers Without an OS] - Ben Deane, C++Now 2024

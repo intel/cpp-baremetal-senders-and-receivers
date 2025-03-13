@@ -71,10 +71,10 @@ template <stdx::ct_string Name = "just", typename... Vs>
         {std::forward<Vs>(vs)...}};
 }
 
-template <stdx::ct_string Name = "just_error", typename V>
-[[nodiscard]] constexpr auto just_error(V &&v) -> sender auto {
-    return _just::sender<Name, set_error_t, std::remove_cvref_t<V>>{
-        {std::forward<V>(v)}};
+template <stdx::ct_string Name = "just_error", typename... Vs>
+[[nodiscard]] constexpr auto just_error(Vs &&...vs) -> sender auto {
+    return _just::sender<Name, set_error_t, std::remove_cvref_t<Vs>...>{
+        {std::forward<Vs>(vs)...}};
 }
 
 template <stdx::ct_string Name = "just_stopped">

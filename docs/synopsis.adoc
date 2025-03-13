@@ -192,8 +192,9 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/then.hpp[then.hpp]
 * `then` - a xref:sender_adaptors.adoc#_then[sender adaptor] that transforms what a sender sends on the value channel
-* `upon error` - a xref:sender_adaptors.adoc#_upon_error[sender adaptor] that transforms what a sender sends on the error channel
-* `upon stopped` - a xref:sender_adaptors.adoc#_upon_stopped[sender adaptor] that transforms what a sender sends on the stopped channel
+* `transform error` - a xref:sender_adaptors.adoc#_transform_error[sender adaptor] that transforms what a sender sends on the error channel
+* `upon error` - a xref:sender_adaptors.adoc#_upon_error[sender adaptor] that transforms what a sender sends on the error channel, and completes on the value channel
+* `upon stopped` - a xref:sender_adaptors.adoc#_upon_stopped[sender adaptor] that transforms what a sender sends on the stopped channel, and completes on the value channel
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/timeout_after.hpp[timeout_after.hpp]
 * `timeout_after` - a xref:sender_adaptors.adoc#_timeout_after[sender adaptor] that races a sender against a time limit
@@ -302,6 +303,7 @@ contains traits and metaprogramming constructs used by many senders.
 * `timer_mgr::time_point_for` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
 * xref:schedulers.adoc#_trigger_scheduler[`trigger_scheduler<"name">`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_scheduler.hpp[`#include <async/schedulers/trigger_scheduler.hpp>`]
 * xref:schedulers.adoc#_trigger_scheduler[`triggers<"name">`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_manager.hpp[`#include <async/schedulers/trigger_manager.hpp>`]
+* xref:sender_adaptors.adoc#_transform_error[`transform error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
 * xref:sender_adaptors.adoc#_upon_error[`upon error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
 * xref:sender_adaptors.adoc#_upon_stopped[`upon stopped`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
 * xref:sender_adaptors.adoc#_when_all[`when_all`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_all.hpp[`#include <async/when_all.hpp>`]

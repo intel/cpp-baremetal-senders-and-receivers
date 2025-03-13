@@ -99,8 +99,8 @@ constexpr auto invoke =
 };
 } // namespace detail
 
-template <stdx::ct_string Name, typename Tag, typename S, typename R,
-          typename... Fs>
+template <stdx::ct_string Name, typename HandleTag, typename CompleteTag,
+          typename S, typename R, typename... Fs>
 struct receiver {
     using is_receiver = void;
     [[no_unique_address]] R r;
@@ -126,7 +126,7 @@ struct receiver {
   private:
     template <typename T, typename... Args>
     auto handle(Args &&...args) -> void {
-        if constexpr (std::same_as<Tag, T>) {
+        if constexpr (std::same_as<HandleTag, T>) {
             using arities =
                 typename detail::args<Args &&...>::template arities_t<Fs...>;
             using offsets = typename detail::offsets_t<arities, Fs...>;
@@ -144,10 +144,10 @@ struct receiver {
             auto filtered_results =
                 stdx::filter<detail::nonvoid_result_t>(std::move(results));
 
-            debug_signal<set_value_t::name,
+            debug_signal<CompleteTag::name,
                          debug::erased_context_for<receiver>>(get_env(r));
             std::move(filtered_results).apply([&]<typename... Ts>(Ts &&...ts) {
-                async::set_value(std::move(r), std::forward<Ts>(ts)...);
+                CompleteTag{}(std::move(r), std::forward<Ts>(ts)...);
             });
         } else {
             debug_signal<T::name, debug::erased_context_for<receiver>>(
@@ -194,14 +194,16 @@ template <typename Tag, typename... Fs> struct to_signature {
 };
 } // namespace detail
 
-template <stdx::ct_string Name, typename Tag, typename S, typename... Fs>
+template <stdx::ct_string Name, typename HandleTag, typename CompleteTag,
+          typename S, typename... Fs>
 struct sender {
     template <async::receiver R>
     [[nodiscard]] constexpr auto connect(R &&r) && {
         check_connect<sender &&, R>();
         return async::connect(
-            std::move(s), receiver<Name, Tag, S, std::remove_cvref_t<R>, Fs...>{
-                              std::forward<R>(r), std::move(fs)});
+            std::move(s),
+            receiver<Name, HandleTag, CompleteTag, S, std::remove_cvref_t<R>,
+                     Fs...>{std::forward<R>(r), std::move(fs)});
     }
 
     template <async::receiver R>
@@ -209,23 +211,23 @@ struct sender {
     [[nodiscard]] constexpr auto connect(R &&r) const & {
         check_connect<sender const &, R>();
         return async::connect(
-            s, receiver<Name, Tag, S, std::remove_cvref_t<R>, Fs...>{
-                   std::forward<R>(r), fs});
+            s, receiver<Name, HandleTag, CompleteTag, S, std::remove_cvref_t<R>,
+                        Fs...>{std::forward<R>(r), fs});
     }
 
     template <typename... Ts>
     using signatures =
-        typename detail::to_signature<set_value_t, Fs...>::template type<Ts...>;
+        typename detail::to_signature<CompleteTag, Fs...>::template type<Ts...>;
 
     template <typename Env>
-        requires std::same_as<Tag, set_value_t>
+        requires std::same_as<HandleTag, set_value_t>
     [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
         return transform_completion_signatures_of<
             S, Env, completion_signatures<>, signatures>{};
     }
 
     template <typename Env>
-        requires std::same_as<Tag, set_error_t>
+        requires std::same_as<HandleTag, set_error_t>
     [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
         return transform_completion_signatures_of<
             S, Env, completion_signatures<>, ::async::detail::default_set_value,
@@ -233,7 +235,7 @@ struct sender {
     }
 
     template <typename Env>
-        requires std::same_as<Tag, set_stopped_t>
+        requires std::same_as<HandleTag, set_stopped_t>
     [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
         if constexpr (not sends_stopped<S, Env>) {
             return completion_signatures_of_t<S, Env>{};
@@ -254,22 +256,24 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename Tag, typename... Fs> struct pipeable {
+template <stdx::ct_string Name, typename HandleTag, typename CompleteTag,
+          typename... Fs>
+struct pipeable {
     stdx::tuple<Fs...> fs;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Name, Tag, std::remove_cvref_t<S>, Fs...>{
-            std::forward<S>(s), std::forward<Self>(self).fs};
+        return sender<Name, HandleTag, CompleteTag, std::remove_cvref_t<S>,
+                      Fs...>{std::forward<S>(s), std::forward<Self>(self).fs};
     }
 };
 } // namespace _then
 
 template <stdx::ct_string Name = "then", stdx::callable... Fs>
 [[nodiscard]] constexpr auto then(Fs &&...fs) {
-    return _compose::adaptor<
-        _then::pipeable<Name, set_value_t, std::remove_cvref_t<Fs>...>>{
+    return _compose::adaptor<_then::pipeable<Name, set_value_t, set_value_t,
+                                             std::remove_cvref_t<Fs>...>>{
         std::forward<Fs>(fs)...};
 }
 
@@ -280,8 +284,8 @@ template <stdx::ct_string Name = "then", sender S, stdx::callable... Fs>
 
 template <stdx::ct_string Name = "upon_error", stdx::callable F>
 [[nodiscard]] constexpr auto upon_error(F &&f) {
-    return _compose::adaptor<
-        _then::pipeable<Name, set_error_t, std::remove_cvref_t<F>>>{
+    return _compose::adaptor<_then::pipeable<Name, set_error_t, set_value_t,
+                                             std::remove_cvref_t<F>>>{
         std::forward<F>(f)};
 }
 
@@ -292,8 +296,8 @@ template <stdx::ct_string Name = "upon_error", sender S, stdx::callable F>
 
 template <stdx::ct_string Name = "upon_stopped", stdx::callable F>
 [[nodiscard]] constexpr auto upon_stopped(F &&f) {
-    return _compose::adaptor<
-        _then::pipeable<Name, set_stopped_t, std::remove_cvref_t<F>>>{
+    return _compose::adaptor<_then::pipeable<Name, set_stopped_t, set_value_t,
+                                             std::remove_cvref_t<F>>>{
         std::forward<F>(f)};
 }
 
@@ -302,21 +306,55 @@ template <stdx::ct_string Name = "upon_stopped", sender S, stdx::callable F>
     return std::forward<S>(s) | upon_stopped<Name>(std::forward<F>(f));
 }
 
+template <stdx::ct_string Name = "transform_error", stdx::callable... Fs>
+[[nodiscard]] constexpr auto transform_error(Fs &&...fs) {
+    return _compose::adaptor<_then::pipeable<Name, set_error_t, set_error_t,
+                                             std::remove_cvref_t<Fs>...>>{
+        std::forward<Fs>(fs)...};
+}
+
+template <stdx::ct_string Name = "transform_error", sender S,
+          stdx::callable... Fs>
+[[nodiscard]] constexpr auto transform_error(S &&s, Fs &&...fs) -> sender auto {
+    return std::forward<S>(s) | transform_error<Name>(std::forward<Fs>(fs)...);
+}
+
 struct then_t;
 struct upon_error_t;
 struct upon_stopped_t;
 
-template <typename Tag>
-using then_tag_for =
-    stdx::conditional_t<std::same_as<Tag, set_value_t>, then_t,
-                        stdx::conditional_t<std::same_as<Tag, set_error_t>,
-                                            upon_error_t, upon_stopped_t>>;
+struct transform_error_t;
 
-template <stdx::ct_string Name, typename Tag, typename... Ts>
-struct debug::context_for<_then::receiver<Name, Tag, Ts...>> {
-    using tag = then_tag_for<Tag>;
+namespace _then {
+namespace detail {
+template <typename HandleTag, typename CompleteTag> struct debug_tag;
+
+template <> struct debug_tag<set_value_t, set_value_t> {
+    using type = then_t;
+};
+template <> struct debug_tag<set_error_t, set_value_t> {
+    using type = upon_error_t;
+};
+template <> struct debug_tag<set_stopped_t, set_value_t> {
+    using type = upon_stopped_t;
+};
+
+template <> struct debug_tag<set_error_t, set_error_t> {
+    using type = transform_error_t;
+};
+
+template <typename HandleTag, typename CompleteTag>
+using debug_tag_t = typename debug_tag<HandleTag, CompleteTag>::type;
+} // namespace detail
+} // namespace _then
+
+template <stdx::ct_string Name, typename HandleTag, typename CompleteTag,
+          typename... Ts>
+struct debug::context_for<
+    _then::receiver<Name, HandleTag, CompleteTag, Ts...>> {
+    using tag = _then::detail::debug_tag_t<HandleTag, CompleteTag>;
     constexpr static auto name = Name;
-    using type = _then::receiver<Name, Tag, Ts...>;
+    using type = _then::receiver<Name, HandleTag, CompleteTag, Ts...>;
     using children = stdx::type_list<debug::erased_context_for<
         connect_result_t<typename type::sender_t &&, type &&>>>;
 };
