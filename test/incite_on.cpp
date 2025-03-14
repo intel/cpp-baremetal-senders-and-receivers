@@ -55,6 +55,17 @@ TEST_CASE("incite_on send a value with trigger", "[incite_on]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("incite_on works being incited by a non-empty lambda",
+          "[incite_on]") {
+    int value{};
+    auto const s = async::incite_on(
+        async::just([value = 42] { async::run_triggers<"value">(value); }),
+        async::trigger_scheduler<"value", int>{});
+    auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
 TEST_CASE("incite_on advertises what it sends", "[incite_on]") {
     [[maybe_unused]] auto const s =
         async::incite_on(async::just([] { async::run_triggers<"basic">(); }),

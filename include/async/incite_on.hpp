@@ -68,13 +68,13 @@ struct op_state {
                 }}} {}
     constexpr op_state(op_state &&) = delete;
 
-    template <typename F> auto complete_first(F &&f) -> void {
+    template <typename F> auto complete_first(F f) -> void {
         debug_signal<set_value_t::name, debug::erased_context_for<op_state>>(
             get_env(rcvr));
         auto &op = state.template emplace<1>(stdx::with_result_of{
             [&] { return connect(sched.schedule(), std::move(rcvr)); }});
         async::start(op);
-        std::forward<F>(f)();
+        std::move(f)();
     }
 
     template <channel_tag Tag, typename... Args>
