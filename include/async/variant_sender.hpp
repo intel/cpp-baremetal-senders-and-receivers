@@ -5,6 +5,7 @@
 #include <async/connect.hpp>
 #include <async/debug.hpp>
 #include <async/env.hpp>
+#include <async/just.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
@@ -252,6 +253,11 @@ constexpr auto make_variant_sender(bool b, F1 &&f1, F2 &&f2) {
 
     return boost::mp11::mp_apply<_variant::sender, senders>{
         select(b, std::forward<F1>(f1), std::forward<F2>(f2))};
+}
+
+template <stdx::callable F> constexpr auto make_optional_sender(bool b, F &&f) {
+    return make_variant_sender(b, std::forward<F>(f),
+                               [] { return just<"opt-else">(); });
 }
 
 struct variant_t;

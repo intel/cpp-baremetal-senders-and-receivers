@@ -141,6 +141,26 @@ TEST_CASE("make_variant_sender (general choice)", "[variant_sender]") {
     CHECK(value == 42);
 }
 
+TEST_CASE("make_optional_sender (unary choice)", "[variant_sender]") {
+    auto const i = 0;
+    auto const s =
+        async::make_optional_sender(i == 0, [] { return async::just(42); });
+
+    static_assert(
+        std::is_same_v<async::completion_signatures_of_t<decltype(s)>,
+                       async::completion_signatures<async::set_value_t(int),
+                                                    async::set_value_t()>>);
+
+    int value{};
+    auto op = async::connect(s, receiver{[&](auto... v) {
+                                 if constexpr (sizeof...(v) == 1) {
+                                     value = (v, ...);
+                                 }
+                             }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
 TEST_CASE("make_variant_sender (simplified binary choice)",
           "[variant_sender]") {
     auto const i = 0;
