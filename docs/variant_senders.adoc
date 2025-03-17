@@ -16,6 +16,17 @@ auto s = async::make_variant_sender(/* boolean-expression */,
                                     [] { return /* a different sender */; });
 ----
 
+There is also an even simpler formulation, for when the alternative sender is `just()`:
+
+[source,cpp]
+----
+auto s = async::make_optional_sender(/* boolean-expression */,
+                                     [] { return /* a sender */; });
+----
+
+In this case, if the boolean expression evaluates to `false`, the returned
+sender will complete on the value channel as if it were `just()`.
+
 This often suffices for a binary choice, but if we want a choice of more
 possibilities, the same function supports that:
 
