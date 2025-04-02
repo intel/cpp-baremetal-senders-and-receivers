@@ -151,12 +151,31 @@ template <typename... Args> constexpr auto make_variant(Args &&...args) {
 }
 
 namespace _variant {
+// clang-20 has some issues around variants and visitation
+// so this workaround is hopefully temporary
+template <std::size_t N, typename R, typename F, typename V>
+auto visit_workaround(F &&f, V &&v) -> R {
+    if constexpr (N == 0) {
+        if (N == v.index()) {
+            return std::forward<F>(f)(std::get<N>(std::forward<V>(v)));
+        }
+        stdx::unreachable();
+    } else {
+        if (N == v.index()) {
+            return std::forward<F>(f)(std::get<N>(std::forward<V>(v)));
+        }
+        return visit_workaround<N - 1, R>(std::forward<F>(f),
+                                          std::forward<V>(v));
+    }
+}
+
 template <typename... Ops> struct op_state {
     using variant_t = boost::mp11::mp_unique<std::variant<Ops...>>;
     variant_t v;
 
     constexpr auto start() & -> void {
-        std::visit([](auto &&ops) { async::start(FWD(ops)); }, v);
+        visit_workaround<boost::mp11::mp_size<variant_t>::value - 1, void>(
+            [](auto &&ops) { async::start(FWD(ops)); }, v);
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
@@ -202,7 +221,8 @@ template <typename... Sndrs> struct sender : std::variant<Sndrs...> {
     [[nodiscard]] constexpr static auto connect_impl(Sndr &&sndr, R &&r) {
         using ops_t =
             op_state<connect_result_t<Sndrs, std::remove_cvref_t<R>>...>;
-        return std::visit(
+        return visit_workaround<
+            boost::mp11::mp_size<std::remove_cvref_t<Sndr>>::value - 1, ops_t>(
             [&]<typename S>(S &&s) -> ops_t {
                 using V = typename ops_t::variant_t;
                 using O = connect_result_t<S, R>;

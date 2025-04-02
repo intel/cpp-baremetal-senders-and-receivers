@@ -1,4 +1,4 @@
-fmt_recipe(10.2.1)
+fmt_recipe(11.1.3)
 
 function(add_tests)
     foreach(name ${ARGN})
