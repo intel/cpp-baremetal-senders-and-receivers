@@ -43,7 +43,7 @@ template <stdx::ct_string Name = "thread_scheduler"> class thread_scheduler {
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
-        [[nodiscard]] static constexpr auto query(get_env_t) noexcept {
+        [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
             return prop{get_completion_scheduler<set_value_t>,
                         thread_scheduler{}};
         }

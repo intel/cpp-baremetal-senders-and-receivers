@@ -41,7 +41,7 @@ template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
-        [[nodiscard]] static constexpr auto query(get_env_t) noexcept {
+        [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
             return env{prop{completes_synchronously_t{}, std::true_type{}},
                        prop{get_completion_scheduler<set_value_t>,
                             inline_scheduler{}}};

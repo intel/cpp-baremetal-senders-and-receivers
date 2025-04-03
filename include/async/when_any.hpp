@@ -253,17 +253,24 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
                 return;
             }
         }
+
         std::visit(
             stdx::overload{
                 [&]<typename T>(T &&t) {
-                    std::forward<T>(t).apply(
-                        [&]<typename Tag, typename... Args>(Tag tag,
-                                                            Args &&...args) {
-                            debug_signal<Tag::name,
-                                         debug::erased_context_for<op_state>>(
-                                get_env(rcvr));
-                            tag(std::move(rcvr), std::forward<Args>(args)...);
-                        });
+                    std::forward<T>(t).apply([&]<typename Tag,
+                                                 typename... Args>(
+                                                 Tag tag, Args &&...args) {
+                        using ctx = debug::erased_context_for<op_state>;
+                        // clang-20 has some issues here if we do the obvious
+                        // thing of using Tag::name - this workaround is
+                        // hopefully temporary
+                        if constexpr (std::same_as<Tag, set_value_t>) {
+                            debug_signal<set_value_t::name, ctx>(get_env(rcvr));
+                        } else if constexpr (std::same_as<Tag, set_error_t>) {
+                            debug_signal<set_error_t::name, ctx>(get_env(rcvr));
+                        }
+                        tag(std::move(rcvr), std::forward<Args>(args)...);
+                    });
                 },
                 [](std::monostate) {}},
             std::move(completions));
