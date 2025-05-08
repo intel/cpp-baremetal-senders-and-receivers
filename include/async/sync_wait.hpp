@@ -60,7 +60,7 @@ using sync_wait_type = value_types_of_t<S, E, decayed_tuple, std::optional>;
 template <typename Uniq, sender S, typename Env> auto wait(S &&s, Env &&e) {
     run_loop<Uniq> rl{};
     auto sched = rl.get_scheduler();
-    auto new_env = env{prop{get_scheduler_t{}, sched}, std::cref(e)};
+    auto new_env = env{prop{get_scheduler_t{}, sched}, std::forward<Env>(e)};
 
     using E = decltype(new_env);
     using V = detail::sync_wait_type<E, S>;
