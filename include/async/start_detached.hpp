@@ -60,7 +60,7 @@ template <typename StopSource, typename Env>
 struct op_state_base {
     using env_t = env<prop<get_stop_token_t,
                            decltype(std::declval<StopSource>().get_token())>,
-                      Env const &>;
+                      Env>;
 
     constexpr explicit(true) op_state_base(Env &&env) : e{std::move(env)} {}
     constexpr op_state_base(op_state_base &&) = delete;
@@ -68,8 +68,7 @@ struct op_state_base {
     template <stdx::ct_string> auto die() {}
 
     [[nodiscard]] constexpr auto query(get_env_t) const -> env_t {
-        return env{prop{get_stop_token_t{}, stop_src.get_token()},
-                   std::cref(e)};
+        return env{prop{get_stop_token_t{}, stop_src.get_token()}, e};
     }
 
     using stop_source_t = StopSource;
