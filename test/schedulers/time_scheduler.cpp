@@ -1,10 +1,13 @@
 #include "detail/common.hpp"
 
 #include <async/debug.hpp>
+#include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
 #include <async/start_on.hpp>
+#include <async/then.hpp>
+#include <async/when_all.hpp>
 
 #include <stdx/concepts.hpp>
 #include <stdx/ct_format.hpp>
@@ -326,4 +329,18 @@ TEST_CASE("time_scheduler with no argument is cancellable",
     CHECK(not enabled<default_domain>);
     CHECK(var == 17);
     CHECK(async::timer_mgr::is_idle());
+}
+
+TEST_CASE("multishot connection with when_all", "[time_scheduler]") {
+    using namespace std::chrono_literals;
+    int value{};
+    auto s1 = async::just(42);
+    auto s2 = async::time_scheduler{1s}.schedule();
+    auto w = async::when_all(s1, s2);
+    auto t = w | async::then([&](int x) { value = x; });
+
+    auto op = async::connect(t, receiver{[] {}});
+    async::start(op);
+    async::timer_mgr::service_task();
+    CHECK(value == 42);
 }
