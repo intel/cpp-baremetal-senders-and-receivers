@@ -420,7 +420,9 @@ struct sender : Sndrs... {
     template <typename R>
         requires(
             ... and
-            multishot_sender<typename Sndrs::sender_t, std::remove_cvref_t<R>>)
+            multishot_sender<
+                typename Sndrs::sender_t,
+                detail::universal_receiver<env_of_t<std::remove_cvref_t<R>>>>)
     [[nodiscard]] constexpr auto connect(R &&r) const
         & -> op_state_t<Name, StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender const &, R>();
