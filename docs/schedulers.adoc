@@ -372,7 +372,7 @@ specified as template arguments, and supplied using `run_triggers`:
 [source,cpp]
 ----
 int x{};
-async::trigger_scheduler<"name", int>{}
+async::trigger_scheduler<"name", int>{}.schedule()
   | async::then([&] (auto i) { x = i; })
   | async::start_detached();
 
