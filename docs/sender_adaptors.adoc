@@ -32,7 +32,7 @@ is intended for use with xref:schedulers.adoc#_trigger_scheduler[`trigger_schedu
 
 [source,cpp]
 ----
-auto sndr = async::just([] { send_request(); });
+auto sndr = async::just([] { send_request(); })
           | async::incite_on(trigger_scheduler<"msg">{})
           | async::then([] (auto msg) { /* handle response */ });
 
