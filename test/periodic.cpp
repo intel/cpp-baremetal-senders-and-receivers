@@ -2,9 +2,12 @@
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
+#include <async/continue_on.hpp>
 #include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/periodic.hpp>
+#include <async/schedulers/priority_scheduler.hpp>
+#include <async/schedulers/task_manager.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
 #include <async/sequence.hpp>
@@ -26,7 +29,7 @@ template <typename Domain, typename TP> inline auto current_time = TP{};
 template <typename Domain> inline auto enabled = false;
 template <typename Domain, typename TP> inline auto calls = std::vector<TP>{};
 
-template <typename Domain> struct hal {
+template <typename Domain> struct timer_hal {
     using time_point_t = std::chrono::steady_clock::time_point;
     using task_t = async::timer_task<time_point_t>;
 
@@ -42,7 +45,13 @@ template <typename Domain> struct hal {
     }
 };
 
-using timer_manager_t = async::generic_timer_manager<hal<default_domain>>;
+using timer_manager_t = async::generic_timer_manager<timer_hal<default_domain>>;
+
+struct priority_hal {
+    static auto schedule(async::priority_t) {}
+};
+
+using task_manager_t = async::priority_task_manager<priority_hal, 8>;
 } // namespace
 
 template <typename Rep, typename Period>
@@ -53,6 +62,8 @@ struct async::timer_mgr::time_point_for<std::chrono::duration<Rep, Period>> {
 template <>
 [[maybe_unused]] inline auto async::injected_timer_manager<> =
     timer_manager_t{};
+
+template <> inline auto async::injected_task_manager<> = task_manager_t{};
 
 TEST_CASE("periodic advertises what it sends", "[periodic]") {
     [[maybe_unused]] auto s =
@@ -123,6 +134,28 @@ TEST_CASE("periodic repeats periodically", "[periodic]") {
     CHECK(var == 42);
 }
 
+TEST_CASE("periodic allows continue_on another scheduler", "[periodic]") {
+    int var{};
+    [[maybe_unused]] auto s =
+        async::time_scheduler{}.schedule() |
+        async::continue_on(async::fixed_priority_scheduler<0>{}) |
+        async::then([&] { ++var; }) |
+        async::periodic_until(1s, [&] { return var == 2; });
+    auto op = async::connect(s, receiver{[&] { var = 42; }});
+    async::start(op);
+    CHECK(enabled<default_domain>);
+    CHECK(not async::timer_mgr::is_idle());
+    async::timer_mgr::service_task();
+    async::task_mgr::service_tasks<0>();
+    CHECK(var == 1);
+    CHECK(not async::timer_mgr::is_idle());
+    async::timer_mgr::service_task();
+    async::task_mgr::service_tasks<0>();
+    CHECK(async::timer_mgr::is_idle());
+    CHECK(async::task_mgr::is_idle());
+    CHECK(var == 42);
+}
+
 TEST_CASE("periodic_n repeats n times", "[periodic]") {
     int var{};
     [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
@@ -164,7 +197,7 @@ TEST_CASE("periodic sets the correct first expiration time", "[periodic]") {
     int var{};
     stoppable_receiver r{[&] { var = 42; }};
 
-    using hal_t = hal<default_domain>;
+    using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
     [[maybe_unused]] auto s =
@@ -189,7 +222,7 @@ TEST_CASE("periodic sets the nth expiration time without drift", "[periodic]") {
     int var{};
     stoppable_receiver r{[&] { var = 42; }};
 
-    using hal_t = hal<default_domain>;
+    using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
     [[maybe_unused]] auto s =
@@ -220,7 +253,7 @@ TEST_CASE("periodic sets the nth expiration time safely", "[periodic]") {
     int var{};
     stoppable_receiver r{[&] { var = 42; }};
 
-    using hal_t = hal<default_domain>;
+    using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
     [[maybe_unused]] auto s =
@@ -256,7 +289,7 @@ struct ops_time {
 } // namespace
 
 TEST_CASE("quantized provider advances to next tick", "[periodic]") {
-    using hal_t = hal<default_domain>;
+    using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
     ops_time t{TP{1s}, 1s};
@@ -291,7 +324,7 @@ TEST_CASE("periodic can be parameterized with a quantized provider",
     int var{};
     stoppable_receiver r{[&] { var = 42; }};
 
-    using hal_t = hal<default_domain>;
+    using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
     [[maybe_unused]] auto s =
