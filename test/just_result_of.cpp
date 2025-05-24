@@ -1,20 +1,15 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/allocator.hpp>
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
-#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/just_result_of.hpp>
 #include <async/stack_allocator.hpp>
 
-#include <stdx/ct_format.hpp>
-#include <stdx/type_traits.hpp>
-
-#include <boost/mp11/list.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 #include <concepts>
 #include <string>
@@ -58,16 +53,16 @@ TEST_CASE("multiple functions, some returning void", "[just_result_of]") {
 }
 
 TEST_CASE("just_result_of advertises what it sends", "[just_result_of]") {
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<decltype(async::just_result_of([] { return 42; })),
                          async::set_value_t(int)>);
-    static_assert(async::sender_of<decltype(async::just_result_of([] {})),
-                                   async::set_value_t()>);
+    STATIC_REQUIRE(async::sender_of<decltype(async::just_result_of([] {})),
+                                    async::set_value_t()>);
 }
 
 TEST_CASE("just_result_of advertises what it sends (excluding voids)",
           "[just_result_of]") {
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<
             async::completion_signatures_of_t<decltype(async::just_result_of(
                 [] { return 42; }, [] {}, [] { return 17; }))>,
@@ -77,7 +72,7 @@ TEST_CASE("just_result_of advertises what it sends (excluding voids)",
 TEST_CASE("move-only value", "[just_result_of]") {
     int value{};
     auto s = async::just_result_of([] { return move_only{42}; });
-    static_assert(async::multishot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              receiver{[&](auto &&mo) { value = mo.value; }});
     async::start(op);
@@ -90,7 +85,7 @@ TEST_CASE("move-only lambda", "[just_result_of]") {
         [mo = move_only{42}]() -> move_only<int> const && {
             return std::move(mo);
         });
-    static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              receiver{[&](auto &&mo) { value = mo.value; }});
     async::start(op);
@@ -98,13 +93,13 @@ TEST_CASE("move-only lambda", "[just_result_of]") {
 }
 
 TEST_CASE("copyable lambda", "[just_result_of]") {
-    static_assert(async::multishot_sender<decltype(async::just_result_of(
-                                              [] { return 42; })),
-                                          universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(async::just_result_of(
+                                               [] { return 42; })),
+                                           universal_receiver>);
 }
 
 TEST_CASE("just_result_of has a stack allocator", "[just_result_of]") {
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::allocator_of_t<async::env_of_t<
                            decltype(async::just_result_of([] { return 42; }))>>,
                        async::stack_allocator>);
@@ -113,26 +108,12 @@ TEST_CASE("just_result_of has a stack allocator", "[just_result_of]") {
 TEST_CASE("just_result_of op state is synchronous", "[just_result_of]") {
     [[maybe_unused]] auto op = async::connect(
         async::just_result_of([] { return 42; }), universal_receiver{});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        static_assert(
-            std::is_same_v<async::debug::tag_of<Ctx>, async::just_result_of_t>);
-        static_assert(
-            boost::mp11::mp_empty<async::debug::children_of<Ctx>>::value);
-        debug_events.push_back(
-            fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::just_result_of_t, true>{};
 
 TEST_CASE("just_result_of can be debugged with a string", "[just_result_of]") {
     using namespace std::string_literals;

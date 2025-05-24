@@ -8,17 +8,17 @@
 #include <memory>
 
 TEST_CASE("concepts", "[stop_token]") {
-    static_assert(async::stoppable_token<async::inplace_stop_token>);
-    static_assert(async::stoppable_token<async::never_stop_token>);
-    static_assert(async::unstoppable_token<async::never_stop_token>);
-    static_assert(
+    STATIC_REQUIRE(async::stoppable_token<async::inplace_stop_token>);
+    STATIC_REQUIRE(async::stoppable_token<async::never_stop_token>);
+    STATIC_REQUIRE(async::unstoppable_token<async::never_stop_token>);
+    STATIC_REQUIRE(
         async::stoppable_token_for<async::inplace_stop_token, decltype([] {})>);
 }
 
 TEST_CASE("never_stop_token", "[stop_token]") {
     constexpr auto t = async::never_stop_token{};
-    static_assert(not t.stop_possible());
-    static_assert(not t.stop_requested());
+    STATIC_REQUIRE(not t.stop_possible());
+    STATIC_REQUIRE(not t.stop_requested());
 }
 
 TEST_CASE("request_stop returns true once", "[stop_token]") {

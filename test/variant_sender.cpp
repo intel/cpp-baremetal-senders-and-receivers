@@ -45,7 +45,7 @@ TEST_CASE("match with non-moveable type", "[variant_sender]") {
     auto const m = async::match(i == 1) >> [] { return non_moveable{}; };
     CHECK(m.test());
     [[maybe_unused]] auto nm = m.invoke();
-    static_assert(std::is_same_v<decltype(nm), non_moveable>);
+    STATIC_REQUIRE(std::is_same_v<decltype(nm), non_moveable>);
 }
 
 TEST_CASE("matcher returns correct variant", "[variant_sender]") {
@@ -68,7 +68,7 @@ TEST_CASE("matcher with non-moveable type", "[variant_sender]") {
                        async::otherwise >> [](auto) { return 3.14f; }};
     auto const v1 = m.run(0);
     REQUIRE(v1.index() == 0);
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<decltype(std::get<0>(v1)), non_moveable const &>);
 
     auto const v2 = m.run(1);
@@ -95,7 +95,7 @@ TEST_CASE("binary select with non-moveable type", "[variant_sender]") {
     auto const v1 = async::select(
         i == 0, [] { return non_moveable{}; }, [] { return 3.14f; });
     REQUIRE(v1.index() == 0);
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<decltype(std::get<0>(v1)), non_moveable const &>);
 
     auto const j = 1;
@@ -130,7 +130,7 @@ TEST_CASE("make_variant_sender (general choice)", "[variant_sender]") {
         async::otherwise >> [](auto, auto) { return async::just_error(17); }, 1,
         2);
 
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::completion_signatures_of_t<decltype(s)>,
                        async::completion_signatures<async::set_value_t(int),
                                                     async::set_error_t(int)>>);
@@ -146,7 +146,7 @@ TEST_CASE("make_optional_sender (unary choice)", "[variant_sender]") {
     auto const s =
         async::make_optional_sender(i == 0, [] { return async::just(42); });
 
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::completion_signatures_of_t<decltype(s)>,
                        async::completion_signatures<async::set_value_t(int),
                                                     async::set_value_t()>>);
@@ -168,7 +168,7 @@ TEST_CASE("make_variant_sender (simplified binary choice)",
         i == 0, [] { return async::just(42); },
         [] { return async::just_error(17); });
 
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::completion_signatures_of_t<decltype(s)>,
                        async::completion_signatures<async::set_value_t(int),
                                                     async::set_error_t(int)>>);
@@ -184,7 +184,7 @@ TEST_CASE("variant_sender may complete synchronously", "[variant_sender]") {
     [[maybe_unused]] auto const s = async::make_variant_sender(
         i == 0, [] { return async::just(42); },
         [] { return async::just_error(17); });
-    static_assert(async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("variant_sender may not complete synchronously", "[variant_sender]") {
@@ -192,7 +192,7 @@ TEST_CASE("variant_sender may not complete synchronously", "[variant_sender]") {
     [[maybe_unused]] auto const s = async::make_variant_sender(
         i == 0, [] { return async::just(42); },
         [] { return async::thread_scheduler{}.schedule(); });
-    static_assert(not async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("variant_sender op state may be synchronous", "[variant_sender]") {
@@ -201,7 +201,7 @@ TEST_CASE("variant_sender op state may be synchronous", "[variant_sender]") {
         i == 0, [] { return async::just(42); },
         [] { return async::just_error(17); });
     [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 TEST_CASE("variant_sender op state may not be synchronous",
@@ -211,5 +211,5 @@ TEST_CASE("variant_sender op state may not be synchronous",
         i == 0, [] { return async::just(42); },
         [] { return async::thread_scheduler{}.schedule(); });
     [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
-    static_assert(not async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(op)>);
 }

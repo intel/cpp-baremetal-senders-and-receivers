@@ -51,15 +51,15 @@ TEST_CASE("when_all advertises what it sends", "[when_all]") {
     auto s1 = async::just(42);
     auto s2 = async::just(17);
     [[maybe_unused]] auto w = async::when_all(s1, s2);
-    static_assert(async::sender_of<decltype(w), async::set_value_t(int, int)>);
-    static_assert(not async::sender_of<decltype(w), async::set_error_t()>);
+    STATIC_REQUIRE(async::sender_of<decltype(w), async::set_value_t(int, int)>);
+    STATIC_REQUIRE(not async::sender_of<decltype(w), async::set_error_t()>);
 }
 
 TEST_CASE("when_all advertises errors", "[when_all]") {
     auto s1 = async::just(42);
     auto s2 = async::just_error(17);
     [[maybe_unused]] auto w = async::when_all(s1, s2);
-    static_assert(async::sender_of<decltype(w), async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(w), async::set_error_t(int)>);
 }
 
 TEST_CASE("basic operation", "[when_all]") {
@@ -81,7 +81,7 @@ TEST_CASE("basic operation sending multiple values", "[when_all]") {
     int value{};
     auto s1 = async::just(42, 17);
     auto s2 = async::just(1337);
-    static_assert(
+    STATIC_REQUIRE(
         async::_when_all::single_sender<decltype(s1), async::set_value_t,
                                         async::empty_env>);
     auto w = async::when_all(s1, s2);
@@ -100,7 +100,7 @@ TEST_CASE("basic operation sending void values", "[when_all]") {
     int value{};
     auto s1 = async::just(42, 17);
     auto s2 = async::just();
-    static_assert(
+    STATIC_REQUIRE(
         async::_when_all::single_sender<decltype(s1), async::set_value_t,
                                         async::empty_env>);
     auto w = async::when_all(s1, s2);
@@ -138,7 +138,7 @@ TEST_CASE("move-only value", "[when_all]") {
     int value{};
     auto s = async::just(move_only{42});
     auto w = async::when_all(std::move(s));
-    static_assert(async::singleshot_sender<decltype(w), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(
         std::move(w), receiver{[&](move_only<int> mo) { value = mo.value; }});
     async::start(op);
@@ -149,7 +149,7 @@ TEST_CASE("copy sender", "[when_all]") {
     int value{};
     auto const s = async::just(42);
     auto w = async::when_all(s);
-    static_assert(async::multishot_sender<decltype(w), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(w, receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
@@ -159,7 +159,7 @@ TEST_CASE("move sender", "[when_all]") {
     int value{};
     auto s = async::just(42);
     auto w = async::when_all(s);
-    static_assert(async::multishot_sender<decltype(w), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(w), universal_receiver>);
     auto op =
         async::connect(std::move(w), receiver{[&](auto i) { value = i; }});
     async::start(op);
@@ -255,8 +255,8 @@ TEST_CASE("when_all with zero args completes immediately with set_value_t()",
           "[when_all]") {
     int value{};
     [[maybe_unused]] auto w = async::when_all();
-    static_assert(not async::stoppable_sender<decltype(w)>);
-    static_assert(
+    STATIC_REQUIRE(not async::stoppable_sender<decltype(w)>);
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(w)>,
                      async::completion_signatures<async::set_value_t()>>);
 
@@ -270,9 +270,9 @@ TEST_CASE("when_all with zero args completes immediately when stopped",
     int value{};
     [[maybe_unused]] auto w = async::when_all();
     auto r = stoppable_receiver{[&] { value = 42; }};
-    static_assert(
+    STATIC_REQUIRE(
         async::stoppable_sender<decltype(w), async::env_of_t<decltype(r)>>);
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<
                          decltype(w), async::env_of_t<decltype(r)>>,
                      async::completion_signatures<async::set_value_t(),
@@ -292,11 +292,11 @@ TEST_CASE("when_all nests", "[when_all]") {
 TEST_CASE("when_all with one arg is a no-op", "[when_all]") {
     auto s = async::just(42);
     [[maybe_unused]] auto w = async::when_all(s);
-    static_assert(std::same_as<decltype(s), decltype(w)>);
+    STATIC_REQUIRE(std::same_as<decltype(s), decltype(w)>);
 }
 
 TEST_CASE("nullary when_all has a stack allocator", "[when_all]") {
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<
             async::allocator_of_t<async::env_of_t<decltype(async::when_all())>>,
             async::stack_allocator>);
@@ -305,12 +305,12 @@ TEST_CASE("nullary when_all has a stack allocator", "[when_all]") {
 TEST_CASE("nullary when_all op_state is synchronous", "[when_all]") {
     [[maybe_unused]] auto op =
         async::connect(async::when_all(), receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 TEST_CASE("when_all has a stack allocator when all its subsenders do",
           "[when_all]") {
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<
             async::allocator_of_t<async::env_of_t<decltype(async::when_all(
                 async::just(42), async::just(17)))>>,
@@ -321,7 +321,7 @@ TEST_CASE("when_all op state is synchronous when all its sub-op states are",
           "[when_all]") {
     [[maybe_unused]] auto op = async::connect(
         async::when_all(async::just(42), async::just(17)), receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 TEST_CASE("when_all receiver environment is well-formed for synchronous ops",
@@ -330,7 +330,7 @@ TEST_CASE("when_all receiver environment is well-formed for synchronous ops",
     auto op = async::connect(
         async::when_all(async::get_stop_token(), async::just(42)),
         receiver{[&](auto st, int x) {
-            static_assert(
+            STATIC_REQUIRE(
                 std::is_same_v<decltype(st), async::never_stop_token>);
             value = x;
         }});

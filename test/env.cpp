@@ -10,7 +10,8 @@
 
 TEST_CASE("empty env", "[env]") {
     auto const r = receiver{[] {}};
-    static_assert(std::same_as<async::env_of_t<decltype(r)>, async::empty_env>);
+    STATIC_REQUIRE(
+        std::same_as<async::env_of_t<decltype(r)>, async::empty_env>);
 }
 
 TEST_CASE("nonexistent query", "[env]") {
@@ -20,7 +21,7 @@ TEST_CASE("nonexistent query", "[env]") {
 
 TEST_CASE("non-empty env", "[env]") {
     auto const r = stoppable_receiver{[] {}};
-    static_assert(
+    STATIC_REQUIRE(
         not std::same_as<async::env_of_t<decltype(r)>, async::empty_env>);
 }
 
@@ -101,16 +102,16 @@ TEST_CASE("template query prop", "[env]") {
 }
 
 TEST_CASE("valid_query_for", "[env]") {
-    static_assert(
+    STATIC_REQUIRE(
         async::detail::valid_query_for<async::get_env_t, test_queryable>);
-    static_assert(
+    STATIC_REQUIRE(
         not async::detail::valid_query_for<async::get_env_t, async::empty_env>);
 }
 
 TEST_CASE("valid_query_over", "[env]") {
-    static_assert(
+    STATIC_REQUIRE(
         async::detail::valid_query_over<async::get_env_t, async::empty_env,
                                         test_queryable>);
-    static_assert(not async::detail::valid_query_over<async::get_env_t,
-                                                      async::empty_env>);
+    STATIC_REQUIRE(not async::detail::valid_query_over<async::get_env_t,
+                                                       async::empty_env>);
 }

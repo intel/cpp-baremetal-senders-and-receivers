@@ -15,20 +15,20 @@
 #include <type_traits>
 
 TEST_CASE("default allocator is static_allocator", "[allocator]") {
-    static_assert(std::is_same_v<async::allocator_of_t<async::empty_env>,
-                                 async::static_allocator>);
+    STATIC_REQUIRE(std::is_same_v<async::allocator_of_t<async::empty_env>,
+                                  async::static_allocator>);
 }
 
 TEST_CASE("allocator is forwarded through senders", "[allocator]") {
     [[maybe_unused]] auto s1 =
         async::inline_scheduler{}.schedule() | async::then([] {});
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s1)>>,
                        async::stack_allocator>);
 
     [[maybe_unused]] auto s2 =
         async::thread_scheduler{}.schedule() | async::then([] {});
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s2)>>,
                        async::static_allocator>);
 }
@@ -151,17 +151,17 @@ TEST_CASE("stack allocate rvalues", "[allocator]") {
 }
 
 TEST_CASE("static allocator is an allocator", "[allocator]") {
-    static_assert(async::allocator<async::static_allocator>);
+    STATIC_REQUIRE(async::allocator<async::static_allocator>);
 }
 
 TEST_CASE("stack allocator is an allocator", "[allocator]") {
-    static_assert(async::allocator<async::stack_allocator>);
+    STATIC_REQUIRE(async::allocator<async::stack_allocator>);
 }
 
 TEST_CASE("sender that completes synchronously defaults to a stack allocator",
           "[allocator]") {
     [[maybe_unused]] auto s = async::inline_scheduler{}.schedule();
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s)>>,
                        async::stack_allocator>);
 }
@@ -169,7 +169,7 @@ TEST_CASE("sender that completes synchronously defaults to a stack allocator",
 TEST_CASE("sender that completes asynchronously defaults to a static allocator",
           "[allocator]") {
     [[maybe_unused]] auto s = async::thread_scheduler{}.schedule();
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::allocator_of_t<async::env_of_t<decltype(s)>>,
                        async::static_allocator>);
 }

@@ -52,29 +52,29 @@ struct bad_context_no_type {
 } // namespace
 
 TEST_CASE("leaf context", "[debug_context]") {
-    static_assert(async::debug::contextlike<leaf_context>);
+    STATIC_REQUIRE(async::debug::contextlike<leaf_context>);
 }
 
 TEST_CASE("branch context", "[debug_context]") {
-    static_assert(async::debug::contextlike<branch_context>);
+    STATIC_REQUIRE(async::debug::contextlike<branch_context>);
 }
 
 TEST_CASE("not a context (no name)", "[debug_context]") {
-    static_assert(not async::debug::contextlike<bad_context_no_name>);
+    STATIC_REQUIRE(not async::debug::contextlike<bad_context_no_name>);
 }
 
 TEST_CASE("not a context (no tag)", "[debug_context]") {
-    static_assert(not async::debug::contextlike<bad_context_no_tag>);
+    STATIC_REQUIRE(not async::debug::contextlike<bad_context_no_tag>);
 }
 
 TEST_CASE("not a context (no children)", "[debug_context]") {
-    static_assert(not async::debug::contextlike<bad_context_no_children>);
+    STATIC_REQUIRE(not async::debug::contextlike<bad_context_no_children>);
 }
 
 TEST_CASE("not a context (children are not contexts)", "[debug_context]") {
-    static_assert(not async::debug::contextlike<bad_context_bad_children>);
+    STATIC_REQUIRE(not async::debug::contextlike<bad_context_bad_children>);
 }
 
 TEST_CASE("not a context (no type)", "[debug_context]") {
-    static_assert(not async::debug::contextlike<bad_context_no_type>);
+    STATIC_REQUIRE(not async::debug::contextlike<bad_context_no_type>);
 }
