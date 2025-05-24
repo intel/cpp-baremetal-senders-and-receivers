@@ -1,9 +1,9 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/continue_on.hpp>
-#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/periodic.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
@@ -12,8 +12,6 @@
 #include <async/schedulers/timer_manager.hpp>
 #include <async/sequence.hpp>
 #include <async/then.hpp>
-
-#include <stdx/ct_format.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -68,15 +66,15 @@ template <> inline auto async::injected_task_manager<> = task_manager_t{};
 TEST_CASE("periodic advertises what it sends", "[periodic]") {
     [[maybe_unused]] auto s =
         async::time_scheduler{}.schedule() | async::periodic(1s);
-    static_assert(std::same_as<async::completion_signatures_of_t<decltype(s)>,
-                               async::completion_signatures<>>);
+    STATIC_REQUIRE(std::same_as<async::completion_signatures_of_t<decltype(s)>,
+                                async::completion_signatures<>>);
 }
 
 TEST_CASE("periodic advertises sending error", "[periodic]") {
     [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
                               async::seq(async::just_error(42)) |
                               async::periodic(1s);
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_error_t(int)>>);
 }
@@ -85,7 +83,7 @@ TEST_CASE("periodic advertises sending stopped", "[periodic]") {
     [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
                               async::seq(async::just_stopped()) |
                               async::periodic(1s);
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_stopped_t()>>);
 }
@@ -103,7 +101,7 @@ TEST_CASE("periodic_until advertises what it sends", "[periodic]") {
     [[maybe_unused]] auto s =
         async::time_scheduler{}.schedule() | async::then([] { return 42; }) |
         async::periodic_until(1s, [](auto) { return true; });
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_value_t(int)>>);
 }
@@ -112,7 +110,7 @@ TEST_CASE("periodic_n advertises what it sends", "[periodic]") {
     [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
                               async::then([] { return 42; }) |
                               async::periodic_n(1s, 2);
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_value_t(int)>>);
 }
@@ -352,24 +350,9 @@ TEST_CASE("periodic can be parameterized with a quantized provider",
     CHECK(var == 42);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        if constexpr (std::same_as<async::debug::tag_of<Ctx>,
-                                   async::periodic_t>) {
-            static_assert(not boost::mp11::mp_empty<
-                          async::debug::children_of<Ctx>>::value);
-            debug_events.push_back(
-                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-        }
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::periodic_t>{};
 
 TEST_CASE("periodic_until can be debugged", "[periodic]") {
     using namespace std::string_literals;

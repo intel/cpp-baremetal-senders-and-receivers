@@ -21,9 +21,9 @@ TEST_CASE("split", "[split]") {
     bool recvd2{};
     auto s = async::inline_scheduler<>::schedule<
         async::inline_scheduler<>::singleshot>();
-    static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(s), universal_receiver>);
     auto spl = async::split(std::move(s));
-    static_assert(async::multishot_sender<decltype(spl), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(spl), universal_receiver>);
 
     auto op1 = async::connect(spl, receiver{[&] { recvd1 = true; }});
     auto op2 = async::connect(spl, receiver{[&] { recvd2 = true; }});
@@ -39,9 +39,9 @@ TEST_CASE("split error", "[split]") {
     bool recvd1{};
     bool recvd2{};
     auto s = async::just_error(move_only{42});
-    static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(s), universal_receiver>);
     auto spl = async::split(std::move(s));
-    static_assert(async::multishot_sender<decltype(spl), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(spl), universal_receiver>);
 
     auto op1 =
         async::connect(spl, error_receiver{[&](auto &&) { recvd1 = true; }});
@@ -58,14 +58,14 @@ TEST_CASE("split error", "[split]") {
 TEST_CASE("split advertises what it sends", "[split]") {
     auto s = async::just(move_only{42});
     auto spl = async::split(std::move(s));
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<decltype(spl), async::set_value_t(move_only<int>)>);
 }
 
 TEST_CASE("split advertises errors", "[split]") {
     auto s = async::just_error(move_only{42});
     auto spl = async::split(std::move(s));
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<decltype(spl), async::set_error_t(move_only<int>)>);
 }
 
@@ -74,7 +74,7 @@ auto test_split(int &value, int expected) {
     auto spl = async::inline_scheduler<>::schedule<
                    async::inline_scheduler<>::singleshot>() |
                async::then([&] { return expected; }) | async::split();
-    static_assert(async::multishot_sender<decltype(spl), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(spl), universal_receiver>);
 
     bool run{};
     auto op = async::connect(spl, receiver{[&](int i) {
@@ -100,19 +100,19 @@ TEST_CASE("split does nothing for multishot sender", "[split]") {
     auto s1 = async::inline_scheduler<>::schedule<
         async::inline_scheduler<>::multishot>();
     [[maybe_unused]] auto spl1 = std::move(s1) | async::split();
-    static_assert(std::same_as<decltype(s1), decltype(spl1)>);
+    STATIC_REQUIRE(std::same_as<decltype(s1), decltype(spl1)>);
 
     auto s2 = async::inline_scheduler<>::schedule<
         async::inline_scheduler<>::multishot>();
     [[maybe_unused]] auto spl2 = async::split(std::move(s2));
-    static_assert(std::same_as<decltype(s2), decltype(spl2)>);
+    STATIC_REQUIRE(std::same_as<decltype(s2), decltype(spl2)>);
 }
 
 TEST_CASE("split cancellation (stopped by source)", "[split]") {
     int stopped{};
     auto s = async::inline_scheduler<>::schedule<
         async::inline_scheduler<>::singleshot>();
-    static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(s), universal_receiver>);
     auto spl = async::split(std::move(s));
 
     auto r1 = stoppable_receiver{[&] { ++stopped; }};
@@ -130,7 +130,7 @@ TEST_CASE("split cancellation (stopped by source)", "[split]") {
 TEST_CASE("split cancellation (stopped by sender)", "[split]") {
     int stopped{};
     auto s = async::start_on(singleshot_scheduler{}, async::just_stopped());
-    static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(s), universal_receiver>);
     auto spl = async::split(std::move(s));
 
     auto op1 = async::connect(spl, stopped_receiver{[&] { ++stopped; }});
@@ -168,7 +168,7 @@ struct test_sender {
 } // namespace
 
 TEST_CASE("split sender environment", "[split]") {
-    static_assert(async::singleshot_sender<test_sender, universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<test_sender, universal_receiver>);
     auto s = test_sender{};
     CHECK(get_fwd(async::get_env(s)) == 42);
 
@@ -180,13 +180,13 @@ TEST_CASE("split may complete synchronously", "[split]") {
     auto s = async::inline_scheduler<>::schedule<
         async::inline_scheduler<>::singleshot>();
     [[maybe_unused]] auto spl = async::split(std::move(s));
-    static_assert(async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("split may not complete synchronously", "[split]") {
     auto s = async::thread_scheduler<>::schedule();
     [[maybe_unused]] auto spl = async::split(std::move(s));
-    static_assert(not async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("split op state may be synchronous", "[split]") {
@@ -194,12 +194,12 @@ TEST_CASE("split op state may be synchronous", "[split]") {
         async::inline_scheduler<>::singleshot>();
     auto spl = async::split(std::move(s));
     [[maybe_unused]] auto op = async::connect(spl, receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 TEST_CASE("split op state may not be synchronous", "[split]") {
     auto s = async::thread_scheduler<>::schedule();
     auto spl = async::split(std::move(s));
     [[maybe_unused]] auto op = async::connect(spl, receiver{[] {}});
-    static_assert(not async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(op)>);
 }

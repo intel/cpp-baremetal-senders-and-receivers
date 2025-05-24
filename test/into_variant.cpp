@@ -1,20 +1,17 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/connect.hpp>
-#include <async/debug.hpp>
 #include <async/into_variant.hpp>
 #include <async/just.hpp>
 #include <async/start.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
-#include <stdx/ct_format.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/utility.hpp>
 
-#include <boost/mp11/list.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 #include <concepts>
 #include <string>
@@ -28,11 +25,11 @@ TEST_CASE("into_variant advertises what it sends", "[into_variant]") {
         false, [] { return async::just(42); },
         [] { return async::just(3.14f); });
     [[maybe_unused]] auto iv = async::into_variant(s);
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<decltype(iv),
                          async::set_value_t(std::variant<stdx::tuple<int>,
                                                          stdx::tuple<float>>)>);
-    static_assert(not async::sender_of<decltype(iv), async::set_error_t()>);
+    STATIC_REQUIRE(not async::sender_of<decltype(iv), async::set_error_t()>);
 }
 
 TEST_CASE("into_variant advertises errors", "[into_variant]") {
@@ -40,10 +37,10 @@ TEST_CASE("into_variant advertises errors", "[into_variant]") {
         false, [] { return async::just(42); },
         [] { return async::just_error(3.14f); });
     [[maybe_unused]] auto iv = async::into_variant(s);
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<decltype(iv),
                          async::set_value_t(std::variant<stdx::tuple<int>>)>);
-    static_assert(async::sender_of<decltype(iv), async::set_error_t(float)>);
+    STATIC_REQUIRE(async::sender_of<decltype(iv), async::set_error_t(float)>);
 }
 
 TEST_CASE("basic operation", "[into_variant]") {
@@ -188,25 +185,9 @@ TEST_CASE("alternative variant", "[into_variant]") {
     CHECK(value == 42);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        using namespace stdx::literals;
-        if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
-                                     async::into_variant_t>) {
-            static_assert(not boost::mp11::mp_empty<
-                          async::debug::children_of<Ctx>>::value);
-            debug_events.push_back(
-                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-        }
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::into_variant_t>{};
 
 TEST_CASE("into_variant can be debugged with a string", "[into_variant]") {
     using namespace std::string_literals;

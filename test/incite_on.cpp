@@ -1,16 +1,13 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/connect.hpp>
-#include <async/debug.hpp>
 #include <async/incite_on.hpp>
 #include <async/just.hpp>
 #include <async/schedulers/trigger_scheduler.hpp>
 #include <async/then.hpp>
 
-#include <stdx/ct_format.hpp>
-
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 #include <string>
 #include <type_traits>
@@ -70,13 +67,13 @@ TEST_CASE("incite_on advertises what it sends", "[incite_on]") {
     [[maybe_unused]] auto const s =
         async::incite_on(async::just([] { async::run_triggers<"basic">(); }),
                          async::trigger_scheduler<"basic">{});
-    static_assert(async::sender_of<decltype(s), async::set_value_t()>);
+    STATIC_REQUIRE(async::sender_of<decltype(s), async::set_value_t()>);
 }
 
 TEST_CASE("incite_on advertises pass-throughs", "[incite_on]") {
     [[maybe_unused]] auto s = async::incite_on(
         async::just_error(17), async::trigger_scheduler<"error">{});
-    static_assert(async::sender_of<decltype(s), async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(s), async::set_error_t(int)>);
 }
 
 TEST_CASE("incite_on is pipeable", "[incite_on]") {
@@ -104,7 +101,7 @@ TEST_CASE("move-only first sender", "[incite_on]") {
     auto s =
         async::just([mo = move_only(17)] { async::run_triggers<"mo">(); }) |
         async::incite_on(async::trigger_scheduler<"mo">{});
-    static_assert(async::singleshot_sender<decltype(s)>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(s)>);
     auto op = async::connect(std::move(s), receiver{[&] { value = 42; }});
     async::start(op);
     CHECK(value == 42);
@@ -113,26 +110,12 @@ TEST_CASE("move-only first sender", "[incite_on]") {
 TEST_CASE("incite_on does not complete synchronously", "[incite_on]") {
     auto const s = async::just([] { async::run_triggers<"sync">(); }) |
                    async::incite_on(async::trigger_scheduler<"sync">{});
-    static_assert(not async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(s)>);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        using namespace stdx::literals;
-        if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
-                                     async::incite_on_t>) {
-            debug_events.push_back(
-                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-        }
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::incite_on_t>{};
 
 TEST_CASE("incite_on can be debugged with a string", "[incite_on]") {
     using namespace std::string_literals;

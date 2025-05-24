@@ -1,8 +1,8 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
-#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/let_value.hpp>
@@ -11,11 +11,7 @@
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
-#include <stdx/ct_format.hpp>
-
-#include <boost/mp11/list.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 #include <string>
 #include <type_traits>
@@ -60,7 +56,7 @@ TEST_CASE("let_value advertises what it sends", "[let_value]") {
     auto s = sched.schedule();
     [[maybe_unused]] auto l =
         async::let_value(s, [] { return async::just(42); });
-    static_assert(async::sender_of<decltype(l), async::set_value_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(l), async::set_value_t(int)>);
 }
 
 TEST_CASE("let_value advertises errors", "[let_value]") {
@@ -68,7 +64,7 @@ TEST_CASE("let_value advertises errors", "[let_value]") {
     auto s = sched.schedule();
     [[maybe_unused]] auto l =
         async::let_value(s, [] { return async::just_error(42); });
-    static_assert(async::sender_of<decltype(l), async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(l), async::set_error_t(int)>);
 }
 
 TEST_CASE("let_value advertises stopped", "[let_value]") {
@@ -76,7 +72,7 @@ TEST_CASE("let_value advertises stopped", "[let_value]") {
     auto s = sched.schedule();
     [[maybe_unused]] auto l =
         async::let_value(s, [] { return async::just_stopped(); });
-    static_assert(async::sender_of<decltype(l), async::set_stopped_t()>);
+    STATIC_REQUIRE(async::sender_of<decltype(l), async::set_stopped_t()>);
 }
 
 TEST_CASE("let_value is pipeable", "[let_value]") {
@@ -108,7 +104,7 @@ TEST_CASE("move-only value", "[let_value]") {
     auto sched = async::inline_scheduler{};
     auto s = sched.schedule();
     auto l = async::let_value(s, [] { return async::just(move_only{42}); });
-    static_assert(async::singleshot_sender<decltype(l), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(l), universal_receiver>);
     auto op = async::connect(std::move(l),
                              receiver{[&](auto &&mo) { value = mo.value; }});
     async::start(op);
@@ -125,7 +121,7 @@ TEST_CASE("let_value with variant", "[let_value]") {
                      [=] { return async::just(i * 3 + 1); });
              });
 
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::completion_signatures_of_t<decltype(s)>,
                        async::completion_signatures<async::set_value_t(int)>>);
 
@@ -204,20 +200,20 @@ TEST_CASE("let_value propagates stopped", "[let_value]") {
 TEST_CASE("let_value advertises pass-through completions", "[let_value]") {
     [[maybe_unused]] auto l =
         async::just_error(42) | async::let_value([](auto) {});
-    static_assert(async::sender_of<decltype(l), async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(l), async::set_error_t(int)>);
 }
 
 TEST_CASE("let_value can be single shot", "[let_value]") {
     [[maybe_unused]] auto l = async::just(42) | async::let_value([](auto i) {
                                   return async::just(move_only{i});
                               });
-    static_assert(async::singleshot_sender<decltype(l)>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(l)>);
 }
 
 TEST_CASE("let_value can be single shot with passthrough", "[let_value]") {
     [[maybe_unused]] auto l = async::just_error(move_only{42}) |
                               async::let_value([](auto) { return 42; });
-    static_assert(async::singleshot_sender<decltype(l)>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(l)>);
 }
 
 TEST_CASE("let_value stores result of input sender", "[let_value]") {
@@ -234,7 +230,7 @@ TEST_CASE("let_value op state may complete synchronously", "[let_value]") {
     auto const s =
         async::just() | async::let_value([] { return async::just(); });
     [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 TEST_CASE(
@@ -243,7 +239,7 @@ TEST_CASE(
     auto const s = async::thread_scheduler{}.schedule() |
                    async::let_value([] { return async::just(); });
     [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
-    static_assert(not async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(op)>);
 }
 
 TEST_CASE(
@@ -253,27 +249,12 @@ TEST_CASE(
                        return async::thread_scheduler{}.schedule();
                    });
     [[maybe_unused]] auto op = async::connect(s, receiver{[] {}});
-    static_assert(not async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(op)>);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
-                                     async::let_t<async::set_value_t>>) {
-            static_assert(not boost::mp11::mp_empty<
-                          async::debug::children_of<Ctx>>::value);
-            debug_events.push_back(
-                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-        }
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::let_t<async::set_value_t>>{};
 
 TEST_CASE("let_value can be debugged with a string", "[let_value]") {
     using namespace std::string_literals;

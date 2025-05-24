@@ -65,7 +65,7 @@ TEST_CASE("send a debug signal (handler for chain and link name)", "[debug]") {
 
 TEST_CASE("default debug interface", "[debug]") {
     auto i = async::get_debug_interface(async::empty_env{});
-    static_assert(std::same_as<decltype(i), async::debug::default_interface>);
+    STATIC_REQUIRE(std::same_as<decltype(i), async::debug::default_interface>);
 }
 
 TEST_CASE("supplied debug interface", "[debug]") {

@@ -1,8 +1,8 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
-#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/repeat.hpp>
@@ -14,11 +14,7 @@
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
 
-#include <stdx/ct_format.hpp>
-
-#include <boost/mp11/list.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 #include <concepts>
 #include <string>
@@ -26,8 +22,8 @@
 
 TEST_CASE("repeat advertises what it sends", "[repeat]") {
     [[maybe_unused]] auto s = async::just(42) | async::repeat();
-    static_assert(std::same_as<async::completion_signatures_of_t<decltype(s)>,
-                               async::completion_signatures<>>);
+    STATIC_REQUIRE(std::same_as<async::completion_signatures_of_t<decltype(s)>,
+                                async::completion_signatures<>>);
 }
 
 TEST_CASE("repeat advertises sending error/stopped", "[repeat]") {
@@ -38,7 +34,7 @@ TEST_CASE("repeat advertises sending error/stopped", "[repeat]") {
             [] { return async::just_stopped(); }) |
         async::repeat();
     [[maybe_unused]] auto r = stoppable_receiver([] {});
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<
                          decltype(s), async::env_of_t<decltype(r)>>,
                      async::completion_signatures<async::set_error_t(int),
@@ -71,14 +67,14 @@ TEST_CASE("repeat repeats", "[repeat]") {
 TEST_CASE("repeat_until advertises what it sends", "[repeat]") {
     [[maybe_unused]] auto s =
         async::just(42) | async::repeat_until([](auto) { return true; });
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_value_t(int)>>);
 }
 
 TEST_CASE("repeat_n advertises what it sends", "[repeat]") {
     [[maybe_unused]] auto s = async::just(42) | async::repeat_n(2);
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(s)>,
                      async::completion_signatures<async::set_value_t(int)>>);
 }
@@ -142,7 +138,7 @@ TEST_CASE("repeat may complete synchronously", "[repeat]") {
     int var{};
     auto sub = async::just() | async::then([&] { ++var; });
     auto s = async::repeat_until(sub, [&](auto i) { return i == 42; });
-    static_assert(async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("repeat may not complete synchronously", "[repeat]") {
@@ -150,7 +146,7 @@ TEST_CASE("repeat may not complete synchronously", "[repeat]") {
     auto sub =
         async::thread_scheduler<>::schedule() | async::then([&] { ++var; });
     auto s = async::repeat_until(sub, [&](auto i) { return i == 42; });
-    static_assert(not async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("repeat op state may be synchronous", "[repeat]") {
@@ -161,7 +157,7 @@ TEST_CASE("repeat op state may be synchronous", "[repeat]") {
                });
     auto s = async::repeat_until(sub, [&](auto i) { return i == 42; });
     auto op = async::connect(s, receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 TEST_CASE("repeat op state may not be synchronous", "[repeat]") {
@@ -172,27 +168,11 @@ TEST_CASE("repeat op state may not be synchronous", "[repeat]") {
                });
     auto s = async::repeat_until(sub, [&](auto i) { return i == 42; });
     auto op = async::connect(s, receiver{[] {}});
-    static_assert(not async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(not async::synchronous<decltype(op)>);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        if constexpr (std::same_as<async::debug::tag_of<Ctx>,
-                                   async::repeat_t>) {
-            static_assert(not boost::mp11::mp_empty<
-                          async::debug::children_of<Ctx>>::value);
-            debug_events.push_back(
-                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-        }
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> = debug_handler<async::repeat_t>{};
 
 TEST_CASE("repeat_until can be debugged", "[repeat]") {
     using namespace std::string_literals;

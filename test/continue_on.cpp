@@ -63,7 +63,7 @@ template <typename R> struct async::debug::context_for<test_op_state<R>> {
 };
 
 TEST_CASE("continue_on", "[continue_on]") {
-    static_assert(async::scheduler<test_scheduler<0>>);
+    STATIC_REQUIRE(async::scheduler<test_scheduler<0>>);
     test_scheduler<1>::schedule_calls = 0;
     test_scheduler<2>::schedule_calls = 0;
     int value{};
@@ -88,7 +88,7 @@ TEST_CASE("continue_on advertises what it sends", "[continue_on]") {
 
     auto n1 = async::just(42);
     [[maybe_unused]] auto t = async::continue_on(n1, sched);
-    static_assert(async::sender_of<decltype(t), async::set_value_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(t), async::set_value_t(int)>);
 }
 
 TEST_CASE("continue_on is pipeable", "[continue_on]") {
@@ -132,7 +132,7 @@ TEST_CASE("continue_on is adaptor-pipeable", "[continue_on]") {
 TEST_CASE("continue_on advertises pass-through completions", "[continue_on]") {
     auto sched = test_scheduler<1>{};
     [[maybe_unused]] auto t = async::just_error(42) | async::continue_on(sched);
-    static_assert(async::sender_of<decltype(t), async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(t), async::set_error_t(int)>);
 }
 
 TEST_CASE("move-only value", "[continue_on]") {
@@ -162,7 +162,7 @@ TEST_CASE("singleshot continue_on", "[continue_on]") {
     [[maybe_unused]] auto n = async::inline_scheduler<>::schedule<
                                   async::inline_scheduler<>::singleshot>() |
                               async::continue_on(sched1);
-    static_assert(async::singleshot_sender<decltype(n), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(n), universal_receiver>);
 }
 
 TEST_CASE("continue_on cancellation", "[continue_on]") {

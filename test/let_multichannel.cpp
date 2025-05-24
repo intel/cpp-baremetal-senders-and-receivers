@@ -54,28 +54,28 @@ TEST_CASE("multi-channel let advertises what it sends", "[let_multichannel]") {
     [[maybe_unused]] auto l = async::just(42) | multilet([](auto...) {
                                   return async::just(wrapped_int{42});
                               });
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<decltype(l), async::set_value_t(wrapped_int)>);
 }
 
 TEST_CASE("multi-channel let advertises pass-through completions",
           "[let_multichannel]") {
     [[maybe_unused]] auto l = async::just_error(42) | multilet([](auto) {});
-    static_assert(async::sender_of<decltype(l), async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(l), async::set_error_t(int)>);
 }
 
 TEST_CASE("multi-channel let can be single shot", "[let_multichannel]") {
     [[maybe_unused]] auto l = async::just(42) | multilet([](auto i) {
                                   return async::just(move_only{i});
                               });
-    static_assert(async::singleshot_sender<decltype(l)>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(l)>);
 }
 
 TEST_CASE("multi-channel let can be single shot with passthrough",
           "[let_multichannel]") {
     [[maybe_unused]] auto l =
         async::just_error(move_only{42}) | multilet([](auto) { return 42; });
-    static_assert(async::singleshot_sender<decltype(l)>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(l)>);
 }
 
 namespace {
@@ -103,7 +103,7 @@ TEST_CASE("multi-channel let supports compile-time channel differentiation",
         } else if constexpr (std::is_same_v<Tag, async::set_stopped_t>) {
             return async::just(3);
         } else {
-            static_assert(stdx::always_false_v<Tag>);
+            STATIC_REQUIRE(stdx::always_false_v<Tag>);
         }
     };
     {

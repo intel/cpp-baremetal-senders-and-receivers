@@ -52,15 +52,15 @@ TEST_CASE("when_any advertises what it sends", "[when_any]") {
     auto s1 = async::just(42);
     auto s2 = async::just(17);
     [[maybe_unused]] auto w = async::when_any(s1, s2);
-    static_assert(async::sender_of<decltype(w), async::set_value_t(int)>);
-    static_assert(not async::sender_of<decltype(w), async::set_error_t()>);
+    STATIC_REQUIRE(async::sender_of<decltype(w), async::set_value_t(int)>);
+    STATIC_REQUIRE(not async::sender_of<decltype(w), async::set_error_t()>);
 }
 
 TEST_CASE("when_any advertises errors", "[when_any]") {
     auto s1 = async::just(42);
     auto s2 = async::just_error(17);
     [[maybe_unused]] auto w = async::when_any(s1, s2);
-    static_assert(async::sender_of<decltype(w), async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(w), async::set_error_t(int)>);
 }
 
 TEST_CASE("complete with first success", "[when_any]") {
@@ -123,7 +123,7 @@ TEST_CASE("move-only value", "[when_any]") {
     int value{};
     auto s = async::just(move_only{42});
     auto w = async::when_any(std::move(s));
-    static_assert(async::singleshot_sender<decltype(w), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(
         std::move(w), receiver{[&](move_only<int> mo) { value = mo.value; }});
     async::start(op);
@@ -134,7 +134,7 @@ TEST_CASE("copy sender", "[when_any]") {
     int value{};
     auto const s = async::just(42);
     auto w = async::when_any(s);
-    static_assert(async::multishot_sender<decltype(w), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(w), universal_receiver>);
     auto op = async::connect(w, receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
@@ -144,7 +144,7 @@ TEST_CASE("move sender", "[when_any]") {
     int value{};
     auto s = async::just(42);
     auto w = async::when_any(s);
-    static_assert(async::multishot_sender<decltype(w), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(w), universal_receiver>);
     auto op =
         async::connect(std::move(w), receiver{[&](auto i) { value = i; }});
     async::start(op);
@@ -263,11 +263,11 @@ TEST_CASE("stop_when is adaptor-pipeable", "[when_any]") {
 
 TEST_CASE("when_any with zero args never completes", "[when_any]") {
     [[maybe_unused]] auto w = async::when_any();
-    static_assert(std::same_as<async::completion_signatures_of_t<decltype(w)>,
-                               async::completion_signatures<>>);
+    STATIC_REQUIRE(std::same_as<async::completion_signatures_of_t<decltype(w)>,
+                                async::completion_signatures<>>);
     auto r = receiver{[] {}};
     auto op = async::connect(w, r);
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<decltype(op),
                        async::_when_any::op_state<
                            "when_any", async::_when_any::first_noncancelled,
@@ -279,7 +279,7 @@ TEST_CASE("when_any with zero args can be stopped (before start)",
     int value{};
     [[maybe_unused]] auto w = async::when_any();
     auto r = stoppable_receiver{[&] { value = 42; }};
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<
                          decltype(w), async::env_of_t<decltype(r)>>,
                      async::completion_signatures<async::set_stopped_t()>>);
@@ -295,7 +295,7 @@ TEST_CASE("when_any with zero args can be stopped (after start)",
     int value{};
     [[maybe_unused]] auto w = async::when_any();
     auto r = stoppable_receiver{[&] { value = 42; }};
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<
                          decltype(w), async::env_of_t<decltype(r)>>,
                      async::completion_signatures<async::set_stopped_t()>>);
@@ -316,11 +316,11 @@ TEST_CASE("when_any nests", "[when_any]") {
 TEST_CASE("when_any with one arg is a no-op", "[when_all]") {
     auto s = async::just(42);
     [[maybe_unused]] auto w = async::when_any(s);
-    static_assert(std::same_as<decltype(s), decltype(w)>);
+    STATIC_REQUIRE(std::same_as<decltype(s), decltype(w)>);
 }
 
 TEST_CASE("nullary when_any has a stack allocator", "[when_any]") {
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<
             async::allocator_of_t<async::env_of_t<decltype(async::when_any())>>,
             async::stack_allocator>);
@@ -329,7 +329,7 @@ TEST_CASE("nullary when_any has a stack allocator", "[when_any]") {
 TEST_CASE("nullary when_any op_state is synchronous", "[when_any]") {
     [[maybe_unused]] auto op =
         async::connect(async::when_any(), receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 TEST_CASE("normal, (internally) stoppable op_state", "[when_any]") {
@@ -342,7 +342,7 @@ TEST_CASE("normal, (internally) stoppable op_state", "[when_any]") {
         []<stdx::ct_string Name, typename P, typename R, typename... Ss>(
             async::_when_any::op_state<Name, P, R, Ss...> const &) {};
 
-    static_assert(requires { test_op_state(op); });
+    STATIC_REQUIRE(requires { test_op_state(op); });
 }
 
 TEST_CASE("optimized op_state for unstoppable", "[when_any]") {
@@ -356,7 +356,7 @@ TEST_CASE("optimized op_state for unstoppable", "[when_any]") {
         []<stdx::ct_string Name, typename P, typename R, typename... Ss>(
             async::_when_any::nostop_op_state<Name, P, R, Ss...> const &) {};
 
-    static_assert(requires { test_op_state(op); });
+    STATIC_REQUIRE(requires { test_op_state(op); });
 }
 
 TEST_CASE("when_any receiver environment is well-formed for synchronous ops",

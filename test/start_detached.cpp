@@ -1,7 +1,7 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/allocator.hpp>
-#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/just_result_of.hpp>
 #include <async/read_env.hpp>
@@ -11,11 +11,9 @@
 #include <async/static_allocator.hpp>
 #include <async/then.hpp>
 
-#include <stdx/ct_format.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 #include <cstddef>
 #include <string>
@@ -110,7 +108,7 @@ TEST_CASE("start_detached_unstoppable has no cancellation",
              | async::upon_stopped([&] { var = 17; });
     auto stop_src = async::start_detached_unstoppable(s);
     REQUIRE(stop_src.has_value());
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::never_stop_source *,
                        std::remove_cvref_t<decltype(stop_src.value())>>);
     stop_src.value()->request_stop();
@@ -157,7 +155,7 @@ TEST_CASE("start_detached passes the custom env to the sender chain",
           "[start_detached]") {
     auto s =
         async::read_env(async::get_allocator) | async::then([]<typename T>(T) {
-            static_assert(std::is_same_v<T, custom_allocator>);
+            STATIC_REQUIRE(std::is_same_v<T, custom_allocator>);
         });
     CHECK(async::start_detached(
         s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
@@ -275,22 +273,9 @@ TEST_CASE("stop_detached doesn't cancel an unstoppable operation",
     CHECK(var == 42);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
-                                     async::start_detached_t>) {
-            debug_events.push_back(
-                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-        }
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::start_detached_t, true>{};
 
 TEST_CASE("start_detached can be named and debugged with a string",
           "[start_detached]") {

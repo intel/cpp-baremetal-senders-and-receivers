@@ -16,13 +16,13 @@ struct query3 : async::forwarding_query_t {};
 } // namespace
 
 TEST_CASE("non-forwarding", "[forwarding_query]") {
-    static_assert(not async::forwarding_query(query1{}));
+    STATIC_REQUIRE(not async::forwarding_query(query1{}));
 }
 
 TEST_CASE("forwarding by query", "[forwarding_query]") {
-    static_assert(async::forwarding_query(query2{}));
+    STATIC_REQUIRE(async::forwarding_query(query2{}));
 }
 
 TEST_CASE("forwarding by inheritance", "[forwarding_query]") {
-    static_assert(async::forwarding_query(query3{}));
+    STATIC_REQUIRE(async::forwarding_query(query3{}));
 }

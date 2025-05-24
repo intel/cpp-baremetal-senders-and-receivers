@@ -1,19 +1,14 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/allocator.hpp>
 #include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
-#include <async/debug.hpp>
 #include <async/env.hpp>
 #include <async/just.hpp>
 
-#include <stdx/ct_format.hpp>
-#include <stdx/type_traits.hpp>
-
-#include <boost/mp11/list.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 #include <string>
 #include <type_traits>
@@ -29,14 +24,14 @@ TEST_CASE("one value", "[just_error]") {
 }
 
 TEST_CASE("just_error advertises what it sends", "[just_error]") {
-    static_assert(async::sender_of<decltype(async::just_error(42)),
-                                   async::set_error_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(async::just_error(42)),
+                                    async::set_error_t(int)>);
 }
 
 TEST_CASE("move-only value", "[just_error]") {
     int value{};
     auto s = async::just_error(move_only{42});
-    static_assert(async::singleshot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::singleshot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(
         std::move(s),
         error_receiver{[&](move_only<int> mo) { value = mo.value; }});
@@ -47,7 +42,7 @@ TEST_CASE("move-only value", "[just_error]") {
 TEST_CASE("copy sender", "[just_error]") {
     int value{};
     auto const s = async::just_error(42);
-    static_assert(async::multishot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(s, error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
@@ -56,7 +51,7 @@ TEST_CASE("copy sender", "[just_error]") {
 TEST_CASE("move sender", "[just_error]") {
     int value{};
     auto s = async::just_error(42);
-    static_assert(async::multishot_sender<decltype(s), universal_receiver>);
+    STATIC_REQUIRE(async::multishot_sender<decltype(s), universal_receiver>);
     auto op = async::connect(std::move(s),
                              error_receiver{[&](auto i) { value = i; }});
     async::start(op);
@@ -64,7 +59,7 @@ TEST_CASE("move sender", "[just_error]") {
 }
 
 TEST_CASE("just_error has a stack allocator", "[just_error]") {
-    static_assert(
+    STATIC_REQUIRE(
         std::is_same_v<async::allocator_of_t<
                            async::env_of_t<decltype(async::just_error(42))>>,
                        async::stack_allocator>);
@@ -73,26 +68,12 @@ TEST_CASE("just_error has a stack allocator", "[just_error]") {
 TEST_CASE("just_error op state is synchronous", "[just_error]") {
     [[maybe_unused]] auto op =
         async::connect(async::just_error(42), receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        static_assert(
-            std::is_same_v<async::debug::tag_of<Ctx>, async::just_error_t>);
-        static_assert(
-            boost::mp11::mp_empty<async::debug::children_of<Ctx>>::value);
-        debug_events.push_back(
-            fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::just_error_t, true>{};
 
 TEST_CASE("just_error can be debugged with a string", "[just_error]") {
     using namespace std::string_literals;

@@ -7,8 +7,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("queryable", "[concepts]") {
-    static_assert(not async::queryable<void>);
-    static_assert(async::queryable<int>);
+    STATIC_REQUIRE(not async::queryable<void>);
+    STATIC_REQUIRE(async::queryable<int>);
 }
 
 namespace {
@@ -19,8 +19,8 @@ struct not_op_state {};
 } // namespace
 
 TEST_CASE("operation_state", "[concepts]") {
-    static_assert(not async::operation_state<not_op_state>);
-    static_assert(async::operation_state<op_state>);
+    STATIC_REQUIRE(not async::operation_state<not_op_state>);
+    STATIC_REQUIRE(async::operation_state<op_state>);
 }
 
 namespace {
@@ -32,9 +32,9 @@ struct not_receiver {};
 } // namespace
 
 TEST_CASE("receiver", "[concepts]") {
-    static_assert(not async::receiver<not_receiver>);
-    static_assert(async::receiver<receiver1>);
-    static_assert(async::receiver<receiver2>);
+    STATIC_REQUIRE(not async::receiver<not_receiver>);
+    STATIC_REQUIRE(async::receiver<receiver1>);
+    STATIC_REQUIRE(async::receiver<receiver2>);
 }
 
 namespace {
@@ -49,20 +49,20 @@ struct receiver : async::receiver_base {
 } // namespace
 
 TEST_CASE("receiver_of", "[concepts]") {
-    static_assert(
+    STATIC_REQUIRE(
         async::receiver_of<receiver<>,
                            async::completion_signatures<async::set_value_t()>>);
-    static_assert(async::receiver_of<
-                  receiver<>,
-                  async::completion_signatures<async::set_error_t(error)>>);
-    static_assert(
+    STATIC_REQUIRE(async::receiver_of<
+                   receiver<>,
+                   async::completion_signatures<async::set_error_t(error)>>);
+    STATIC_REQUIRE(
         async::receiver_of<
             receiver<>, async::completion_signatures<async::set_stopped_t()>>);
 
-    static_assert(async::receiver_of<
-                  receiver<error, int>,
-                  async::completion_signatures<async::set_value_t(int)>>);
-    static_assert(
+    STATIC_REQUIRE(async::receiver_of<
+                   receiver<error, int>,
+                   async::completion_signatures<async::set_value_t(int)>>);
+    STATIC_REQUIRE(
         not async::receiver_of<
             receiver<>, async::completion_signatures<async::set_value_t(int)>>);
 }
@@ -79,9 +79,9 @@ struct not_sender {};
 } // namespace
 
 TEST_CASE("sender", "[concepts]") {
-    static_assert(not async::sender<not_sender>);
-    static_assert(async::sender<typed_sender1>);
-    static_assert(async::sender<typed_sender2>);
+    STATIC_REQUIRE(not async::sender<not_sender>);
+    STATIC_REQUIRE(async::sender<typed_sender1>);
+    STATIC_REQUIRE(async::sender<typed_sender2>);
 }
 
 namespace {
@@ -104,10 +104,10 @@ struct queryable_sender2 : async::sender_base {
 } // namespace
 
 TEST_CASE("sender_in", "[concepts]") {
-    static_assert(not async::sender_in<not_sender>);
-    static_assert(async::sender_in<queryable_sender1>);
-    static_assert(not async::sender_in<queryable_sender2>);
-    static_assert(async::sender_in<queryable_sender2, dependent_env>);
+    STATIC_REQUIRE(not async::sender_in<not_sender>);
+    STATIC_REQUIRE(async::sender_in<queryable_sender1>);
+    STATIC_REQUIRE(not async::sender_in<queryable_sender2>);
+    STATIC_REQUIRE(async::sender_in<queryable_sender2, dependent_env>);
 }
 
 namespace {
@@ -130,29 +130,30 @@ template <typename... Ts> struct value_receiver : async::receiver_base {
 } // namespace
 
 TEST_CASE("sender_to", "[concepts]") {
-    static_assert(async::sender_to<sender<>, receiver<>>);
-    static_assert(async::sender_to<sender<error, int>, receiver<error, int>>);
-    static_assert(
+    STATIC_REQUIRE(async::sender_to<sender<>, receiver<>>);
+    STATIC_REQUIRE(async::sender_to<sender<error, int>, receiver<error, int>>);
+    STATIC_REQUIRE(
         not async::sender_to<sender<error, int>, receiver<error, float>>);
 }
 
 TEST_CASE("sender_to value categories", "[concepts]") {
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_to<sender<error, int>, value_receiver<int const &>>);
-    static_assert(async::sender_to<sender<error, int>, value_receiver<int &&>>);
-    static_assert(
+    STATIC_REQUIRE(
+        async::sender_to<sender<error, int>, value_receiver<int &&>>);
+    STATIC_REQUIRE(
         not async::sender_to<sender<error, int>, value_receiver<int &>>);
 
-    static_assert(async::sender_to<sender<error, int &>, value_receiver<int>>);
-    static_assert(not async::sender_to<sender<error, int const &>,
-                                       value_receiver<int &>>);
+    STATIC_REQUIRE(async::sender_to<sender<error, int &>, value_receiver<int>>);
+    STATIC_REQUIRE(not async::sender_to<sender<error, int const &>,
+                                        value_receiver<int &>>);
 }
 
 TEST_CASE("sender_of", "[concepts]") {
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<sender<error, int>, async::set_value_t(int)>);
-    static_assert(async::sender_of<sender<>, async::set_error_t(error)>);
-    static_assert(not async::sender_of<sender<>, async::set_value_t(int)>);
+    STATIC_REQUIRE(async::sender_of<sender<>, async::set_error_t(error)>);
+    STATIC_REQUIRE(not async::sender_of<sender<>, async::set_value_t(int)>);
 }
 
 namespace {
@@ -170,8 +171,8 @@ struct singleshot_sender : async::sender_base {
 } // namespace
 
 TEST_CASE("single/multishot_sender", "[concepts]") {
-    static_assert(async::multishot_sender<sender<>, receiver<>>);
-    static_assert(async::singleshot_sender<singleshot_sender<>, receiver<>>);
+    STATIC_REQUIRE(async::multishot_sender<sender<>, receiver<>>);
+    STATIC_REQUIRE(async::singleshot_sender<singleshot_sender<>, receiver<>>);
 }
 
 namespace {
@@ -218,9 +219,9 @@ struct stoppable_env {
 } // namespace
 
 TEST_CASE("stoppable sender", "[stop_token]") {
-    static_assert(not async::stoppable_sender<singleshot_sender<error, int>>);
-    static_assert(async::stoppable_sender<stoppable_sender>);
-    static_assert(not async::stoppable_sender<dependent_stoppable_sender>);
-    static_assert(
+    STATIC_REQUIRE(not async::stoppable_sender<singleshot_sender<error, int>>);
+    STATIC_REQUIRE(async::stoppable_sender<stoppable_sender>);
+    STATIC_REQUIRE(not async::stoppable_sender<dependent_stoppable_sender>);
+    STATIC_REQUIRE(
         async::stoppable_sender<dependent_stoppable_sender, stoppable_env>);
 }

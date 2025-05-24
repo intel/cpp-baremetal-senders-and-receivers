@@ -28,14 +28,14 @@ TEST_CASE("read_env advertises what it sends", "[read_env]") {
     [[maybe_unused]] auto r = stoppable_receiver{[] {}};
     using E = async::env_of_t<decltype(r)>;
     using ST = async::stop_token_of_t<E>;
-    static_assert(
+    STATIC_REQUIRE(
         async::sender_of<decltype(async::read_env(async::get_stop_token_t{})),
                          async::set_value_t(ST const &), E>);
-    static_assert(std::is_same_v<
-                  async::completion_signatures_of_t<decltype(async::read_env(
-                      async::get_stop_token_t{}))>,
-                  async::completion_signatures<async::set_value_t(
-                      async::never_stop_token)>>);
+    STATIC_REQUIRE(std::is_same_v<
+                   async::completion_signatures_of_t<decltype(async::read_env(
+                       async::get_stop_token_t{}))>,
+                   async::completion_signatures<async::set_value_t(
+                       async::never_stop_token)>>);
 }
 
 TEST_CASE("read_env sends a value", "[read_env]") {
@@ -61,14 +61,14 @@ TEST_CASE("read_env with sync_wait", "[read_env]") {
 
 TEST_CASE("read_env completes synchronously", "[read_env]") {
     [[maybe_unused]] auto const s = async::get_scheduler();
-    static_assert(async::synchronous<decltype(s)>);
+    STATIC_REQUIRE(async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("read_env op state is synchronous", "[read_env]") {
     auto const s = async::get_stop_token();
     [[maybe_unused]] auto const op =
         async::connect(s, stoppable_receiver{[] {}});
-    static_assert(async::synchronous<decltype(op)>);
+    STATIC_REQUIRE(async::synchronous<decltype(op)>);
 }
 
 namespace {

@@ -1,7 +1,7 @@
 #include "detail/common.hpp"
+#include "detail/debug_handler.hpp"
 
 #include <async/concepts.hpp>
-#include <async/debug.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
 #include <async/read_env.hpp>
@@ -13,11 +13,9 @@
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
-#include <stdx/ct_format.hpp>
 #include <stdx/type_traits.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/format.h>
 
 TEST_CASE("sync_wait for inline scheduler", "[hosted_sync_wait]") {
     auto value = async::inline_scheduler<>::schedule() |
@@ -83,22 +81,9 @@ TEST_CASE("sync_wait can use a custom environment", "[hosted_sync_wait]") {
     CHECK(var == 42);
 }
 
-namespace {
-std::vector<std::string> debug_events{};
-
-struct debug_handler {
-    template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
-        if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
-                                     async::sync_wait_t>) {
-            debug_events.push_back(
-                fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
-        }
-    }
-};
-} // namespace
-
-template <> inline auto async::injected_debug_handler<> = debug_handler{};
+template <>
+inline auto async::injected_debug_handler<> =
+    debug_handler<async::sync_wait_t, true>{};
 
 TEST_CASE("sync_wait can be named and debugged with a string",
           "[hosted_sync_wait]") {

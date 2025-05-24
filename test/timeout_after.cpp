@@ -72,8 +72,8 @@ template <>
 TEST_CASE("timeout_after advertises what it sends", "[timeout_after]") {
     auto s = async::start_on(async::time_scheduler{1s}, async::just(42));
     auto to = async::timeout_after(s, 100ms, 1.0f);
-    static_assert(async::sender_of<decltype(to), async::set_value_t(int)>);
-    static_assert(async::sender_of<decltype(to), async::set_error_t(float)>);
+    STATIC_REQUIRE(async::sender_of<decltype(to), async::set_value_t(int)>);
+    STATIC_REQUIRE(async::sender_of<decltype(to), async::set_error_t(float)>);
 }
 
 TEST_CASE("timeout_after can complete successfully", "[timeout_after]") {
@@ -188,7 +188,7 @@ TEST_CASE("timeout_after can time out on custom channel", "[timeout_after]") {
     auto s = async::start_on(scheduler_factory(1s), async::just(42));
     auto to =
         async::timeout_after<alt_domain, async::set_value_t>(s, 100ms, 1.0f);
-    static_assert(
+    STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<decltype(to)>,
                      async::completion_signatures<async::set_value_t(float),
                                                   async::set_value_t(int)>>);
