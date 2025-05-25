@@ -8,6 +8,8 @@
 #include <async/let_value.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/schedulers/trigger_manager.hpp>
+#include <async/schedulers/trigger_scheduler.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
@@ -300,4 +302,21 @@ TEST_CASE("let_value produces debug signal on non-handled channel",
     async::start(op);
     CHECK(debug_events ==
           std::vector{"op let_value start"s, "op let_value set_error"s});
+}
+
+namespace {
+struct trigger_t {};
+} // namespace
+
+TEST_CASE("let_value works with different upstream sender type",
+          "[let_value]") {
+    int value{};
+
+    auto sched = async::trigger_scheduler<"trigger", trigger_t>{};
+    auto s = sched.schedule() |
+             async::let_value([](trigger_t) { return async::just(42); });
+    auto op = async::connect(s, receiver{[&](auto i) { value = i; }});
+    async::start(op);
+    async::run_triggers<"trigger">(trigger_t{});
+    CHECK(value == 42);
 }
