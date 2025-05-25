@@ -112,7 +112,7 @@ auto value = async::get_scheduler()
            | async::sync_wait();
 ----
 
-This code uses xref:sender_factories.adoc#_read[`get_scheduler`] to read the
+This code uses xref:sender_factories.adoc#_read_env[`get_scheduler`] to read the
 scheduler provided by `sync_wait`. That `runloop_scheduler` is then used to
 schedule work.
 
