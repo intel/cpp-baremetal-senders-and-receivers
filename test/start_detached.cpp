@@ -3,6 +3,7 @@
 
 #include <async/allocator.hpp>
 #include <async/env.hpp>
+#include <async/just.hpp>
 #include <async/just_result_of.hpp>
 #include <async/read_env.hpp>
 #include <async/schedulers/priority_scheduler.hpp>
@@ -24,7 +25,7 @@
 TEST_CASE("basic operation", "[start_detached]") {
     int var{};
     auto s = async::just_result_of([&] { var = 42; });
-    CHECK(async::start_detached(s));
+    CHECK(async::start_detached_stoppable(s));
     CHECK(var == 42);
 }
 
@@ -38,25 +39,25 @@ using task_manager_t = async::priority_task_manager<hal, 8>;
 
 template <> inline auto async::injected_task_manager<> = task_manager_t{};
 
-TEST_CASE("start_detached starts the operation", "[start_detached]") {
+TEST_CASE("start_detached_stoppable starts the operation", "[start_detached]") {
     int var{};
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
-    CHECK(async::start_detached(s));
+    CHECK(async::start_detached_stoppable(s));
     CHECK(var == 0);
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
 }
 
-TEST_CASE("start_detached fails when allocation limit is reached",
+TEST_CASE("start_detached_stoppable fails when allocation limit is reached",
           "[start_detached]") {
     int var{};
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { ++var; });
 
     using Name = decltype([] {});
-    CHECK(async::start_detached<Name>(s));
-    CHECK(not async::start_detached<Name>(s));
+    CHECK(async::start_detached_stoppable<Name>(s));
+    CHECK(not async::start_detached_stoppable<Name>(s));
     async::task_mgr::service_tasks<0>();
     CHECK(var == 1);
 }
@@ -67,32 +68,32 @@ TEST_CASE("state is freed on completion", "[start_detached]") {
     auto s = S::schedule() | async::then([&] { ++var; });
 
     using Name = decltype([] {});
-    CHECK(async::start_detached<Name>(s));
+    CHECK(async::start_detached_stoppable<Name>(s));
     async::task_mgr::service_tasks<0>();
-    CHECK(async::start_detached<Name>(s));
+    CHECK(async::start_detached_stoppable<Name>(s));
     async::task_mgr::service_tasks<0>();
     CHECK(var == 2);
 }
 
-TEST_CASE("start_detached is actually detached", "[start_detached]") {
+TEST_CASE("start_detached_stoppable is actually detached", "[start_detached]") {
     int var{};
     using S = async::fixed_priority_scheduler<0>;
     {
         auto s = S::schedule() | async::then([&] { var = 42; });
-        CHECK(async::start_detached(s));
+        CHECK(async::start_detached_stoppable(s));
     }
     CHECK(var == 0);
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
 }
 
-TEST_CASE("start_detached can be cancelled", "[start_detached]") {
+TEST_CASE("start_detached_stoppable can be cancelled", "[start_detached]") {
     int var{};
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule()                    //
              | async::then([&] { var = 42; }) //
              | async::upon_stopped([&] { var = 17; });
-    auto stop_src = async::start_detached(s);
+    auto stop_src = async::start_detached_stoppable(s);
     REQUIRE(stop_src.has_value());
     stop_src.value()->request_stop();
     async::task_mgr::service_tasks<0>();
@@ -137,13 +138,14 @@ struct custom_allocator {
 };
 } // namespace
 
-TEST_CASE("start_detached can use a custom environment", "[start_detached]") {
+TEST_CASE("start_detached_stoppable can use a custom environment",
+          "[start_detached]") {
     custom_allocator::alloc_count = 0;
     custom_allocator::destroy_count = 0;
     int var{};
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
-    CHECK(async::start_detached(
+    CHECK(async::start_detached_stoppable(
         s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
     CHECK(custom_allocator::alloc_count == 1);
     async::task_mgr::service_tasks<0>();
@@ -151,20 +153,21 @@ TEST_CASE("start_detached can use a custom environment", "[start_detached]") {
     CHECK(custom_allocator::destroy_count == 1);
 }
 
-TEST_CASE("start_detached passes the custom env to the sender chain",
+TEST_CASE("start_detached_stoppable passes the custom env to the sender chain",
           "[start_detached]") {
     auto s =
         async::read_env(async::get_allocator) | async::then([]<typename T>(T) {
             STATIC_REQUIRE(std::is_same_v<T, custom_allocator>);
         });
-    CHECK(async::start_detached(
+    CHECK(async::start_detached_stoppable(
         s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
 }
 
-TEST_CASE("start_detached allows state in the custom env", "[start_detached]") {
+TEST_CASE("start_detached_stoppable allows state in the custom env",
+          "[start_detached]") {
     auto s =
         async::read_env(get_fwd) | async::then([](int x) { CHECK(x == 17); });
-    CHECK(async::start_detached(s, async::prop{get_fwd, 17}));
+    CHECK(async::start_detached_stoppable(s, async::prop{get_fwd, 17}));
 }
 
 TEST_CASE("stop_detached cancels the operation", "[start_detached]") {
@@ -173,7 +176,7 @@ TEST_CASE("stop_detached cancels the operation", "[start_detached]") {
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
 
-    CHECK(async::start_detached<Name>(s));
+    CHECK(async::start_detached_stoppable<Name>(s));
     CHECK(async::stop_detached<Name>());
     async::task_mgr::service_tasks<0>();
     CHECK(var == 0);
@@ -186,7 +189,7 @@ TEST_CASE("stop_detached is idempotent, reporting a request once",
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
 
-    CHECK(async::start_detached<Name>(s));
+    CHECK(async::start_detached_stoppable<Name>(s));
     CHECK(async::stop_detached<Name>());
     CHECK(not async::stop_detached<Name>());
     async::task_mgr::service_tasks<0>();
@@ -200,7 +203,7 @@ TEST_CASE("stop_detached doesn't cancel the operation if it's already complete",
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
 
-    CHECK(async::start_detached<Name>(s));
+    CHECK(async::start_detached_stoppable<Name>(s));
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
     CHECK(not async::stop_detached<Name>());
@@ -214,7 +217,7 @@ TEST_CASE("stop_detached doesn't affect future runs of the operation",
         int var{};
         using S = async::fixed_priority_scheduler<0>;
         auto s = S::schedule() | async::then([&] { var = 42; });
-        CHECK(async::start_detached<Name>(s));
+        CHECK(async::start_detached_stoppable<Name>(s));
         async::task_mgr::service_tasks<0>();
         CHECK(var == 42);
     }
@@ -223,7 +226,7 @@ TEST_CASE("stop_detached doesn't affect future runs of the operation",
         int var{};
         using S = async::fixed_priority_scheduler<0>;
         auto s = S::schedule() | async::then([&] { var = 42; });
-        CHECK(async::start_detached<Name>(s));
+        CHECK(async::start_detached_stoppable<Name>(s));
         async::task_mgr::service_tasks<0>();
         CHECK(var == 42);
     }
@@ -243,7 +246,7 @@ TEST_CASE("stop_detached doesn't cancel the operation when the op state is "
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
 
-    CHECK(async::start_detached<alloc_domain>(s));
+    CHECK(async::start_detached_stoppable<alloc_domain>(s));
     CHECK(not async::stop_detached<alloc_domain>());
     async::task_mgr::service_tasks<0>();
     CHECK(var == 42);
@@ -255,7 +258,7 @@ TEST_CASE("stop_detached doesn't cancel an operation with a stack allocator",
     int var{};
     auto s = async::just_result_of([&] { var = 42; });
 
-    CHECK(async::start_detached<Name>(s));
+    CHECK(async::start_detached_stoppable<Name>(s));
     CHECK(not async::stop_detached<Name>());
     CHECK(var == 42);
 }
@@ -277,14 +280,14 @@ template <>
 inline auto async::injected_debug_handler<> =
     debug_handler<async::start_detached_t, true>{};
 
-TEST_CASE("start_detached can be named and debugged with a string",
+TEST_CASE("start_detached_stoppable can be named and debugged with a string",
           "[start_detached]") {
     using namespace std::string_literals;
     debug_events.clear();
     int var{};
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
-    CHECK(async::start_detached<"op">(s));
+    CHECK(async::start_detached_stoppable<"op">(s));
     CHECK(var == 0);
     CHECK(debug_events == std::vector{"op start_detached start"s});
     async::task_mgr::service_tasks<0>();
@@ -316,11 +319,18 @@ TEST_CASE("stop_detached works with a string name", "[start_detached]") {
     using S = async::fixed_priority_scheduler<0>;
     auto s = S::schedule() | async::then([&] { var = 42; });
 
-    CHECK(async::start_detached<"op">(s));
+    CHECK(async::start_detached_stoppable<"op">(s));
     CHECK(debug_events == std::vector{"op start_detached start"s});
     CHECK(async::stop_detached<"op">());
     async::task_mgr::service_tasks<0>();
     CHECK(var == 0);
     CHECK(debug_events == std::vector{"op start_detached start"s,
                                       "op start_detached set_stopped"s});
+}
+
+TEST_CASE("start_detached is a synonym for start_detached_unstoppable",
+          "[start_detached]") {
+    [[maybe_unused]] auto s = async::just();
+    STATIC_REQUIRE(std::same_as<decltype(async::start_detached(s)),
+                                stdx::optional<async::never_stop_source *>>);
 }
