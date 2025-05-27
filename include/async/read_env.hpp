@@ -6,8 +6,6 @@
 #include <async/connect.hpp>
 #include <async/debug.hpp>
 #include <async/env.hpp>
-#include <async/get_scheduler.hpp>
-#include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
 
 #include <stdx/concepts.hpp>
@@ -76,15 +74,6 @@ template <stdx::ct_string Name, typename Tag> struct sender {
 template <stdx::ct_string Name = "", typename Tag>
 [[nodiscard]] constexpr auto read_env(Tag) -> sender auto {
     return _read_env::sender<Name, Tag>{};
-}
-
-template <stdx::ct_string Name = "">
-[[nodiscard]] constexpr auto get_stop_token() -> sender auto {
-    return read_env<Name>(get_stop_token_t{});
-}
-template <stdx::ct_string Name = "">
-[[nodiscard]] constexpr auto get_scheduler() -> sender auto {
-    return read_env<Name>(get_scheduler_t{});
 }
 
 template <typename> struct read_env_t;

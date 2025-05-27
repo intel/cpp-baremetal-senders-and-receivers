@@ -8,6 +8,7 @@
 #include <async/let_value.hpp>
 #include <async/read_env.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/stop_token.hpp>
 #include <async/sync_wait.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
@@ -328,7 +329,8 @@ TEST_CASE("when_all receiver environment is well-formed for synchronous ops",
           "[when_all]") {
     int value{};
     auto op = async::connect(
-        async::when_all(async::get_stop_token(), async::just(42)),
+        async::when_all(async::read_env(async::get_stop_token),
+                        async::just(42)),
         receiver{[&](auto st, int x) {
             STATIC_REQUIRE(
                 std::is_same_v<decltype(st), async::never_stop_token>);

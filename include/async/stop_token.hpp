@@ -205,7 +205,7 @@ template <typename F> struct inplace_stop_callback : stop_callback_base {
     F callback;
 };
 
-struct get_stop_token_t : forwarding_query_t {
+constexpr inline struct get_stop_token_t : forwarding_query_t {
     constexpr static auto name = stdx::ct_string{"get_stop_token"};
 
     template <typename T>
@@ -217,12 +217,7 @@ struct get_stop_token_t : forwarding_query_t {
     }
 
     constexpr auto operator()(auto &&) const -> never_stop_token { return {}; }
-};
-
-template <typename E>
-auto get_stop_token(E &&e) -> decltype(get_stop_token_t{}(std::forward<E>(e))) {
-    return get_stop_token_t{}(std::forward<E>(e));
-}
+} get_stop_token;
 
 template <typename T>
 using stop_token_of_t =

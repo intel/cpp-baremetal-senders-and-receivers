@@ -3,6 +3,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/env.hpp>
+#include <async/get_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
 #include <async/read_env.hpp>
@@ -42,7 +43,7 @@ TEST_CASE("read_env sends a value", "[read_env]") {
     int value{};
     auto r = stoppable_receiver{[&] { ++value; }};
 
-    auto s = async::get_stop_token() |
+    auto s = async::read_env(async::get_stop_token) |
              async::then([&](async::inplace_stop_token) { value = 42; });
     auto op = async::connect(s, r);
     async::start(op);
@@ -50,7 +51,8 @@ TEST_CASE("read_env sends a value", "[read_env]") {
 }
 
 TEST_CASE("read_env with sync_wait", "[read_env]") {
-    auto s = async::get_scheduler() | async::let_value([&](auto sched) {
+    auto s = async::read_env(async::get_scheduler) |
+             async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              });
 
@@ -60,12 +62,12 @@ TEST_CASE("read_env with sync_wait", "[read_env]") {
 }
 
 TEST_CASE("read_env completes synchronously", "[read_env]") {
-    [[maybe_unused]] auto const s = async::get_scheduler();
+    [[maybe_unused]] auto const s = async::read_env(async::get_scheduler);
     STATIC_REQUIRE(async::synchronous<decltype(s)>);
 }
 
 TEST_CASE("read_env op state is synchronous", "[read_env]") {
-    auto const s = async::get_stop_token();
+    auto const s = async::read_env(async::get_stop_token);
     [[maybe_unused]] auto const op =
         async::connect(s, stoppable_receiver{[] {}});
     STATIC_REQUIRE(async::synchronous<decltype(op)>);
@@ -95,7 +97,7 @@ TEST_CASE("read_env tag provides a debug name", "[read_env]") {
     debug_events.clear();
 
     auto stop = async::inplace_stop_source{};
-    auto s = async::get_stop_token();
+    auto s = async::read_env(async::get_stop_token);
     auto r = with_env{
         universal_receiver{},
         async::env{async::prop{async::get_debug_interface_t{},
@@ -113,7 +115,7 @@ TEST_CASE("read_env can customize the debug name", "[read_env]") {
     debug_events.clear();
 
     auto stop = async::inplace_stop_source{};
-    auto s = async::get_stop_token<"GST">();
+    auto s = async::read_env<"GST">(async::get_stop_token);
     auto r = with_env{
         universal_receiver{},
         async::env{async::prop{async::get_debug_interface_t{},

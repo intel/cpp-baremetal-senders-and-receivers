@@ -105,14 +105,14 @@ xref:sender_consumers.adoc#_sync_wait[`sync_wait`].
 
 [source,cpp]
 ----
-auto value = async::get_scheduler()
+auto value = async::read_env(async::get_scheduler)
            | async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              })
            | async::sync_wait();
 ----
 
-This code uses xref:sender_factories.adoc#_read_env[`get_scheduler`] to read the
+This code uses xref:sender_factories.adoc#_read_env[`read_env`] to read the
 scheduler provided by `sync_wait`. That `runloop_scheduler` is then used to
 schedule work.
 
