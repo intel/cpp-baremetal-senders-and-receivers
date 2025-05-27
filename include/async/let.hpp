@@ -223,7 +223,7 @@ struct sender {
     using is_multishot_leftover_sender = stdx::conditional_t<
         boost::mp11::mp_empty<
             boost::mp11::mp_second<raw_completions<env_of_t<R>>>>::value,
-        std::true_type, std::bool_constant<multishot_sender<S, R>>>;
+        std::true_type, std::bool_constant<multishot_sender<S>>>;
 
     template <typename R> struct is_multishot_sender {
         template <typename T>
