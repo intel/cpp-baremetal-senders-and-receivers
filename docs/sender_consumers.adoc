@@ -107,9 +107,14 @@ auto stop_requested = async::stop_detached<Name>(); // true if a stop was reques
 
 === `sync_wait`
 
+`sync_wait` is synonymous with
+xref:sender_consumers.adoc#_sync_wait_static[`sync_wait_static`].
+
+=== `sync_wait_dynamic`
+
 Found in the header: `async/sync_wait.hpp`
 
-`sync_wait` takes a sender and:
+`sync_wait_dynamic` takes a sender and:
 
 . connects and starts it
 . blocks waiting for it to complete
@@ -118,15 +123,33 @@ Found in the header: `async/sync_wait.hpp`
 [source,cpp]
 ----
 auto sndr = async::just(42);
-auto [i] = async::sync_wait(sndr).value();
+auto [i] = async::sync_wait_dynamic(sndr).value();
 // i is now 42
 ----
 
-As with `start_detached`, an extra xref:environments.adoc#_environments[environment] may be given to
-`sync_wait` in order to control sender behaviour:
+As with xref:sender_consumers.adoc#_start_detached[`start_detached`], an extra xref:environments.adoc#_environments[environment] may be given to
+`sync_wait_dynamic` in order to control sender behaviour:
 
 [source,cpp]
 ----
-auto result = async::sync_wait(
+auto result = async::sync_wait_dynamic(
     s, async::prop{async::get_custom_property_t{}, custom_property{}}));
 ----
+
+`sync_wait_dynamic` provides a xref:schedulers.adoc#_runloop_scheduler[`runloop_scheduler`] that can be read from the
+environment, so that a sender may append further work:
+[source,cpp]
+----
+auto s = async::get_scheduler()
+       | async::let_value([&](auto sched) {
+           return async::start_on(sched, async::just(42));
+       });
+auto result = s | async::sync_wait_dynamic();
+----
+
+=== `sync_wait_static`
+
+Found in the header: `async/sync_wait.hpp`
+
+`sync_wait_static` behaves like `sync_wait_dynamic`, except that it does not
+provide a xref:schedulers.adoc#_runloop_scheduler[`runloop_scheduler`], so further work cannot be appended.

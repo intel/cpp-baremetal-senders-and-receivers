@@ -50,13 +50,13 @@ TEST_CASE("read_env sends a value", "[read_env]") {
     CHECK(value == 43);
 }
 
-TEST_CASE("read_env with sync_wait", "[read_env]") {
+TEST_CASE("read_env with sync_wait_dynamic", "[read_env]") {
     auto s = async::read_env(async::get_scheduler) |
              async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              });
 
-    auto value = s | async::sync_wait();
+    auto value = s | async::sync_wait_dynamic();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
 }

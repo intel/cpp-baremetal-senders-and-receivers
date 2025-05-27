@@ -101,7 +101,7 @@ Found in the header: `async/schedulers/runloop_scheduler.hpp`
 
 The `runloop_scheduler` adds any work to a queue that is executed in order. It
 is used as a completion scheduler inside
-xref:sender_consumers.adoc#_sync_wait[`sync_wait`].
+xref:sender_consumers.adoc#_sync_wait_dynamic[`sync_wait_dynamic`].
 
 [source,cpp]
 ----
@@ -109,11 +109,11 @@ auto value = async::read_env(async::get_scheduler)
            | async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              })
-           | async::sync_wait();
+           | async::sync_wait_dynamic();
 ----
 
 This code uses xref:sender_factories.adoc#_read_env[`read_env`] to read the
-scheduler provided by `sync_wait`. That `runloop_scheduler` is then used to
+scheduler provided by `sync_wait_dynamic`. That `runloop_scheduler` is then used to
 schedule work.
 
 === `thread_scheduler`

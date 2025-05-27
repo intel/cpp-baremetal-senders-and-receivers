@@ -114,7 +114,7 @@ by `let_error.hpp`, `let_stopped.hpp`, and `let_value.hpp`
 * `requeue_policy::deferred` - the default policy used with `priority_task_manager::service_tasks()` and `triggers<"name">.run`
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/runloop_scheduler.hpp[schedulers/runloop_scheduler.hpp]
-* `runloop_scheduler` - a xref:schedulers.adoc#_runloop_scheduler[scheduler] that allows further work to be added during execution, and is used by xref:sender_consumers.adoc#_sync_wait[`sync_wait`]
+* `runloop_scheduler` - a xref:schedulers.adoc#_runloop_scheduler[scheduler] that allows further work to be added during execution, and is used by xref:sender_consumers.adoc#_sync_wait_dynamic[`sync_wait_dynamic`]
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task.hpp[schedulers/task.hpp]
 An internal header that contains no public-facing identifiers. `task.hpp`
@@ -189,6 +189,8 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/sync_wait.hpp[sync_wait.hpp]
 * `sync_wait` - a xref:sender_consumers.adoc#_sync_wait[sender consumer] that starts a sender and waits for it to complete
+* `sync_wait_dynamic` - a xref:sender_consumers.adoc#_sync_wait[sender consumer] that starts a sender and waits for it to complete, allowing further work to be appended
+* `sync_wait_static` - a xref:sender_consumers.adoc#_sync_wait[sender consumer] that starts a sender and waits for it to complete
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/then.hpp[then.hpp]
 * `then` - a xref:sender_adaptors.adoc#_then[sender adaptor] that transforms what a sender sends on the value channel
@@ -293,6 +295,8 @@ contains traits and metaprogramming constructs used by many senders.
 * `stop_token_of_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/stop_token.hpp[`#include <async/stop_token.hpp>`]
 * xref:sender_adaptors.adoc#_when_any[`stop_when`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/when_any.hpp[`#include <async/when_any.hpp>`]
 * xref:sender_consumers.adoc#_sync_wait[`sync_wait`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/sync_wait.hpp[`#include <async/sync_wait.hpp>`]
+* xref:sender_consumers.adoc#_sync_wait_dynamic[`sync_wait_dynamic`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/sync_wait.hpp[`#include <async/sync_wait.hpp>`]
+* xref:sender_consumers.adoc#_sync_wait_static[`sync_wait_static`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/sync_wait.hpp[`#include <async/sync_wait.hpp>`]
 * `task_mgr::is_idle()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * `task_mgr::service_tasks<P>()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * xref:sender_adaptors.adoc#_then[`then`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/then.hpp[`#include <async/then.hpp>`]
