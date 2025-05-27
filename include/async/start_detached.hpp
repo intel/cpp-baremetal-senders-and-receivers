@@ -141,27 +141,29 @@ template <typename Uniq, typename StopSource, typename Env> struct pipeable {
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] constexpr auto start_detached(Env &&e = {})
+[[nodiscard]] constexpr auto start_detached_stoppable(Env &&e = {})
     -> _start_detached::pipeable<Uniq, inplace_stop_source, Env> {
     return {std::forward<Env>(e)};
 }
 
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] auto start_detached(Env &&e = {}) {
-    return start_detached<stdx::cts_t<Name>>(
+[[nodiscard]] auto start_detached_stoppable(Env &&e = {}) {
+    return start_detached_stoppable<stdx::cts_t<Name>>(
         env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
             std::forward<Env>(e)});
 }
 
 template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
-[[nodiscard]] auto start_detached(S &&s, Env &&e = {}) {
-    return std::forward<S>(s) | start_detached<Uniq>(std::forward<Env>(e));
+[[nodiscard]] auto start_detached_stoppable(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) |
+           start_detached_stoppable<Uniq>(std::forward<Env>(e));
 }
 
 template <stdx::ct_string Name, sender S, typename Env = empty_env>
-[[nodiscard]] auto start_detached(S &&s, Env &&e = {}) {
-    return std::forward<S>(s) | start_detached<Name>(std::forward<Env>(e));
+[[nodiscard]] auto start_detached_stoppable(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) |
+           start_detached_stoppable<Name>(std::forward<Env>(e));
 }
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
@@ -191,6 +193,31 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
            start_detached_unstoppable<Name>(std::forward<Env>(e));
 }
 
+template <typename Uniq = decltype([] {}), typename Env = empty_env>
+    requires(not sender<Env>)
+[[nodiscard]] constexpr auto start_detached(Env &&e = {})
+    -> _start_detached::pipeable<Uniq, never_stop_source, Env> {
+    return {std::forward<Env>(e)};
+}
+
+template <stdx::ct_string Name, typename Env = empty_env>
+    requires(not sender<Env>)
+[[nodiscard]] auto start_detached(Env &&e = {}) {
+    return start_detached<stdx::cts_t<Name>>(
+        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
+            std::forward<Env>(e)});
+}
+
+template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
+[[nodiscard]] auto start_detached(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) | start_detached<Uniq>(std::forward<Env>(e));
+}
+
+template <stdx::ct_string Name, sender S, typename Env = empty_env>
+[[nodiscard]] auto start_detached(S &&s, Env &&e = {}) {
+    return std::forward<S>(s) | start_detached<Name>(std::forward<Env>(e));
+}
+
 template <typename Uniq> auto stop_detached() {
     return conc::call_in_critical_section<Uniq>([] {
         return _start_detached::stop_source_for<Uniq> != nullptr and
@@ -209,7 +236,6 @@ struct debug::context_for<_start_detached::op_state<Ts...>> {
     using tag = start_detached_t;
     constexpr static auto name = stdx::ct_string{"start_detached"};
     using children = stdx::type_list<>;
-    // context_for<typename _start_detached::op_state<Ts...>::ops_t>>;
     using type = _start_detached::op_state<Ts...>;
 };
 } // namespace async

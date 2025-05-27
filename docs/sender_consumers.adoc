@@ -5,7 +5,14 @@
 
 Found in the header: `async/start_detached.hpp`
 
-`start_detached` takes a sender, connects and starts it, and returns, leaving
+`start_detached` is synonymous with
+xref:sender_consumers.adoc#_start_detached_unstoppable[`start_detached_unstoppable`].
+
+=== `start_detached_stoppable`
+
+Found in the header: `async/start_detached.hpp`
+
+`start_detached_stoppable` takes a sender, connects and starts it, and returns, leaving
 the work running detached. The return value is a
 https://intel.github.io/cpp-std-extensions/#_optional_hpp[`stdx::optional`]. If
 the optional is empty, the sender was not started. Otherwise, it contains a
@@ -15,7 +22,7 @@ can be used to cancel the operation.
 [source,cpp]
 ----
 auto sndr = async::just(42);
-auto started = async::start_detached(sndr);
+auto started = async::start_detached_stoppable(sndr);
 // in this case, starting the sender also completes it
 ----
 
@@ -27,11 +34,11 @@ Otherwise it will use the `static_allocator`.
 
 To hook into the static xref:attributes.adoc#_allocator[allocation strategy], a
 template argument (representing the name of the allocation domain) can be given
-to `start_detached`. This is used to select a static allocator.
+to `start_detached_stoppable`. This is used to select a static allocator.
 
 [source,cpp]
 ----
-auto result = async::start_detached<struct Name>(s);
+auto result = async::start_detached_stoppable<struct Name>(s);
 ----
 
 The default template argument results in a different `static_allocator` for each
@@ -41,16 +48,16 @@ xref:sender_consumers.adoc#_stop_detached[`stop_detached`] to request
 cancellation.
 
 If the allocator's `construct` method returns `false` (presumably because the
-allocation limit has been reached), the result of `start_detached` is an empty
+allocation limit has been reached), the result of `start_detached_stoppable` is an empty
 optional.
 
 An extra xref:environments.adoc#_environments[environment] may be given to
-`start_detached` in order to control sender behaviour, or to specify a custom
+`start_detached_stoppable` in order to control sender behaviour, or to specify a custom
 allocator:
 
 [source,cpp]
 ----
-auto result = async::start_detached(
+auto result = async::start_detached_stoppable(
     s, async::prop{async::get_allocator_t{}, custom_allocator{}}));
 ----
 
@@ -58,7 +65,7 @@ auto result = async::start_detached(
 
 Found in the header: `async/start_detached.hpp`
 
-`start_detached_unstoppable` behaves identically to `start_detached`, except
+`start_detached_unstoppable` behaves identically to `start_detached_stoppable`, except
 that the returned optional value contains a pointer to a `never_stop_source`,
 which has the same interface as an
 xref:cancellation.adoc#_cancellation[`inplace_stop_source`] but never actually
