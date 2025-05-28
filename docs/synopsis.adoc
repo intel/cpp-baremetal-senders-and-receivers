@@ -56,7 +56,7 @@ in pipe-composition syntax.
 * `get_completion_scheduler` - a query used to retrieve a completion_scheduler from a sender's attributes
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/get_scheduler.hpp[get_scheduler.hpp]
-* `get_scheduler` - a query used to retrieve a scheduler from a sender's attributes
+* `get_scheduler` - a query used to retrieve a scheduler from a receiver's environment, typically by using xref:sender_factories.adoc#_read_env[`read_env`]
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[incite_on.hpp]
 * `incite_on` - a xref:sender_adaptors.adoc#_incite_on[sender adaptor] that incites execution on another scheduler
@@ -92,9 +92,7 @@ by `let_error.hpp`, `let_stopped.hpp`, and `let_value.hpp`
 * `periodic_until` - a xref:sender_adaptors.adoc#_periodic_until[sender adaptor] that repeats a sender until a condition becomes true, periodically without drift
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[read_env.hpp]
-* `get_scheduler` - a sender factory equivalent to `read_env(get_scheduler_t{})`
-* `get_stop_token` - a sender factory equivalent to `read_env(get_stop_token_t{})`
-* `read_env` - a xref:sender_factories.adoc#_read_env[sender factory] that sends values obtained from a receiver's environment
+* `read_env` - a xref:sender_factories.adoc#_read_env[sender factory] that sends values obtained from a receiver's environment using a query
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/repeat.hpp[repeat.hpp]
 * `repeat` - a xref:sender_adaptors.adoc#_repeat[sender adaptor] that repeats a sender indefinitely
@@ -184,6 +182,7 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 * `static_allocator` - an xref:attributes.adoc#_allocator[`allocator`] that allocates using static storage
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/stop_token.hpp[stop_token.hpp]
+* `get_stop_token` - a query used to retrieve a https://en.cppreference.com/w/cpp/thread/stop_token[stop_token] from a receiver's environment, typically by using xref:sender_factories.adoc#_read_env[`read_env`]
 * `inplace_stop_source` - a https://en.cppreference.com/w/cpp/thread/stop_source[stop source] that can be used to control cancellation
 * `inplace_stop_token` - a https://en.cppreference.com/w/cpp/thread/stop_token[stop token] corresponding to `inplace_stop_source`
 * `stop_token_of_t` - the type returned by `get_stop_token`
@@ -231,8 +230,8 @@ contains traits and metaprogramming constructs used by many senders.
 * `get_completion_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/get_completion_scheduler.hpp[`#include <async/get_completion_scheduler.hpp>`]
 * xref:debug.adoc#_naming_senders_and_operations[`get_debug_interface`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
 * xref:environments.adoc#_environments[`get_env`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/env.hpp[`#include <async/env.hpp>`]
-* `get_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
-* `get_stop_token` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/read_env.hpp[`#include <async/read_env.hpp>`]
+* `get_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/get_scheduler.hpp[`#include <async/get_scheduler.hpp>`]
+* `get_stop_token` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/stop_token.hpp[`#include <async/stop_token.hpp>`]
 * xref:sender_adaptors.adoc#_incite_on[`incite_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[`#include <async/incite_on.hpp>`]
 * xref:debug.adoc#_handling_a_debug_signal[`injected_debug_handler<>`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
 * `injected_task_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]

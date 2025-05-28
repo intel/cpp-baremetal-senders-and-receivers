@@ -150,32 +150,25 @@ auto sndr = async::just_stopped<"cancel">();
 
 Found in the header: `async/read_env.hpp`
 
-`read_env` takes a _tag_ and returns a sender that sends the value denoted by
-that tag, pulled from the environment of the receiver the sender is
+`read_env` takes a _query_ and returns a sender that sends the value denoted by
+that query, obtained from the environment of the receiver the sender is
 connected to.
 
 [source,cpp]
 ----
-auto s = async::read_env(async::get_stop_token_t{});
+auto s = async::read_env(async::get_stop_token);
 // when connected to a receiver, s will send the stop token from that receiver's environment
 ----
 
-`read_env` has some built-in aliases for well-known tags:
-[source,cpp]
-----
-auto s1 = async::get_stop_token(); // same as async::read_env(async::get_stop_token_t{});
-auto s2 = async::get_scheduler();  // same as async::read_env(async::get_scheduler_t{});
-----
-
-`read_env` (and its tag aliases) can be given a name that is used for debug
-events. By default, the name is the name exposed by the tag, or if there is no
+`read_env` can be given a name that is used for debug
+events. By default, the name is the name exposed by the query, or if there is no
 such name, `"read_env"`.
 
 [source,cpp]
 ----
-auto s1 = async::get_stop_token<"gst">(); // name = "gst"
-auto s2 = async::get_stop_token();        // name = "get_stop_token"
-auto s3 = async::read_env(unnamed_tag{}); // name = "read_env"
+auto s1 = async::read_env<"gst">(async::get_stop_token); // name = "gst"
+auto s2 = async::read_env(async::get_stop_token);        // name = "get_stop_token"
+auto s3 = async::read_env(unnamed_query{});              // name = "read_env"
 ----
 
 === `schedule`

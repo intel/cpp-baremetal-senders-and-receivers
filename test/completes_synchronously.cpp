@@ -5,6 +5,7 @@
 #include <async/read_env.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/stop_token.hpp>
 #include <async/then.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -26,7 +27,7 @@ TEST_CASE("just_result_of completes synchronously",
 }
 
 TEST_CASE("read_env completes synchronously", "[completes_synchronously]") {
-    constexpr auto s = async::get_stop_token();
+    constexpr auto s = async::read_env(async::get_stop_token);
     STATIC_REQUIRE(async::completes_synchronously(async::get_env(s)));
 }
 

@@ -8,7 +8,7 @@
 #include <utility>
 
 namespace async {
-struct get_scheduler_t : forwarding_query_t {
+constexpr inline struct get_scheduler_t : forwarding_query_t {
     constexpr static auto name = stdx::ct_string{"get_scheduler"};
 
     template <typename T>
@@ -17,9 +17,5 @@ struct get_scheduler_t : forwarding_query_t {
         -> decltype(std::forward<T>(t).query(*this)) {
         return std::forward<T>(t).query(*this);
     }
-};
-
-template <typename E> auto get_scheduler(E &&e) {
-    return get_scheduler_t{}(std::forward<E>(e));
-}
+} get_scheduler{};
 } // namespace async

@@ -363,7 +363,8 @@ TEST_CASE("when_any receiver environment is well-formed for synchronous ops",
           "[when_any]") {
     int value{};
     auto op = async::connect(
-        async::when_any(async::get_stop_token(), async::just(42)),
+        async::when_any(async::read_env(async::get_stop_token),
+                        async::just(42)),
         receiver{[&](auto st) {
             CHECK(std::is_same_v<decltype(st), async::never_stop_token>);
             value = 42;

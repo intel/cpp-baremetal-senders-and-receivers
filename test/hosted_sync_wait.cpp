@@ -2,6 +2,7 @@
 #include "detail/debug_handler.hpp"
 
 #include <async/concepts.hpp>
+#include <async/get_scheduler.hpp>
 #include <async/just.hpp>
 #include <async/let_value.hpp>
 #include <async/read_env.hpp>
@@ -52,7 +53,8 @@ TEST_CASE("sync_wait stopped completion", "[hosted_sync_wait]") {
 }
 
 TEST_CASE("sync_wait with read (inline scheduler)", "[hosted_sync_wait]") {
-    auto s = async::get_scheduler() | async::let_value([&](auto sched) {
+    auto s = async::read_env(async::get_scheduler) |
+             async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              });
 
@@ -63,7 +65,8 @@ TEST_CASE("sync_wait with read (inline scheduler)", "[hosted_sync_wait]") {
 }
 
 TEST_CASE("sync_wait with read (thread scheduler)", "[hosted_sync_wait]") {
-    auto s = async::get_scheduler() | async::let_value([&](auto sched) {
+    auto s = async::read_env(async::get_scheduler) |
+             async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              });
 
