@@ -52,35 +52,40 @@ TEST_CASE("sync_wait stopped completion", "[hosted_sync_wait]") {
     CHECK(not value.has_value());
 }
 
-TEST_CASE("sync_wait with read (inline scheduler)", "[hosted_sync_wait]") {
+TEST_CASE("sync_wait_dynamic with read (inline scheduler)",
+          "[hosted_sync_wait]") {
     auto s = async::read_env(async::get_scheduler) |
              async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              });
 
     auto value = async::inline_scheduler<>::schedule() |
-                 async::sequence([&] { return s; }) | async::sync_wait();
+                 async::sequence([&] { return s; }) |
+                 async::sync_wait_dynamic();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
 }
 
-TEST_CASE("sync_wait with read (thread scheduler)", "[hosted_sync_wait]") {
+TEST_CASE("sync_wait_dynamic with read (thread scheduler)",
+          "[hosted_sync_wait]") {
     auto s = async::read_env(async::get_scheduler) |
              async::let_value([&](auto sched) {
                  return async::start_on(sched, async::just(42));
              });
 
     auto value = async::thread_scheduler<>::schedule() |
-                 async::sequence([&] { return s; }) | async::sync_wait();
+                 async::sequence([&] { return s; }) |
+                 async::sync_wait_dynamic();
     REQUIRE(value.has_value());
     CHECK(get<0>(*value) == 42);
 }
 
-TEST_CASE("sync_wait can use a custom environment", "[hosted_sync_wait]") {
+TEST_CASE("sync_wait_dynamic can use a custom environment",
+          "[hosted_sync_wait]") {
     int var{};
     auto s =
         async::read_env(get_fwd_t{}) | async::then([&](int i) { var = i; });
-    CHECK(async::sync_wait(s, async::prop{get_fwd_t{}, 42}));
+    CHECK(async::sync_wait_dynamic(s, async::prop{get_fwd_t{}, 42}));
     CHECK(var == 42);
 }
 

@@ -15,6 +15,7 @@
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/atomic.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/intrusive_list.hpp>
 
@@ -27,6 +28,63 @@
 #endif
 
 namespace async {
+namespace detail {
+#if HAS_CONDITION_VARIABLE
+template <typename Uniq, std::size_t N> struct synchronizer {
+    template <typename... Fs> auto notify(Fs &&...fs) {
+        static_assert(sizeof...(Fs) <= N);
+        std::unique_lock l{m};
+        (std::forward<Fs>(fs)(), ...);
+        if constexpr (sizeof...(Fs) == 0) {
+            done = true;
+        }
+        cv.notify_one();
+    }
+
+    template <typename... Ps> auto wait(Ps &&...ps) {
+        static_assert(sizeof...(Ps) <= N);
+        std::unique_lock l{m};
+        cv.wait(l, [&] { return (ps() or ... or done); });
+    }
+
+    std::mutex m;
+    std::condition_variable cv;
+    bool done{};
+};
+#else
+template <typename Uniq, std::size_t N> struct synchronizer {
+    template <typename... Fs> auto notify(Fs &&...fs) {
+        static_assert(sizeof...(Fs) <= N);
+        conc::call_in_critical_section<Uniq>([&] {
+            (std::forward<Fs>(fs)(), ...);
+            if constexpr (sizeof...(Fs) == 0) {
+                done = true;
+            }
+        });
+    }
+
+    template <typename... Ps> auto wait(Ps &&...ps) {
+        static_assert(sizeof...(Ps) <= N);
+        conc::call_in_critical_section<Uniq>(
+            [] {}, [&] { return (ps() or ... or done); });
+    }
+
+    bool done{};
+};
+
+template <typename Uniq> struct synchronizer<Uniq, 0> {
+    auto notify() { done = true; }
+
+    auto wait() {
+        while (!done) {
+        }
+    }
+
+    stdx::atomic<bool> done{};
+};
+#endif
+} // namespace detail
+
 namespace _run_loop {
 namespace detail {
 template <typename Name> constexpr auto get_name() {
@@ -115,38 +173,13 @@ template <typename Uniq = decltype([] {})> class run_loop {
         run_loop *loop;
     };
 
-    template <typename Pred> auto wait_until(Pred &&p) {
-#if HAS_CONDITION_VARIABLE
-        std::unique_lock l{m};
-        cv.wait(l, std::forward<Pred>(p));
-#else
-        while (not p()) {
-        }
-#endif
-    }
-
-    template <typename F> auto notify(F &&f) {
-#if HAS_CONDITION_VARIABLE
-        std::unique_lock l{m};
-        std::forward<F>(f)();
-        cv.notify_one();
-#else
-        std::forward<F>(f)();
-#endif
-    }
-
   public:
     run_loop() noexcept = default;
     run_loop(run_loop &&) = delete;
 
     auto get_scheduler() -> scheduler { return {this}; }
 
-    auto finish() -> void {
-        notify([&] {
-            conc::call_in_critical_section<Uniq>(
-                [&] { state = state_t::finishing; });
-        });
-    }
+    auto finish() -> void { sync.notify(); }
 
     auto run() -> void {
         while (auto op = pop_front()) {
@@ -155,32 +188,19 @@ template <typename Uniq = decltype([] {})> class run_loop {
     }
 
     auto push_back(op_state_base *task) -> void {
-        notify([&] {
-            conc::call_in_critical_section<Uniq>(
-                [&] { tasks.push_back(task); });
-        });
+        sync.notify([&] { tasks.push_back(task); });
     }
 
     auto pop_front() -> op_state_base * {
-        wait_until([&] {
-            return conc::call_in_critical_section<Uniq>([&] {
-                return not tasks.empty() or state == state_t::finishing;
-            });
-        });
+        sync.wait([&] { return not tasks.empty(); });
         return conc::call_in_critical_section<Uniq>([&]() -> op_state_base * {
             return tasks.empty() ? nullptr : tasks.pop_front();
         });
     }
 
   private:
-    enum struct state_t : std::uint8_t { starting, running, finishing };
-
-    state_t state{state_t::starting};
+    async::detail::synchronizer<Uniq, 1> sync{};
     stdx::intrusive_list<op_state_base> tasks{};
-#if HAS_CONDITION_VARIABLE
-    std::mutex m;
-    std::condition_variable cv;
-#endif
 };
 } // namespace _run_loop
 
