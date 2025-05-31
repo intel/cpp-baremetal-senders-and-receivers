@@ -139,7 +139,7 @@ class pipeable<Uniq, Env, dynamic_t> : public pipeable_base<Env> {
     template <sender S> static auto wait(S &&s, Env const &e) {
         run_loop<Uniq> rl{};
         auto sched = rl.get_scheduler();
-        auto new_env = env{prop{get_scheduler_t{}, sched}, e};
+        auto new_env = env{prop{get_scheduler_t{}, std::cref(sched)}, e};
         using E = decltype(new_env);
         using V = detail::sync_wait_type<E, S>;
         V values{};

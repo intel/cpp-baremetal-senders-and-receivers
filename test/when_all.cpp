@@ -115,6 +115,14 @@ TEST_CASE("basic operation sending void values", "[when_all]") {
     CHECK(value == 59);
 }
 
+TEST_CASE("basic operation sending reference values", "[when_all]") {
+    auto s1 = async::read_env(async::get_scheduler);
+    auto s2 = async::just();
+    auto w = async::when_all(s1, s2);
+    auto r = async::sync_wait_dynamic(w);
+    REQUIRE(r);
+}
+
 TEST_CASE("when_all with thread scheduler", "[when_all]") {
     std::uniform_int_distribution<> dis{5, 10};
     auto const d1 = std::chrono::milliseconds{dis(get_rng())};
