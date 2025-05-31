@@ -77,7 +77,7 @@ struct sub_op_storage<E, S> {
         boost::mp11::mp_transform<std::add_lvalue_reference_t, values_t>;
 
     template <typename... Args> auto store(Args &&...args) -> void {
-        v = stdx::make_tuple(std::forward<Args>(args)...);
+        v.emplace(values_t{std::forward<Args>(args)...});
     }
     auto load() -> ref_values_t {
         return v->apply([](auto &...args) { return ref_values_t{args...}; });
