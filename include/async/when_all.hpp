@@ -300,6 +300,8 @@ struct nostop_op_state
         }
     }
 
+    auto notify_stopped() -> void {}
+
     template <typename S>
     using single_value_sender_t =
         std::bool_constant<single_sender<S, set_value_t, env_of_t<Rcvr>>>;
@@ -359,6 +361,8 @@ struct sync_op_state
     template <typename... Args> auto notify_error(Args &&...args) -> void {
         this->store_error(std::forward<Args>(args)...);
     }
+
+    auto notify_stopped() -> void {}
 
     template <typename S>
     using single_value_sender_t =
