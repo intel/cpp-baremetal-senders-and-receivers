@@ -16,6 +16,13 @@ template <typename Query, typename Value> struct prop : Query {
 
     [[no_unique_address]] Value value{};
 };
+template <typename Query, typename Value> struct prop<Query, Value *> : Query {
+    [[nodiscard]] constexpr auto query(Query) const noexcept -> Value const & {
+        return *value;
+    }
+
+    [[no_unique_address]] Value *value{};
+};
 template <typename Query, typename Value>
 prop(Query, Value) -> prop<Query, std::unwrap_reference_t<Value>>;
 
