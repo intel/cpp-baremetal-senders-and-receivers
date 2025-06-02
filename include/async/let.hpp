@@ -221,9 +221,10 @@ struct sender {
 
     template <typename R>
     using is_multishot_leftover_sender = stdx::conditional_t<
-        boost::mp11::mp_empty<
-            boost::mp11::mp_second<raw_completions<env_of_t<R>>>>::value,
-        std::true_type, std::bool_constant<multishot_sender<S>>>;
+        boost::mp11::mp_empty<unchanged_completions<env_of_t<R>>>::value,
+        std::true_type,
+        std::bool_constant<multishot_sender<
+            S, async::detail::universal_receiver<env_of_t<R>>>>>;
 
     template <typename R> struct is_multishot_sender {
         template <typename T>
@@ -244,7 +245,8 @@ struct sender {
     }
 
     template <receiver_from<sender> R>
-        requires multishot_sender<S> and
+        requires multishot_sender<
+                     S, async::detail::universal_receiver<env_of_t<R>>> and
                  is_multishot_leftover_sender<R>::value and
                  boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
                                           is_multishot_sender<R>>::value

@@ -77,7 +77,7 @@ struct sub_op_storage<E, S> {
         boost::mp11::mp_transform<std::add_lvalue_reference_t, values_t>;
 
     template <typename... Args> auto store(Args &&...args) -> void {
-        v = stdx::make_tuple(std::forward<Args>(args)...);
+        v.emplace(values_t{std::forward<Args>(args)...});
     }
     auto load() -> ref_values_t {
         return v->apply([](auto &...args) { return ref_values_t{args...}; });
@@ -300,6 +300,8 @@ struct nostop_op_state
         }
     }
 
+    auto notify_stopped() -> void {}
+
     template <typename S>
     using single_value_sender_t =
         std::bool_constant<single_sender<S, set_value_t, env_of_t<Rcvr>>>;
@@ -359,6 +361,8 @@ struct sync_op_state
     template <typename... Args> auto notify_error(Args &&...args) -> void {
         this->store_error(std::forward<Args>(args)...);
     }
+
+    auto notify_stopped() -> void {}
 
     template <typename S>
     using single_value_sender_t =
