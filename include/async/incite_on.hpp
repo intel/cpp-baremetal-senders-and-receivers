@@ -130,8 +130,9 @@ template <typename Sched, typename S> struct sender {
     }
 
     template <async::receiver R>
-        requires multishot_sender<S> and std::copy_constructible<S> and
-                 std::copy_constructible<Sched>
+        requires multishot_sender<
+                     S, async::detail::universal_receiver<env_of_t<R>>> and
+                 std::copy_constructible<S> and std::copy_constructible<Sched>
     [[nodiscard]] constexpr auto
     connect(R &&r) const & -> op_state<Sched, std::remove_cvref_t<R>, S> {
         check_connect<sender, R>();

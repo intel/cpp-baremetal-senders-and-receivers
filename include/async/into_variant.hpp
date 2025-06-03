@@ -74,7 +74,8 @@ struct sender {
     }
 
     template <async::receiver R>
-        requires multishot_sender<S>
+        requires multishot_sender<
+            S, async::detail::universal_receiver<env_of_t<R>>>
     [[nodiscard]] constexpr auto connect(R &&r) const & {
         check_connect<sender const &, R>();
         using env_t = env_of_t<std::remove_cvref_t<R>>;
