@@ -4,6 +4,7 @@
 #include <async/connect.hpp>
 #include <async/into_variant.hpp>
 #include <async/just.hpp>
+#include <async/schedulers/trigger_scheduler.hpp>
 #include <async/start.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
@@ -96,6 +97,23 @@ TEST_CASE("sending N possible completions", "[into_variant]") {
         }});
     async::start(op);
     CHECK(value == 2);
+}
+
+TEST_CASE("sending 2 possible completions (same type)", "[into_variant]") {
+    int value{};
+    auto s = async::make_variant_sender(
+        true, [] { return async::just(42); },
+        [] { return async::trigger_scheduler<"", int>{}.schedule(); });
+    auto iv = async::into_variant(s);
+    auto op = async::connect(
+        iv, receiver{[&](auto i) {
+            static_assert(
+                std::same_as<decltype(i), std::variant<stdx::tuple<int>>>);
+            std::visit([&](stdx::tuple<int> const &t) { value = get<0>(t); },
+                       i);
+        }});
+    async::start(op);
+    CHECK(value == 42);
 }
 
 TEST_CASE("sending void values", "[into_variant]") {
