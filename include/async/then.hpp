@@ -207,7 +207,9 @@ struct sender {
     }
 
     template <async::receiver R>
-        requires multishot_sender<S> and (... and std::copy_constructible<Fs>)
+        requires multishot_sender<
+                     S, async::detail::universal_receiver<env_of_t<R>>> and
+                 (... and std::copy_constructible<Fs>)
     [[nodiscard]] constexpr auto connect(R &&r) const & {
         check_connect<sender const &, R>();
         return async::connect(

@@ -125,8 +125,9 @@ template <stdx::ct_string Name, typename S, std::invocable F> struct sender {
     }
 
     template <async::receiver R>
-        requires multishot_sender<S> and std::copy_constructible<S> and
-                 std::copy_constructible<F>
+        requires multishot_sender<
+                     S, async::detail::universal_receiver<env_of_t<R>>> and
+                 std::copy_constructible<S> and std::copy_constructible<F>
     [[nodiscard]] constexpr auto
     connect(R &&r) const & -> op_state<Name, S, F, std::remove_cvref_t<R>> {
         check_connect<sender, R>();
