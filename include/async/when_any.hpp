@@ -380,13 +380,13 @@ struct nostop_op_state
 };
 
 using stopping_env = prop<get_stop_token_t, inplace_stop_token>;
-template <typename S>
-concept not_stoppable = not stoppable_sender<S, stopping_env>;
+template <typename S, typename R>
+concept not_stoppable = not stoppable_sender<S, env<stopping_env, env_of_t<R>>>;
 
 template <stdx::ct_string Name, typename StopPolicy, typename Rcvr,
           typename... Sndrs>
 constexpr auto select_op_state() {
-    if constexpr ((... and not_stoppable<Sndrs>)) {
+    if constexpr ((... and not_stoppable<Sndrs, Rcvr>)) {
         return std::type_identity<
             nostop_op_state<Name, StopPolicy, Rcvr, Sndrs...>>{};
     } else {
