@@ -10,6 +10,7 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/atomic.hpp>
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
@@ -403,6 +404,16 @@ template <stdx::ct_string Name, typename StopPolicy, typename... Sndrs>
 struct sender : Sndrs... {
     using is_sender = void;
 
+    template <typename Env> CONSTEVAL static auto check_completeable() -> void {
+        static_assert(
+            not boost::mp11::mp_any<std::is_same<
+                completion_signatures<>,
+                completion_signatures_of_t<Sndrs, env<stopping_env, Env>>>...>::
+                value,
+            "Connect: when_any<> has a subsender that never completes (even "
+            "when cancelled)");
+    }
+
     template <typename Env>
     [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
         -> boost::mp11::mp_unique<
@@ -414,6 +425,7 @@ struct sender : Sndrs... {
     [[nodiscard]] constexpr auto connect(R &&r)
         && -> op_state_t<Name, StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender &&, R>();
+        check_completeable<env_of_t<std::remove_cvref_t<R>>>();
         return {std::move(*this), std::forward<R>(r)};
     }
 
@@ -426,6 +438,7 @@ struct sender : Sndrs... {
     [[nodiscard]] constexpr auto connect(R &&r) const
         & -> op_state_t<Name, StopPolicy, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender const &, R>();
+        check_completeable<env_of_t<std::remove_cvref_t<R>>>();
         return {*this, std::forward<R>(r)};
     }
 };
