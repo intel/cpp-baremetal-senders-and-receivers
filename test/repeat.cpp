@@ -134,6 +134,21 @@ TEST_CASE("repeat can be cancelled", "[repeat]") {
     CHECK(var == 44);
 }
 
+TEST_CASE("repeat can be cancelled even for a sender that cannot", "[repeat]") {
+    int var{};
+    stoppable_receiver r{[&] { var += 42; }};
+
+    auto sub = async::just_result_of([&] {
+        if (++var == 2) {
+            r.request_stop();
+        }
+    });
+    auto s = sub | async::repeat();
+    auto op = async::connect(s, r);
+    async::start(op);
+    CHECK(var == 44);
+}
+
 TEST_CASE("repeat may complete synchronously", "[repeat]") {
     int var{};
     auto sub = async::just() | async::then([&] { ++var; });

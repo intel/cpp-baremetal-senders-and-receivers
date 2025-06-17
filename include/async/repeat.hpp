@@ -80,11 +80,11 @@ struct op_state {
     constexpr auto start() & -> void {
         setup();
         if constexpr (synchronous_t<state_t>::value) {
-            run_sync();
+            while (state.has_value()) {
+                begin_loop();
+            }
         } else {
-            debug_signal<"start", debug::erased_context_for<op_state>>(
-                get_env(rcvr));
-            async::start(*state);
+            begin_loop();
         }
     }
 
@@ -93,12 +93,16 @@ struct op_state {
             [&] { return connect(sndr, receiver_t{this}); }});
     }
 
-    constexpr auto run_sync() -> void {
-        while (state.has_value()) {
-            debug_signal<"start", debug::erased_context_for<op_state>>(
-                get_env(rcvr));
-            async::start(*state);
+    constexpr auto begin_loop() -> void {
+        if constexpr (not stoppable_sender<Sndr, env_of_t<Rcvr>>) {
+            if (get_stop_token(get_env(rcvr)).stop_requested()) {
+                passthrough<set_stopped_t>();
+                return;
+            }
         }
+        debug_signal<"start", debug::erased_context_for<op_state>>(
+            get_env(rcvr));
+        async::start(*state);
     }
 
     template <typename... Args> auto repeat(Args &&...args) -> void {
@@ -107,18 +111,13 @@ struct op_state {
             debug_signal<"eval_predicate", debug::erased_context_for<op_state>>(
                 get_env(rcvr));
             if (pred(args...)) {
-                debug_signal<set_value_t::name,
-                             debug::erased_context_for<op_state>>(
-                    get_env(rcvr));
-                set_value(std::move(rcvr), std::forward<Args>(args)...);
-                state.reset();
+                passthrough<set_value_t>(std::forward<Args>(args)...);
                 return;
             }
         }
+        setup();
         if constexpr (not synchronous_t<state_t>::value) {
-            start();
-        } else {
-            setup();
+            begin_loop();
         }
     }
 
