@@ -45,6 +45,7 @@ template <typename Ops, typename Rcvr> struct receiver {
 };
 
 constexpr auto never_stop = [](auto &&...) { return false; };
+constexpr auto no_loop_fn = [](auto &&...) {};
 
 template <typename Pred, typename Sig, typename = void>
 struct is_callable : std::false_type {};
@@ -58,7 +59,7 @@ template <typename Pred> struct callable_with {
 };
 
 template <stdx::ct_string Name, typename Sndr, typename Rcvr,
-          stdx::callable Pred>
+          stdx::callable Pred, typename LoopFn>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using receiver_t = receiver<op_state, Rcvr>;
@@ -68,18 +69,22 @@ struct op_state {
         "Predicate is not callable with value completions of sender");
     using state_t = async::connect_result_t<Sndr &, receiver_t>;
 
-    template <stdx::same_as_unqualified<Sndr> S,
-              stdx::same_as_unqualified<Rcvr> R,
-              stdx::same_as_unqualified<Pred> P>
+    template <
+        stdx::same_as_unqualified<Sndr> S, stdx::same_as_unqualified<Rcvr> R,
+        stdx::same_as_unqualified<Pred> P, stdx::same_as_unqualified<LoopFn> F>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
-    constexpr op_state(S &&s, R &&r, P &&p)
+    constexpr op_state(S &&s, R &&r, P &&p, F &&f)
         : sndr{std::forward<S>(s)}, rcvr{std::forward<R>(r)},
-          pred{std::forward<P>(p)} {}
+          pred{std::forward<P>(p)}, loop_fn{std::forward<F>(f)} {}
     constexpr op_state(op_state &&) = delete;
 
     constexpr auto start() & -> void {
         setup();
-        if constexpr (synchronous_t<state_t>::value) {
+        if constexpr (synchronous<state_t>) {
+            static_assert(
+                std::same_as<LoopFn, std::remove_cvref_t<decltype(no_loop_fn)>>,
+                "repeat cannot have a loop function when the sender "
+                "it wraps is synchronous!");
             while (state.has_value()) {
                 begin_loop();
             }
@@ -93,16 +98,17 @@ struct op_state {
             [&] { return connect(sndr, receiver_t{this}); }});
     }
 
-    constexpr auto begin_loop() -> void {
+    constexpr auto begin_loop() -> bool {
         if constexpr (not stoppable_sender<Sndr, env_of_t<Rcvr>>) {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
                 passthrough<set_stopped_t>();
-                return;
+                return false;
             }
         }
         debug_signal<"start", debug::erased_context_for<op_state>>(
             get_env(rcvr));
         async::start(*state);
+        return true;
     }
 
     template <typename... Args> auto repeat(Args &&...args) -> void {
@@ -116,8 +122,10 @@ struct op_state {
             }
         }
         setup();
-        if constexpr (not synchronous_t<state_t>::value) {
-            begin_loop();
+        if constexpr (not synchronous<state_t>) {
+            if (begin_loop()) {
+                loop_fn(std::forward<Args>(args)...);
+            }
         }
     }
 
@@ -136,14 +144,17 @@ struct op_state {
     [[no_unique_address]] Sndr sndr;
     [[no_unique_address]] Rcvr rcvr;
     [[no_unique_address]] Pred pred;
+    [[no_unique_address]] LoopFn loop_fn;
 
     std::optional<state_t> state{};
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
+template <stdx::ct_string Name, typename Sndr, typename Pred, typename LoopFn>
+struct sender {
     using is_sender = void;
     [[no_unique_address]] Sndr sndr;
     [[no_unique_address]] Pred p;
+    [[no_unique_address]] LoopFn f;
 
     [[nodiscard]] constexpr auto query(async::get_env_t) const {
         return forward_env_of(sndr);
@@ -164,53 +175,58 @@ template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
 
     template <receiver_from<Sndr> R>
         requires multishot_sender<Sndr, R>
-    [[nodiscard]] constexpr auto connect(
-        R &&r) const & -> op_state<Name, Sndr, std::remove_cvref_t<R>, Pred> {
-        return {sndr, std::forward<R>(r), p};
+    [[nodiscard]] constexpr auto connect(R &&r)
+        const & -> op_state<Name, Sndr, std::remove_cvref_t<R>, Pred, LoopFn> {
+        return {sndr, std::forward<R>(r), p, f};
     }
 };
 
-template <stdx::ct_string Name, stdx::callable Pred> struct pipeable {
+template <stdx::ct_string Name, stdx::callable Pred, stdx::callable LoopFn>
+struct pipeable {
     Pred p;
+    LoopFn f;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Name, std::remove_cvref_t<S>, Pred>{
-            std::forward<S>(s), std::forward<Self>(self).p};
+        return sender<Name, std::remove_cvref_t<S>, Pred, LoopFn>{
+            std::forward<S>(s), std::forward<Self>(self).p,
+            std::forward<Self>(self).f};
     }
 };
 } // namespace _repeat
 
-template <stdx::ct_string Name = "repeat_until", typename P>
-[[nodiscard]] constexpr auto repeat_until(P &&p)
-    -> _repeat::pipeable<Name, std::remove_cvref_t<P>> {
-    return {std::forward<P>(p)};
+template <stdx::ct_string Name = "repeat_until", typename P,
+          typename F = std::remove_cvref_t<decltype(_repeat::no_loop_fn)>>
+[[nodiscard]] constexpr auto repeat_until(P &&p, F &&f = {})
+    -> _repeat::pipeable<Name, std::remove_cvref_t<P>, std::remove_cvref_t<F>> {
+    return {std::forward<P>(p), std::forward<F>(f)};
 }
 
-template <stdx::ct_string Name = "repeat_until", sender S, typename P>
-[[nodiscard]] auto repeat_until(S &&s, P &&p) {
-    return std::forward<S>(s) | repeat_until(std::forward<P>(p));
+template <stdx::ct_string Name = "repeat_until", sender S, typename... Args>
+[[nodiscard]] auto repeat_until(S &&s, Args &&...args) {
+    return std::forward<S>(s) | repeat_until(std::forward<Args>(args)...);
 }
 
-template <stdx::ct_string Name = "repeat">
-[[nodiscard]] constexpr auto repeat() {
-    return repeat_until<Name>(_repeat::never_stop);
+template <stdx::ct_string Name = "repeat", typename... Args>
+[[nodiscard]] constexpr auto repeat(Args &&...args) {
+    return repeat_until<Name>(_repeat::never_stop, std::forward<Args>(args)...);
 }
 
-template <stdx::ct_string Name = "repeat", sender S>
-[[nodiscard]] auto repeat(S &&s) {
-    return std::forward<S>(s) | repeat<Name>();
+template <stdx::ct_string Name = "repeat", sender S, typename... Args>
+[[nodiscard]] auto repeat(S &&s, Args &&...args) {
+    return std::forward<S>(s) | repeat<Name>(std::forward<Args>(args)...);
 }
 
-template <stdx::ct_string Name = "repeat_n">
-[[nodiscard]] constexpr auto repeat_n(unsigned int n) {
-    return repeat_until<Name>([n](auto &&...) mutable { return n-- == 0; });
+template <stdx::ct_string Name = "repeat_n", typename... Args>
+[[nodiscard]] constexpr auto repeat_n(unsigned int n, Args &&...args) {
+    return repeat_until<Name>([n](auto &&...) mutable { return n-- == 0; },
+                              std::forward<Args>(args)...);
 }
 
-template <stdx::ct_string Name = "repeat_n", sender S>
-[[nodiscard]] auto repeat_n(S &&s, unsigned int n) {
-    return std::forward<S>(s) | repeat_n<Name>(n);
+template <stdx::ct_string Name = "repeat_n", sender S, typename... Args>
+[[nodiscard]] auto repeat_n(S &&s, unsigned int n, Args &&...args) {
+    return std::forward<S>(s) | repeat_n<Name>(n, std::forward<Args>(args)...);
 }
 
 struct repeat_t;

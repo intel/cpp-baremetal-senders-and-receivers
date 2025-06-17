@@ -287,6 +287,34 @@ interacts with the `time_scheduler` to eliminate any drift caused by
 bookkeeping. `repeat` of a periodic task may exhibit drift. `periodic` must work
 with a `time_scheduler` sender; `repeat` can work with any sender.
 
+`repeat` can also be given a "loop function". This is a synchronous function
+that runs _after_ the repeated sender each time "around the loop". This is
+useful for situations where the execution of the sender depends on some other
+stimulus, and it avoids a race condition in the same way that
+xref:sender_adaptors.adoc#_incite_on[`incite_on`] does.
+
+[source,cpp]
+----
+auto s = trigger_scheduler<"recv response", Rsp>{}.schedule()
+       | then([] (Rsp r) { /* handle response */ })
+       | async::repeat([] { /* send another request */ );
+start_detached(s);
+
+// At this point, s is waiting for a response (which will incite the trigger).
+// When we send a request (including the first one), a response may come immediately.
+
+send_first_request();
+
+// s will handle the response, then send another request, repeating until cancelled.
+// It is important that s be ready to receive a response BEFORE each request is sent.
+// Otherwise (in a race avoided by this construction) it may miss the response to its request.
+----
+
+The loop function arguments (if any) are what the repeated sender sends.
+
+NOTE: The "loop function" given to `repeat` will not be run on (before) the "first
+iteration" of the loop. Nor will it be run after cancellation.
+
 === `repeat_n`
 
 Found in the header: `async/repeat.hpp`
