@@ -8,6 +8,7 @@
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/schedulers/trigger_scheduler.hpp>
 #include <async/sequence.hpp>
 #include <async/start_on.hpp>
 #include <async/then.hpp>
@@ -268,4 +269,29 @@ TEST_CASE(
                              }});
     async::start(op);
     CHECK(var == -1);
+}
+
+TEST_CASE("repeat with a loop function", "[repeat]") {
+    int sum{};
+    int var{};
+    stoppable_receiver r{[&] { var += 42; }};
+
+    auto sub =
+        async::trigger_scheduler<"sched">{}.schedule() | async::then([&] {
+            if (++var == 2) {
+                r.request_stop();
+            }
+            return 17;
+        });
+    auto s = sub | async::repeat([&](auto n) {
+                 sum += n;
+                 async::run_triggers<"sched">();
+             });
+    auto op = async::connect(s, r);
+    async::start(op);
+    async::run_triggers<"sched">();
+
+    CHECK(var == 44);
+    CHECK(sum == 34);
+    CHECK(async::triggers<"sched">.empty());
 }

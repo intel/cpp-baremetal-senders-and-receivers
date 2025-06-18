@@ -146,7 +146,7 @@ struct op_state {
     constexpr op_state(op_state &&) = delete;
 
     constexpr auto start() & -> void {
-        static_assert(not synchronous_t<first_state_t>::value,
+        static_assert(not synchronous<first_state_t>,
                       "periodic doesn't make sense with synchronous senders");
 
         state.template emplace<1>(stdx::with_result_of{
@@ -157,6 +157,13 @@ struct op_state {
     }
 
     constexpr auto restart() & -> void {
+        if constexpr (not stoppable_sender<Sndr, env_of_t<Rcvr>>) {
+            if (get_stop_token(get_env(rcvr)).stop_requested()) {
+                passthrough<set_stopped_t>();
+                return;
+            }
+        }
+
         state.template emplace<2>(stdx::with_result_of{
             [&] { return connect(sndr, nth_receiver_t{this}); }});
         debug_signal<"start", debug::erased_context_for<op_state>>(
@@ -170,11 +177,7 @@ struct op_state {
             debug_signal<"eval_predicate", debug::erased_context_for<op_state>>(
                 get_env(rcvr));
             if (pred(args...)) {
-                debug_signal<set_value_t::name,
-                             debug::erased_context_for<op_state>>(
-                    get_env(rcvr));
-                set_value(std::move(rcvr), std::forward<Args>(args)...);
-                state.template emplace<0>();
+                passthrough<set_value_t>(std::forward<Args>(args)...);
                 return;
             }
         }
