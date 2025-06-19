@@ -63,6 +63,37 @@ NOTE: The incited scheduler must produce a sender which completes
 asynchronously. A synchronous scheduler would require no incitement, and
 `continue_on` would be correct.
 
+=== `incite_on_any`
+
+Found in the header: `async/incite_on.hpp`
+
+Sometimes it's useful to run a function which might incite any of a number of
+trigger schedulers. That's what `incite_on_any` is for.
+
+[source,cpp]
+----
+auto sndr = async::just([] { send_request(); })
+          | async::incite_on_any(trigger_scheduler<"msg0", msg0_t>{},
+                                 trigger_scheduler<"msg1", msg1_t>{},
+                                 trigger_scheduler<"msg2", msg2_t>{})
+          | async::then(stdx::overload{
+                            [] (msg0_t msg) { /* handle msg */ },
+                            [] (msg1_t msg) { /* handle msg */ },
+                            [] (msg2_t msg) { /* handle msg */ }
+                        });
+
+auto on_recv_message(auto msg) {
+  switch (msg_type(msg)) {
+    case MSG_0:
+      async::run_triggers<"msg0">(to<msg0_t>(msg)); break;
+    case MSG_1:
+      async::run_triggers<"msg1">(to<msg1_t>(msg)); break;
+    case MSG_2:
+      async::run_triggers<"msg2">(to<msg2_t>(msg)); break;
+  }
+}
+----
+
 === `into_variant`
 
 Found in the header: `async/into_variant.hpp`

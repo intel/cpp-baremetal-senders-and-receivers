@@ -10,12 +10,25 @@
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/ct_conversions.hpp>
 #include <stdx/ct_string.hpp>
 
 #include <optional>
 
 namespace async {
 namespace trigger_mgr {
+template <typename T>
+constexpr auto name_of(T)
+    -> stdx::ct_string<stdx::type_as_string<T>().size() + 1> {
+    return stdx::ct_string<stdx::type_as_string<T>().size() + 1>{
+        stdx::type_as_string<T>()};
+}
+
+template <stdx::ct_string S>
+constexpr auto name_of(stdx::cts_t<S>) -> decltype(S) {
+    return S;
+}
+
 template <typename Rcvr, typename Ops> struct op_state_base {
     auto check_stopped() -> bool {
         return get_stop_token(get_env(as_derived().rcvr)).stop_requested();
@@ -147,7 +160,7 @@ struct trigger_scheduler_sender_t;
 template <typename Name, typename Rcvr, typename... Args>
 struct debug::context_for<trigger_mgr::op_state<Name, Rcvr, Args...>> {
     using tag = trigger_scheduler_sender_t;
-    constexpr static auto name = Name::value;
+    constexpr static auto name = trigger_mgr::name_of(Name{});
     using children = stdx::type_list<>;
     using type = trigger_mgr::op_state<Name, Rcvr, Args...>;
 };
