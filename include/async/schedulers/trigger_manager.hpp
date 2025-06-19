@@ -35,7 +35,7 @@ template <typename... Args> struct trigger_task {
     }
 };
 
-template <stdx::ct_string Name, typename... Args> struct trigger_manager {
+template <typename Name, typename... Args> struct trigger_manager {
     using task_t = trigger_task<Args...>;
 
   private:
@@ -83,13 +83,19 @@ template <stdx::ct_string Name, typename... Args> struct trigger_manager {
     [[nodiscard]] auto empty() const -> bool { return task_count == 0; }
 };
 
-template <stdx::ct_string Name, typename... Args>
+template <typename Name, typename... Args>
 inline auto triggers = trigger_manager<Name, Args...>{};
 
-template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
+template <typename Name, typename RQP = requeue_policy::deferred,
           typename... Args>
 auto run_triggers(Args &&...args) -> void {
     triggers<Name, std::remove_cvref_t<Args>...>.template run<RQP>(
         std::forward<Args>(args)...);
+}
+
+template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
+          typename... Args>
+auto run_triggers(Args &&...args) -> void {
+    run_triggers<stdx::cts_t<Name>, RQP>(std::forward<Args>(args)...);
 }
 } // namespace async

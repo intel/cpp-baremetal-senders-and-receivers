@@ -69,13 +69,13 @@ TEMPLATE_TEST_CASE("trigger_scheduler schedules tasks", "[trigger_scheduler]",
         async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto op = async::connect(sndr, universal_receiver{});
 
-    async::triggers<name>.run();
+    async::triggers<stdx::cts_t<name>>.run();
     CHECK(var == 0);
 
     async::start(op);
-    async::triggers<name>.run();
+    async::triggers<stdx::cts_t<name>>.run();
     CHECK(var == 42);
-    CHECK(async::triggers<name>.empty());
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler can be triggered with arguments",
@@ -91,10 +91,10 @@ TEMPLATE_TEST_CASE("trigger_scheduler can be triggered with arguments",
     CHECK(var == 0);
 
     async::start(op);
-    CHECK(not async::triggers<name, int>.empty());
+    CHECK(not async::triggers<stdx::cts_t<name>, int>.empty());
     async::run_triggers<name>(42);
     CHECK(var == 42);
-    CHECK(async::triggers<name, int>.empty());
+    CHECK(async::triggers<stdx::cts_t<name>, int>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler is cancellable before start",
@@ -110,7 +110,7 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable before start",
     r.request_stop();
     async::start(op);
     CHECK(var == 17);
-    CHECK(async::triggers<name>.empty());
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler is cancellable after start",
@@ -126,7 +126,7 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable after start",
     async::start(op);
     r.request_stop();
     CHECK(var == 17);
-    CHECK(async::triggers<name>.empty());
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
 }
 
 TEST_CASE("request and response", "[trigger_scheduler]") {
@@ -150,14 +150,14 @@ TEST_CASE("request and response", "[trigger_scheduler]") {
     CHECK(async::start_detached(s));
 
     CHECK(var == 0);
-    async::triggers<"client">.run();
+    async::run_triggers<"client">();
     CHECK(var == 1);
-    async::triggers<"server">.run();
+    async::run_triggers<"server">();
     CHECK(var == 2);
-    async::triggers<"client">.run();
+    async::run_triggers<"client">();
     CHECK(var == 86);
-    CHECK(async::triggers<"client">.empty());
-    CHECK(async::triggers<"server">.empty());
+    CHECK(async::triggers<stdx::cts_t<"client">>.empty());
+    CHECK(async::triggers<stdx::cts_t<"server">>.empty());
 }
 
 namespace {
@@ -191,7 +191,7 @@ TEST_CASE("trigger_scheduler can be debugged", "[trigger_scheduler]") {
 
     async::start(op);
     CHECK(debug_events == std::vector{"op sched start"s});
-    async::triggers<"sched">.run();
+    async::run_triggers<"sched">();
     CHECK(debug_events ==
           std::vector{"op sched start"s, "op sched set_value"s});
 }
