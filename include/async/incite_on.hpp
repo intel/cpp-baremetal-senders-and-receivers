@@ -7,7 +7,11 @@
 #include <async/connect.hpp>
 #include <async/debug.hpp>
 #include <async/env.hpp>
+#include <async/schedulers/trigger_scheduler.hpp>
+#include <async/sequence.hpp>
+#include <async/then.hpp>
 #include <async/type_traits.hpp>
+#include <async/when_any.hpp>
 
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
@@ -157,6 +161,7 @@ template <typename Sched> struct pipeable {
             std::forward<Self>(self).sched, std::forward<S>(s)};
     }
 };
+
 } // namespace _incite_on
 
 template <typename Sched>
@@ -168,6 +173,50 @@ template <typename Sched>
 template <sender S, typename Sched>
 [[nodiscard]] constexpr auto incite_on(S &&s, Sched &&sched) -> sender auto {
     return std::forward<S>(s) | incite_on(std::forward<Sched>(sched));
+}
+
+namespace _incite_on {
+template <typename Uniq>
+class trigger_scheduler
+    : public trigger_mgr::scheduler<trigger_scheduler<Uniq>, Uniq> {
+    [[nodiscard]] friend constexpr auto operator==(trigger_scheduler,
+                                                   trigger_scheduler)
+        -> bool = default;
+};
+
+template <typename Uniq, typename... Scheds> struct any_pipeable {
+    stdx::tuple<Scheds...> scheds;
+
+  private:
+    template <async::sender S, stdx::same_as_unqualified<any_pipeable> Self>
+    friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
+        return std::forward<Self>(self).scheds.apply(
+            [&]<typename... Ss>(Ss &&...ss) {
+                return s | then([&]<typename F>(F &&f) {
+                           return [f = std::forward<F>(f)] {
+                               run_triggers<Uniq>();
+                               std::move(f)();
+                           };
+                       }) |
+                       incite_on(trigger_scheduler<Uniq>{}) |
+                       seq(when_any(std::forward<Ss>(ss).schedule()...));
+            });
+    }
+};
+} // namespace _incite_on
+
+template <typename Uniq = decltype([] {}), typename... Scheds>
+[[nodiscard]] constexpr auto incite_on_any(Scheds &&...scheds) {
+    return _compose::adaptor{
+        _incite_on::any_pipeable<Uniq, std::remove_cvref_t<Scheds>...>{
+            std::forward<Scheds>(scheds)...}};
+}
+
+template <typename Uniq = decltype([] {}), sender S, typename... Scheds>
+[[nodiscard]] constexpr auto incite_on_any(S &&s, Scheds &&...scheds) -> sender
+    auto {
+    return std::forward<S>(s) |
+           incite_on_any<Uniq>(std::forward<Scheds>(scheds)...);
 }
 
 struct incite_on_t;

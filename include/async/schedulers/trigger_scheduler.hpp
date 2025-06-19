@@ -10,12 +10,25 @@
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/ct_conversions.hpp>
 #include <stdx/ct_string.hpp>
 
 #include <optional>
 
 namespace async {
 namespace trigger_mgr {
+template <typename T>
+constexpr auto name_of(T)
+    -> stdx::ct_string<stdx::type_as_string<T>().size() + 1> {
+    return stdx::ct_string<stdx::type_as_string<T>().size() + 1>{
+        stdx::type_as_string<T>()};
+}
+
+template <stdx::ct_string S>
+constexpr auto name_of(stdx::cts_t<S>) -> decltype(S) {
+    return S;
+}
+
 template <typename Rcvr, typename Ops> struct op_state_base {
     auto check_stopped() -> bool {
         return get_stop_token(get_env(as_derived().rcvr)).stop_requested();
@@ -54,7 +67,7 @@ struct op_state_base<Rcvr, Ops> {
     auto clear_stop_cb() -> void {}
 };
 
-template <stdx::ct_string Name, typename Rcvr, typename... Args>
+template <typename Name, typename Rcvr, typename... Args>
 struct op_state final : op_state_base<Rcvr, op_state<Name, Rcvr, Args...>>,
                         trigger_task<Args...> {
     template <stdx::same_as_unqualified<Rcvr> R>
@@ -92,15 +105,13 @@ struct op_state final : op_state_base<Rcvr, op_state<Name, Rcvr, Args...>>,
 
     [[no_unique_address]] Rcvr rcvr;
 };
-} // namespace trigger_mgr
 
-template <stdx::ct_string Name, typename... Args> class trigger_scheduler {
+template <typename S, typename Name, typename... Args> class scheduler {
     struct sender {
         using is_sender = void;
 
         [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
-            return prop{get_completion_scheduler_t<set_value_t>{},
-                        trigger_scheduler{}};
+            return prop{get_completion_scheduler_t<set_value_t>{}, S{}};
         }
 
         template <typename Env>
@@ -127,20 +138,29 @@ template <stdx::ct_string Name, typename... Args> class trigger_scheduler {
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(trigger_scheduler,
-                                                   trigger_scheduler)
+    [[nodiscard]] friend constexpr auto operator==(scheduler, scheduler)
         -> bool = default;
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender { return {}; }
 };
+} // namespace trigger_mgr
+
+template <stdx::ct_string Name, typename... Args>
+class trigger_scheduler
+    : public trigger_mgr::scheduler<trigger_scheduler<Name, Args...>,
+                                    stdx::cts_t<Name>, Args...> {
+    [[nodiscard]] friend constexpr auto operator==(trigger_scheduler,
+                                                   trigger_scheduler)
+        -> bool = default;
+};
 
 struct trigger_scheduler_sender_t;
 
-template <stdx::ct_string Name, typename Rcvr, typename... Args>
+template <typename Name, typename Rcvr, typename... Args>
 struct debug::context_for<trigger_mgr::op_state<Name, Rcvr, Args...>> {
     using tag = trigger_scheduler_sender_t;
-    constexpr static auto name = Name;
+    constexpr static auto name = trigger_mgr::name_of(Name{});
     using children = stdx::type_list<>;
     using type = trigger_mgr::op_state<Name, Rcvr, Args...>;
 };

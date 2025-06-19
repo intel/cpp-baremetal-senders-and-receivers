@@ -293,5 +293,5 @@ TEST_CASE("repeat with a loop function", "[repeat]") {
 
     CHECK(var == 44);
     CHECK(sum == 34);
-    CHECK(async::triggers<"sched">.empty());
+    CHECK(async::triggers<stdx::cts_t<"sched">>.empty());
 }
