@@ -107,11 +107,7 @@ struct op_state {
             debug_signal<"eval_predicate", debug::erased_context_for<op_state>>(
                 get_env(rcvr));
             if (pred(args...)) {
-                debug_signal<set_error_t::name,
-                             debug::erased_context_for<op_state>>(
-                    get_env(rcvr));
-                set_error(std::move(rcvr), std::forward<Args>(args)...);
-                state.reset();
+                passthrough<set_error_t>(std::forward<Args>(args)...);
                 return;
             }
         }
@@ -124,10 +120,10 @@ struct op_state {
 
     template <channel_tag Tag, typename... Args>
     auto passthrough(Args &&...args) -> void {
+        state.reset();
         debug_signal<Tag::name, debug::erased_context_for<op_state>>(
             get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
-        state.reset();
     }
 
     [[nodiscard]] constexpr auto query(async::get_env_t) const {

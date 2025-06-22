@@ -131,10 +131,10 @@ struct op_state {
 
     template <channel_tag Tag, typename... Args>
     auto passthrough(Args &&...args) -> void {
+        state.reset();
         debug_signal<Tag::name, debug::erased_context_for<op_state>>(
             get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
-        state.reset();
     }
 
     [[nodiscard]] constexpr auto query(async::get_env_t) const {
