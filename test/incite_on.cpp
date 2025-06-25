@@ -131,3 +131,15 @@ TEST_CASE("incite_on can be debugged with a string", "[incite_on]") {
     CHECK(debug_events ==
           std::vector{"op incite_on start"s, "op incite_on set_value"s});
 }
+
+TEST_CASE("incite_on_any", "[incite_on]") {
+    int value{};
+    auto const s = async::just([] { async::run_triggers<"1">(42); }) |
+                   async::incite_on_any(async::trigger_scheduler<"0", bool>{},
+                                        async::trigger_scheduler<"1", int>{});
+    auto op = async::connect(s, receiver{[&](int x) { value = x; }});
+    async::start(op);
+    CHECK(value == 42);
+    CHECK(async::triggers<stdx::cts_t<"0">>.empty());
+    CHECK(async::triggers<stdx::cts_t<"1">>.empty());
+}

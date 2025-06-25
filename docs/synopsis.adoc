@@ -60,6 +60,7 @@ in pipe-composition syntax.
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[incite_on.hpp]
 * `incite_on` - a xref:sender_adaptors.adoc#_incite_on[sender adaptor] that incites execution on another scheduler
+* `incite_on_any` - a xref:sender_adaptors.adoc#_incite_on_any[sender adaptor] that incites execution on any of a number of schedulers
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/into_variant.hpp[into_variant.hpp]
 * `into_variant` - a xref:sender_adaptors.adoc#_into_variant[sender adaptor] that collapses value completions into a variant
@@ -235,6 +236,7 @@ contains traits and metaprogramming constructs used by many senders.
 * `get_scheduler` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/get_scheduler.hpp[`#include <async/get_scheduler.hpp>`]
 * `get_stop_token` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/stop_token.hpp[`#include <async/stop_token.hpp>`]
 * xref:sender_adaptors.adoc#_incite_on[`incite_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[`#include <async/incite_on.hpp>`]
+* xref:sender_adaptors.adoc#_incite_on_any[`incite_on_any`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/incite_on.hpp[`#include <async/incite_on.hpp>`]
 * xref:debug.adoc#_handling_a_debug_signal[`injected_debug_handler<>`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]
 * `injected_task_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * `injected_timer_manager<>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/timer_manager_interface.hpp[`#include <async/schedulers/timer_manager_interface.hpp>`]
