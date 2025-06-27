@@ -422,6 +422,13 @@ template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
 using op_state_t =
     typename decltype(select_op_state<Name, Rcvr, Sndrs...>())::type;
 
+namespace detail {
+template <typename S, typename Tag, typename E>
+concept allowed_sender =
+    single_sender<S, Tag, E> or
+    std::same_as<value_signatures_of_t<S, E>, completion_signatures<>>;
+}
+
 template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
     using is_sender = void;
 
@@ -434,7 +441,7 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
                               boost::mp11::mp_append<typename sub_op_storage<
                                   E, Sndrs>::values_t...>>,
         typename error_op_state<E, error_senders<E, Sndrs...>>::signatures,
-        detail::default_set_stopped<Sndrs, E>...>>;
+        ::async::detail::default_set_stopped<Sndrs, E>...>>;
 
     template <typename Env>
     [[nodiscard]] constexpr static auto get_completion_signatures(Env const &)
@@ -446,18 +453,27 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
     [[nodiscard]] constexpr auto
     connect(R &&r) && -> op_state_t<Name, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender &&, R>();
+        static_assert(
+            (... and detail::allowed_sender<Sndrs, set_value_t,
+                                            env_of_t<std::remove_cvref_t<R>>>),
+            "when_all requires each sender to complete with at most one "
+            "set_value completion");
         return {std::move(*this), std::forward<R>(r)};
     }
 
     template <typename R>
-        requires(
-            ... and
-            multishot_sender<
-                typename Sndrs::sender_t,
-                detail::universal_receiver<env_of_t<std::remove_cvref_t<R>>>>)
+        requires(... and
+                 multishot_sender<typename Sndrs::sender_t,
+                                  ::async::detail::universal_receiver<
+                                      env_of_t<std::remove_cvref_t<R>>>>)
     [[nodiscard]] constexpr auto connect(
         R &&r) const & -> op_state_t<Name, std::remove_cvref_t<R>, Sndrs...> {
         check_connect<sender const &, R>();
+        static_assert(
+            (... and detail::allowed_sender<Sndrs, set_value_t,
+                                            env_of_t<std::remove_cvref_t<R>>>),
+            "when_all requires each sender to complete with at most one "
+            "set_value completion");
         return {*this, std::forward<R>(r)};
     }
 
