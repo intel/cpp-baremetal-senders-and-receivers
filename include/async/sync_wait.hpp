@@ -97,6 +97,13 @@ namespace detail {
 template <typename... Ts>
 using decayed_tuple = stdx::tuple<std::remove_cvref_t<Ts>...>;
 
+template <typename S, typename Tag, typename E>
+concept single_sender = requires {
+    typename async::detail::gather_signatures<
+        Tag, completion_signatures_of_t<S, E>, stdx::tuple,
+        std::type_identity_t>;
+};
+
 template <typename E, sender_in<E> S>
 using sync_wait_type = value_types_of_t<S, E, decayed_tuple, std::optional>;
 } // namespace detail
@@ -113,6 +120,9 @@ template <typename Uniq, typename Env, typename Flavor> class pipeable;
 template <typename Uniq, typename Env>
 class pipeable<Uniq, Env, static_t> : public pipeable_base<Env> {
     template <sender S> static auto wait(S &&s, Env const &e) {
+        static_assert(detail::single_sender<S, set_value_t, Env>,
+                      "sync_wait requires a single set_value completion: "
+                      "consider using into_variant");
         static_assert(sender_in<S, Env>,
                       "Sender given to sync_wait_static cannot run with that "
                       "environment: did you mean to use sync_wait_dynamic?");
@@ -141,6 +151,10 @@ class pipeable<Uniq, Env, dynamic_t> : public pipeable_base<Env> {
         auto sched = rl.get_scheduler();
         auto new_env = env{prop{get_scheduler_t{}, &sched}, e};
         using E = decltype(new_env);
+        static_assert(detail::single_sender<S, set_value_t, E>,
+                      "sync_wait requires a single set_value completion: "
+                      "consider using into_variant");
+
         using V = detail::sync_wait_type<E, S>;
         V values{};
         auto r = dynamic_receiver<V, E, decltype(rl)>{values,
