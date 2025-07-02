@@ -2,6 +2,7 @@
 
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
+#include <async/repeat.hpp>
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
 #include <async/start_on.hpp>
@@ -243,4 +244,23 @@ TEST_CASE("timeout_after can complete with stopped after timeout",
     current_time<alt_domain, tp_t> = tp_t{3s};
     async::timer_mgr::service_task<alt_domain>();
     CHECK(var == 17);
+}
+
+TEST_CASE("timeout_after can timeout a repeat", "[timeout_after]") {
+    current_time<default_domain, tp_t> = tp_t{};
+    int var{};
+    auto s = async::just_result_of([&] {
+                 CHECK(not async::timer_mgr::is_idle());
+                 if (++var > 2) {
+                     async::timer_mgr::service_task();
+                 }
+                 return 42;
+             }) |
+             async::repeat();
+
+    auto to = s | async::timeout_after(2s, 17);
+    auto op = async::connect(to, error_receiver{[&](int i) { var = i; }});
+    async::start(op);
+    CHECK(var == 17);
+    CHECK(async::timer_mgr::is_idle());
 }
