@@ -38,8 +38,19 @@ TEST_CASE("repeat advertises sending error/stopped", "[repeat]") {
     STATIC_REQUIRE(
         std::same_as<async::completion_signatures_of_t<
                          decltype(s), async::env_of_t<decltype(r)>>,
-                     async::completion_signatures<async::set_error_t(int),
-                                                  async::set_stopped_t()>>);
+                     async::completion_signatures<async::set_stopped_t(),
+                                                  async::set_error_t(int)>>);
+}
+
+TEST_CASE("repeat advertises sending stopped even when its wrapped sender is "
+          "not stoppable",
+          "[repeat]") {
+    [[maybe_unused]] auto s = async::just() | async::repeat();
+    [[maybe_unused]] auto r = stoppable_receiver([] {});
+    STATIC_REQUIRE(
+        std::same_as<async::completion_signatures_of_t<
+                         decltype(s), async::env_of_t<decltype(r)>>,
+                     async::completion_signatures<async::set_stopped_t()>>);
 }
 
 TEST_CASE("repeat propagates forwarding queries to its child environment",

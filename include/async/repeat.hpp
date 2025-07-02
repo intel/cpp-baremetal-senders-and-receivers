@@ -149,6 +149,14 @@ struct op_state {
     std::optional<state_t> state{};
 };
 
+namespace detail {
+template <typename Env>
+using stopped_signatures =
+    stdx::conditional_t<unstoppable_token<stop_token_of_t<Env>>,
+                        completion_signatures<>,
+                        completion_signatures<set_stopped_t()>>;
+}
+
 template <stdx::ct_string Name, typename Sndr, typename Pred, typename LoopFn>
 struct sender {
     using is_sender = void;
@@ -167,9 +175,10 @@ struct sender {
         if constexpr (std::same_as<Pred,
                                    std::remove_cvref_t<decltype(never_stop)>>) {
             return transform_completion_signatures_of<
-                Sndr, Env, completion_signatures<>, signatures>{};
+                Sndr, Env, detail::stopped_signatures<Env>, signatures>{};
         } else {
-            return completion_signatures_of_t<Sndr, Env>{};
+            return transform_completion_signatures_of<
+                Sndr, Env, detail::stopped_signatures<Env>>{};
         }
     }
 
