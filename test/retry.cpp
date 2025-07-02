@@ -47,6 +47,18 @@ TEST_CASE("retry advertises sending stopped", "[retry]") {
                      async::completion_signatures<async::set_stopped_t()>>);
 }
 
+TEST_CASE("retry advertises sending stopped even when its wrapped sender is "
+          "not stoppable",
+          "[retry]") {
+    [[maybe_unused]] auto s = async::just() | async::retry();
+    [[maybe_unused]] auto r = stoppable_receiver([] {});
+    STATIC_REQUIRE(
+        std::same_as<async::completion_signatures_of_t<
+                         decltype(s), async::env_of_t<decltype(r)>>,
+                     async::completion_signatures<async::set_stopped_t(),
+                                                  async::set_value_t()>>);
+}
+
 TEST_CASE("retry propagates forwarding queries to its child environment",
           "[retry]") {
     auto s = custom_sender{};
@@ -102,6 +114,22 @@ TEST_CASE("retry can be cancelled", "[retry]") {
                    return async::just_error(17);
                });
     auto s = async::when_all(sub, stoppable_just()) | async::retry();
+    auto op = async::connect(s, r);
+    async::start(op);
+    CHECK(var == 44);
+}
+
+TEST_CASE("retry can be cancelled even for a sender that cannot", "[retry]") {
+    int var{};
+    stoppable_receiver r{[&] { var += 42; }};
+
+    auto sub = async::just_error_result_of([&] {
+        if (++var == 2) {
+            r.request_stop();
+        }
+        return 42;
+    });
+    auto s = sub | async::retry();
     auto op = async::connect(s, r);
     async::start(op);
     CHECK(var == 44);
