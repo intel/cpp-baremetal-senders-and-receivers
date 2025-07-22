@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completes_synchronously.hpp>
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
@@ -257,5 +258,23 @@ struct debug::context_for<_sync_wait::receiver<Ts...>> {
     constexpr static auto name = stdx::ct_string{"sync_wait"};
     using children = stdx::type_list<>;
     using type = _sync_wait::receiver<Ts...>;
+};
+
+namespace _sync_wait {
+template <sender S, typename Env> constexpr auto trivially_waitable() {
+    if constexpr (not detail::single_sender<S, set_value_t, Env> or
+                  not sender_in<S, Env>) {
+        return std::false_type{};
+    } else {
+        using V = detail::sync_wait_type<Env, S>;
+        using O = connect_result_t<S, receiver<V, Env>>;
+        return async::synchronous_t<O>{};
+    }
+}
+} // namespace _sync_wait
+
+template <typename S, typename E = empty_env>
+concept trivially_sync_waitable = requires {
+    { _sync_wait::trivially_waitable<S, E>() } -> std::same_as<std::true_type>;
 };
 } // namespace async
