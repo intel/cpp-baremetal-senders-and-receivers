@@ -141,6 +141,8 @@ struct none {
 };
 
 constexpr inline struct get_fwd_t : async::forwarding_query_t {
+    constexpr static auto name = stdx::ct_string{"get_fwd"};
+
     template <typename T>
     constexpr auto operator()(T &&t) const
         noexcept(noexcept(std::forward<T>(t).query(std::declval<get_fwd_t>())))
@@ -152,6 +154,8 @@ constexpr inline struct get_fwd_t : async::forwarding_query_t {
 } get_fwd{};
 
 constexpr inline struct get_nofwd_t {
+    constexpr static auto name = stdx::ct_string{"get_nofwd"};
+
     template <typename T>
     constexpr auto operator()(T &&t) const noexcept(
         noexcept(std::forward<T>(t).query(std::declval<get_nofwd_t>())))
