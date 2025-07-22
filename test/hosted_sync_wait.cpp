@@ -105,3 +105,18 @@ TEST_CASE("sync_wait can be named and debugged with a string",
     CHECK(debug_events ==
           std::vector{"op sync_wait start"s, "op sync_wait set_value"s});
 }
+
+TEST_CASE("may be trivially_sync_waitable when static", "[hosted_sync_wait]") {
+    auto s1 = async::thread_scheduler{}.schedule();
+    STATIC_REQUIRE(not async::trivially_sync_waitable<decltype(s1)>);
+    auto s2 = async::just(42);
+    STATIC_REQUIRE(async::trivially_sync_waitable<decltype(s2)>);
+}
+
+TEST_CASE("not trivially_sync_waitable when dynamic", "[hosted_sync_wait]") {
+    auto s = async::read_env(async::get_scheduler) |
+             async::let_value([&](auto sched) {
+                 return async::start_on(sched, async::just(42));
+             });
+    STATIC_REQUIRE(not async::trivially_sync_waitable<decltype(s)>);
+}

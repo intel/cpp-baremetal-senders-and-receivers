@@ -153,3 +153,20 @@ Found in the header: `async/sync_wait.hpp`
 
 `sync_wait_static` behaves like `sync_wait_dynamic`, except that it does not
 provide a xref:schedulers.adoc#_runloop_scheduler[`runloop_scheduler`], so further work cannot be appended.
+
+=== `trivially_sync_waitable`
+
+Found in the header: `async/sync_wait.hpp`
+
+A concept that is true when a sender can be passed to
+xref:sender_consumers.adoc#_sync_wait_static[`sync_wait_static`] (given an
+appropriate environment, if necessary) and will complete synchronously.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+static_assert(async::trivially_sync_waitable<decltype(sndr)>);
+----
+
+NOTE: `trivially_sync_waitable` can be given a second argument which is the
+environment type that would be passed to `sync_wait_static`.
