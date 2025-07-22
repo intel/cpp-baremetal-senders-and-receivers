@@ -25,6 +25,17 @@
 #include <type_traits>
 #include <vector>
 
+constexpr inline struct custom_query_t : async::forwarding_query_t {
+    template <typename T>
+    constexpr auto operator()(T &&t) const noexcept(
+        noexcept(std::forward<T>(t).query(std::declval<custom_query_t>())))
+        -> decltype(std::forward<T>(t).query(*this)) {
+        return std::forward<T>(t).query(*this);
+    }
+
+    constexpr auto operator()(...) const { return none{}; }
+} custom_query{};
+
 TEST_CASE("read_env advertises what it sends", "[read_env]") {
     [[maybe_unused]] auto r = stoppable_receiver{[] {}};
     using E = async::env_of_t<decltype(r)>;
@@ -48,6 +59,19 @@ TEST_CASE("read_env sends a value", "[read_env]") {
     auto op = async::connect(s, r);
     async::start(op);
     CHECK(value == 43);
+}
+
+TEST_CASE("read_env is variadic", "[read_env]") {
+    int value{};
+    auto r = with_env{universal_receiver{},
+                      async::env{async::prop{get_fwd_t{}, 42},
+                                 async::prop{custom_query_t{}, 17}}};
+
+    auto s = async::read_env(get_fwd, custom_query) |
+             async::then([&](int x, int y) { value = x + y; });
+    auto op = async::connect(s, r);
+    async::start(op);
+    CHECK(value == 59);
 }
 
 TEST_CASE("read_env with sync_wait_dynamic", "[read_env]") {
@@ -127,20 +151,39 @@ TEST_CASE("read_env can customize the debug name", "[read_env]") {
     CHECK(debug_events == std::vector{"op GST start"s, "op GST set_value"s});
 }
 
-TEST_CASE("read_env provides a fallback name for tags that don't",
+TEST_CASE("read_env with tags that don't have names uses the type as the name",
           "[read_env]") {
     using namespace std::string_literals;
     debug_events.clear();
 
-    auto s = async::read_env(get_fwd);
+    auto s = async::read_env(custom_query);
     auto r =
         with_env{universal_receiver{},
                  async::env{async::prop{async::get_debug_interface_t{},
                                         async::debug::named_interface<"op">{}},
+                            async::prop{custom_query_t{}, 42}}};
+    auto op = async::connect(s, r);
+
+    async::start(op);
+    CHECK(debug_events == std::vector{"op custom_query_t start"s,
+                                      "op custom_query_t set_value"s});
+}
+
+TEST_CASE("read_env with multiple tags provides all the names", "[read_env]") {
+    using namespace std::string_literals;
+    debug_events.clear();
+
+    auto s = async::read_env(custom_query, get_fwd);
+    auto r =
+        with_env{universal_receiver{},
+                 async::env{async::prop{async::get_debug_interface_t{},
+                                        async::debug::named_interface<"op">{}},
+                            async::prop{custom_query_t{}, 42},
                             async::prop{get_fwd_t{}, 42}}};
     auto op = async::connect(s, r);
 
     async::start(op);
     CHECK(debug_events ==
-          std::vector{"op read_env start"s, "op read_env set_value"s});
+          std::vector{"op read_env<custom_query_t,get_fwd> start"s,
+                      "op read_env<custom_query_t,get_fwd> set_value"s});
 }
