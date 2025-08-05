@@ -7,6 +7,7 @@
 #include <stdx/tuple_algorithms.hpp>
 #include <stdx/utility.hpp>
 
+#include <type_traits>
 #include <utility>
 
 namespace async {
@@ -41,4 +42,8 @@ constexpr auto operator|(A &&a, B &&b) {
     return adaptor{stdx::tuple_cat(FWD(a).as, FWD(b).as)};
 }
 } // namespace _compose
+
+template <typename T> constexpr auto compose(T &&t) {
+    return _compose::adaptor<std::remove_cvref_t<T>>{std::forward<T>(t)};
+}
 } // namespace async

@@ -17,8 +17,7 @@
 * `set_value` - a tag used to complete on the value channel
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/compose.hpp[compose.hpp]
-An internal header that contains no public-facing identifiers. `compose.hpp` is used
-in pipe-composition syntax.
+* `compose` - a function that makes a sender adaptor pipe-composable with other sender adaptors.
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[concepts.hpp]
 * `multishot_sender<S>` - a concept modelled by senders where `connect` may operate on lvalues
@@ -222,6 +221,7 @@ contains traits and metaprogramming constructs used by many senders.
 
 * xref:attributes.adoc#_allocator[`allocator`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[`#include <async/allocator.hpp>`]
 * `allocator_of_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/allocator.hpp[`#include <async/allocator.hpp>`]
+* xref:sender_adaptors.adoc#_pipe_syntax[`compose`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/compose.hpp[`#include <async/compose.hpp>`]
 * `connect` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/connect.hpp[`#include <async/connect.hpp>`]
 * xref:sender_adaptors.adoc#_continue_on[`continue_on`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/continue_on.hpp[`#include <async/continue_on.hpp>`]
 * xref:debug.adoc#_naming_senders_and_operations[`debug::make_named_interface`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/debug.hpp[`#include <async/debug.hpp>`]

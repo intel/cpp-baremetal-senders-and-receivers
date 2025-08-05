@@ -110,7 +110,7 @@ struct pipeable {
 template <stdx::ct_string Name = "into_variant",
           template <typename...> typename V = std::variant>
 [[nodiscard]] constexpr auto into_variant() {
-    return _compose::adaptor<_into_variant::pipeable<Name, V>>{};
+    return compose(_into_variant::pipeable<Name, V>{});
 }
 
 template <stdx::ct_string Name = "into_variant",
