@@ -546,9 +546,8 @@ template <stdx::ct_string Name = "first_successful", sender... Sndrs>
 
 template <stdx::ct_string Name = "stop_when", typename Trigger>
 [[nodiscard]] constexpr auto stop_when(Trigger &&t) {
-    return _compose::adaptor{
-        _when_any::pipeable<Name, std::remove_cvref_t<Trigger>>{
-            std::forward<Trigger>(t)}};
+    return compose(_when_any::pipeable<Name, std::remove_cvref_t<Trigger>>{
+        std::forward<Trigger>(t)});
 }
 
 template <stdx::ct_string Name = "stop_when", sender Sndr, sender Trigger>

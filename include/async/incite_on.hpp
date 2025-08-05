@@ -166,8 +166,8 @@ template <typename Sched> struct pipeable {
 
 template <typename Sched>
 [[nodiscard]] constexpr auto incite_on(Sched &&sched) {
-    return _compose::adaptor{_incite_on::pipeable<std::remove_cvref_t<Sched>>{
-        std::forward<Sched>(sched)}};
+    return compose(_incite_on::pipeable<std::remove_cvref_t<Sched>>{
+        std::forward<Sched>(sched)});
 }
 
 template <sender S, typename Sched>
@@ -207,9 +207,9 @@ template <typename Uniq, typename... Scheds> struct any_pipeable {
 
 template <typename Uniq = decltype([] {}), typename... Scheds>
 [[nodiscard]] constexpr auto incite_on_any(Scheds &&...scheds) {
-    return _compose::adaptor{
+    return compose(
         _incite_on::any_pipeable<Uniq, std::remove_cvref_t<Scheds>...>{
-            std::forward<Scheds>(scheds)...}};
+            std::forward<Scheds>(scheds)...});
 }
 
 template <typename Uniq = decltype([] {}), sender S, typename... Scheds>

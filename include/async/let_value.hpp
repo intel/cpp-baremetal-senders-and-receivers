@@ -21,9 +21,9 @@ using sender = _let::sender<Name, S, F, set_value_t>;
 
 template <stdx::ct_string Name = "let_value", stdx::callable F>
 [[nodiscard]] constexpr auto let_value(F &&f) {
-    return _compose::adaptor{
+    return compose(
         _let::pipeable<Name, std::remove_cvref_t<F>, _let_value::sender>{
-            std::forward<F>(f)}};
+            std::forward<F>(f)});
 }
 
 template <stdx::ct_string Name = "let_value", sender S, stdx::callable F>

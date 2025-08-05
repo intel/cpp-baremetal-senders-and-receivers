@@ -274,9 +274,9 @@ struct pipeable {
 
 template <stdx::ct_string Name = "then", stdx::callable... Fs>
 [[nodiscard]] constexpr auto then(Fs &&...fs) {
-    return _compose::adaptor<_then::pipeable<Name, set_value_t, set_value_t,
-                                             std::remove_cvref_t<Fs>...>>{
-        std::forward<Fs>(fs)...};
+    return compose(
+        _then::pipeable<Name, set_value_t, set_value_t,
+                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
 }
 
 template <stdx::ct_string Name = "then", sender S, stdx::callable... Fs>
@@ -286,9 +286,9 @@ template <stdx::ct_string Name = "then", sender S, stdx::callable... Fs>
 
 template <stdx::ct_string Name = "upon_error", stdx::callable F>
 [[nodiscard]] constexpr auto upon_error(F &&f) {
-    return _compose::adaptor<_then::pipeable<Name, set_error_t, set_value_t,
-                                             std::remove_cvref_t<F>>>{
-        std::forward<F>(f)};
+    return compose(
+        _then::pipeable<Name, set_error_t, set_value_t, std::remove_cvref_t<F>>{
+            std::forward<F>(f)});
 }
 
 template <stdx::ct_string Name = "upon_error", sender S, stdx::callable F>
@@ -298,9 +298,8 @@ template <stdx::ct_string Name = "upon_error", sender S, stdx::callable F>
 
 template <stdx::ct_string Name = "upon_stopped", stdx::callable F>
 [[nodiscard]] constexpr auto upon_stopped(F &&f) {
-    return _compose::adaptor<_then::pipeable<Name, set_stopped_t, set_value_t,
-                                             std::remove_cvref_t<F>>>{
-        std::forward<F>(f)};
+    return compose(_then::pipeable<Name, set_stopped_t, set_value_t,
+                                   std::remove_cvref_t<F>>{std::forward<F>(f)});
 }
 
 template <stdx::ct_string Name = "upon_stopped", sender S, stdx::callable F>
@@ -310,9 +309,9 @@ template <stdx::ct_string Name = "upon_stopped", sender S, stdx::callable F>
 
 template <stdx::ct_string Name = "transform_error", stdx::callable... Fs>
 [[nodiscard]] constexpr auto transform_error(Fs &&...fs) {
-    return _compose::adaptor<_then::pipeable<Name, set_error_t, set_error_t,
-                                             std::remove_cvref_t<Fs>...>>{
-        std::forward<Fs>(fs)...};
+    return compose(
+        _then::pipeable<Name, set_error_t, set_error_t,
+                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
 }
 
 template <stdx::ct_string Name = "transform_error", sender S,
