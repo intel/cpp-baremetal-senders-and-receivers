@@ -20,9 +20,26 @@ defer both where the operation runs and how the result is obtained:
 [source,cpp]
 ----
 auto async_computation =
-  | async::then([] { return 42; })
+    async::then([] { return 42; })
   | async::continue_on(s2)
   | async::then([] (int i) { return std::to_string(i); });
 
 s1.schedule() | async_computation | async::sync_wait();
 ----
+
+Custom sender adaptors (algorithms) can take advantage of this with `compose`:
+
+[source,cpp]
+----
+struct custom_algo_t {
+  // user-defined
+};
+
+template <sender S>
+auto custom_algo(S &&s) {
+  return async::compose(custom_algo_t{std::forward<S>(s)});
+}
+----
+
+This means that they too can be composed with other adaptors while deferring the
+entry point of the computation.
