@@ -84,7 +84,6 @@ template <typename F> struct stoppable_receiver {
     explicit stoppable_receiver(F &&fn) : f{std::move(fn)} {
         stop_source<stoppable_receiver>.emplace();
     }
-    ~stoppable_receiver() { stop_source<stoppable_receiver>.reset(); }
 
     auto request_stop() { stop_source<stoppable_receiver>->request_stop(); }
 
