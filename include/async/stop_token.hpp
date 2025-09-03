@@ -93,7 +93,7 @@ struct inplace_stop_source {
 
     auto request_stop() -> bool {
         if (not requested.exchange(true)) {
-            auto get_next_cb = [&] {
+            auto get_next_cb = [&]() -> stop_callback_base * {
                 return conc::call_in_critical_section<mutex>(
                     [&]() -> stop_callback_base * {
                         if (callbacks.empty()) {
@@ -113,7 +113,7 @@ struct inplace_stop_source {
     }
 
     auto register_callback(stop_callback_base *cb) -> bool {
-        return conc::call_in_critical_section<mutex>([&] {
+        return conc::call_in_critical_section<mutex>([&]() -> bool {
             if (not requested) {
                 callbacks.push_back(cb);
                 cb->pending = true;
@@ -123,7 +123,7 @@ struct inplace_stop_source {
         });
     }
     auto unregister_callback(stop_callback_base *cb) -> void {
-        conc::call_in_critical_section<mutex>([&] {
+        conc::call_in_critical_section<mutex>([&]() -> void {
             if (std::exchange(cb->pending, false)) {
                 callbacks.remove(cb);
             }
