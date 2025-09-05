@@ -78,6 +78,7 @@ target_sources(
               include/async/stop_token.hpp
               include/async/sync_wait.hpp
               include/async/then.hpp
+              include/async/then_each.hpp
               include/async/timeout_after.hpp
               include/async/type_traits.hpp
               include/async/variant_sender.hpp

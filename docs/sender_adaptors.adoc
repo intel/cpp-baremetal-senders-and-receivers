@@ -555,6 +555,22 @@ auto t = async::then(s,
 // when run, this will call set_value(59, "no", 1.0f) on the downstream receiver
 ----
 
+=== `then_each`
+
+Found in the header: `async/then_each.hpp`
+
+`then_each` takes a sender and several functions, and returns a sender that will call
+each of the functions with the values that the sender sends.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto then_each_sndr = async::then_each(sndr,
+    [] (int i) { return std::to_string(i); },
+    [] (int i) { return i + 1; });
+// when run, then_each_sndr will produce values "42" and 43
+----
+
 === `timeout_after`
 
 Found in the header: `async/timeout_after.hpp`
