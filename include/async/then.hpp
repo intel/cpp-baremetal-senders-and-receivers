@@ -307,6 +307,18 @@ template <stdx::ct_string Name = "upon_stopped", sender S, stdx::callable F>
     return std::forward<S>(s) | upon_stopped<Name>(std::forward<F>(f));
 }
 
+template <stdx::ct_string Name = "then_error", stdx::callable... Fs>
+[[nodiscard]] constexpr auto then_error(Fs &&...fs) {
+    return compose(
+        _then::pipeable<Name, set_value_t, set_error_t,
+                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
+}
+
+template <stdx::ct_string Name = "then_error", sender S, stdx::callable... Fs>
+[[nodiscard]] constexpr auto then_error(S &&s, Fs &&...fs) -> sender auto {
+    return std::forward<S>(s) | then_error<Name>(std::forward<Fs>(fs)...);
+}
+
 template <stdx::ct_string Name = "transform_error", stdx::callable... Fs>
 [[nodiscard]] constexpr auto transform_error(Fs &&...fs) {
     return compose(
@@ -324,6 +336,7 @@ struct then_t;
 struct upon_error_t;
 struct upon_stopped_t;
 
+struct then_error_t;
 struct transform_error_t;
 
 namespace _then {
@@ -340,6 +353,9 @@ template <> struct debug_tag<set_stopped_t, set_value_t> {
     using type = upon_stopped_t;
 };
 
+template <> struct debug_tag<set_value_t, set_error_t> {
+    using type = then_error_t;
+};
 template <> struct debug_tag<set_error_t, set_error_t> {
     using type = transform_error_t;
 };

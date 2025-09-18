@@ -571,6 +571,19 @@ auto then_each_sndr = async::then_each(sndr,
 // when run, then_each_sndr will produce values "42" and 43
 ----
 
+=== `then_error`
+
+Found in the header: `async/then.hpp`
+
+`then_error` works just like `then`, but it completes on the error channel.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto then_error_sndr = async::then_error(sndr, [] (int i) { return std::to_string(i); });
+// when run, then_error_sndr will call set_error with the string "42"
+----
+
 === `timeout_after`
 
 Found in the header: `async/timeout_after.hpp`
