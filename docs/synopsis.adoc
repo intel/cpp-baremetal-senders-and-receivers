@@ -195,6 +195,7 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/then.hpp[then.hpp]
 * `then` - a xref:sender_adaptors.adoc#_then[sender adaptor] that transforms what a sender sends on the value channel
+* `then_error` - a xref:sender_adaptors.adoc#_then_error[sender adaptor] that transforms what a sender sends on the value channel, and completes on the error channel
 * `transform error` - a xref:sender_adaptors.adoc#_transform_error[sender adaptor] that transforms what a sender sends on the error channel
 * `upon error` - a xref:sender_adaptors.adoc#_upon_error[sender adaptor] that transforms what a sender sends on the error channel, and completes on the value channel
 * `upon stopped` - a xref:sender_adaptors.adoc#_upon_stopped[sender adaptor] that transforms what a sender sends on the stopped channel, and completes on the value channel
@@ -307,6 +308,7 @@ contains traits and metaprogramming constructs used by many senders.
 * `task_mgr::service_tasks<P>()` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * xref:sender_adaptors.adoc#_then[`then`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/then.hpp[`#include <async/then.hpp>`]
 * xref:sender_adaptors.adoc#_then_each[`then_each`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/then_each.hpp[`#include <async/then_each.hpp>`]
+* xref:sender_adaptors.adoc#_then_error[`then_error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/then.hpp[`#include <async/then.hpp>`]
 * xref:schedulers.adoc#_thread_scheduler[`thread_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/thread_scheduler.hpp[`#include <async/schedulers/thread_scheduler.hpp>`]
 * xref:schedulers.adoc#_time_scheduler[`time_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/time_scheduler.hpp[`#include <async/schedulers/time_scheduler.hpp>`]
 * xref:sender_adaptors.adoc#_timeout_after[`timeout_after`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/timeout_after.hpp[`#include <async/timeout_after.hpp>`]
