@@ -127,16 +127,19 @@ class pipeable<Uniq, Env, static_t> : public pipeable_base<Env> {
         static_assert(sender_in<S, Env>,
                       "Sender given to sync_wait_static cannot run with that "
                       "environment: did you mean to use sync_wait_dynamic?");
-        async::detail::synchronizer<Uniq, 0> sync{};
-        using V = detail::sync_wait_type<Env, S>;
-        V values{};
-        auto r = static_receiver<V, Env, Uniq>{values, e, sync};
 
-        auto op_state = connect(std::forward<S>(s), r);
-        r.signal_start();
-        start(op_state);
-        sync.wait();
-        return values;
+        return [&]() -> detail::sync_wait_type<Env, S> {
+            async::detail::synchronizer<Uniq, 0> sync{};
+            using V = detail::sync_wait_type<Env, S>;
+            V values{};
+            auto r = static_receiver<V, Env, Uniq>{values, e, sync};
+
+            auto op_state = connect(std::forward<S>(s), r);
+            r.signal_start();
+            start(op_state);
+            sync.wait();
+            return values;
+        }();
     }
 
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
@@ -156,16 +159,18 @@ class pipeable<Uniq, Env, dynamic_t> : public pipeable_base<Env> {
                       "sync_wait requires a single set_value completion: "
                       "consider using into_variant");
 
-        using V = detail::sync_wait_type<E, S>;
-        V values{};
-        auto r = dynamic_receiver<V, E, decltype(rl)>{values,
-                                                      std::move(new_env), rl};
+        return [&]() -> detail::sync_wait_type<E, S> {
+            using V = detail::sync_wait_type<E, S>;
+            V values{};
+            auto r = dynamic_receiver<V, E, decltype(rl)>{
+                values, std::move(new_env), rl};
 
-        auto op_state = connect(std::forward<S>(s), r);
-        r.signal_start();
-        start(op_state);
-        rl.run();
-        return values;
+            auto op_state = connect(std::forward<S>(s), r);
+            r.signal_start();
+            start(op_state);
+            rl.run();
+            return values;
+        }();
     }
 
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
