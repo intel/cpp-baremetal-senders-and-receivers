@@ -7,8 +7,6 @@
 // EXPECT: when_all requires each sender to complete with at most one set_value completion
 // clang-format on
 
-template <typename...> struct undef;
-
 auto main(int argc, char **) -> int {
     [[maybe_unused]] auto s1 = async::make_variant_sender(
         argc == 0, [] { return async::just(42); },
@@ -16,5 +14,4 @@ auto main(int argc, char **) -> int {
     [[maybe_unused]] auto s2 = async::just(42);
 
     [[maybe_unused]] auto r = async::when_all(s1, s2) | async::sync_wait();
-    undef<decltype(r)> q{};
 }
