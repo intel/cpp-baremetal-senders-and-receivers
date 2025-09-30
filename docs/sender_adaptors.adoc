@@ -516,60 +516,58 @@ auto then_sndr = async::then(sndr, [] (int i) { return std::to_string(i); });
 sender sends multiple values. This provides an easy way to apply a different
 function to each value, and avoids having to return a tuple of values which
 would then require extra handling downstream.
+
 [source,cpp]
 ----
-auto sndr = async::just(42, 17);
+auto sndr = async::just(42, "hello"s);
+auto then_sndr = async::then(sndr,
+    [] (std::same_as<int> auto i) { return std::to_string(i); },
+    [] (std::same_as<std::string> auto j) { return j + " world"s; });
+// when run, then_sndr will send "42" and "hello world"
+----
+
+[source,cpp]
+----
+auto sndr = async::just(42);
 auto then_sndr = async::then(sndr,
     [] (int i) { return std::to_string(i); },
     [] (int j) { return j + 1; });
-// when run, then_sndr will send "42" and 18
+// when run, then_sndr will send "42" and 43
 ----
 
 In both the "normal" and variadic cases, functions passed to `then` may return
 `void`. In the "normal" case, the resulting `then` sender completes by calling
 `set_value` with no arguments. In the variadic case, `set_value` will be called
 with the `void`-returns filtered out.
+
 [source,cpp]
 ----
 auto s1 = async::just(42);
 auto normal_then = async::then(s1, [] (int) {});
 // when run, this will call set_value() on the downstream receiver
 
-auto s2 = async::just(42, 17);
+auto s2 = async::just(42);
 auto variadic_then = async::then(s2,
     [] (int i) { return std::to_string(i); },
     [] (int) {});
 // when run, this will call set_value("42") on the downstream receiver
 ----
 
-In the variadic case, `then` can distribute the values sent from upstream to the
-functions by arity:
+In the variadic case, `then` distributes the values sent from upstream to the
+functions https://intel.github.io/cpp-std-extensions/#_call_by_need_hpp[according to need]:
 
 [source,cpp]
 ----
 auto s = async::just(42, 17, false, "Hello"sv);
 auto t = async::then(s,
     [] (int i, int j) { return i + j; },
-    [] (auto b, std::string_view s) -> std::string_view { if (b) return s; else return "no"; },
+    [] (std::same_as<bool> auto b, std::string_view s) -> std::string_view { if (b) return s; else return "no"; },
     [] { return 1.0f; });
 // when run, this will call set_value(59, "no", 1.0f) on the downstream receiver
 ----
 
-=== `then_each`
-
-Found in the header: `async/then_each.hpp`
-
-`then_each` takes a sender and several functions, and returns a sender that will call
-each of the functions with the values that the sender sends.
-
-[source,cpp]
-----
-auto sndr = async::just(42);
-auto then_each_sndr = async::then_each(sndr,
-    [] (int i) { return std::to_string(i); },
-    [] (int i) { return i + 1; });
-// when run, then_each_sndr will produce values "42" and 43
-----
+CAUTION: Beware of implicit argument conversions. See the documentation for
+https://intel.github.io/cpp-std-extensions/#_call_by_need_hpp[`call_by_need`].
 
 === `then_error`
 

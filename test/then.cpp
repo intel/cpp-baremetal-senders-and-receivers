@@ -20,8 +20,8 @@
 TEST_CASE("then", "[then]") {
     int value{};
 
-    auto s = async::just();
-    auto n = async::then(s, [] { return 42; });
+    auto s = async::just(17);
+    auto n = async::then(s, [](int) { return 42; });
     auto op = async::connect(n, receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
@@ -96,7 +96,7 @@ TEST_CASE("move-only value", "[then]") {
 TEST_CASE("move-only lambda", "[then]") {
     int value{};
     auto n = async::just() |
-             async::then([mo = move_only{42}]() -> move_only<int> const && {
+             async::then([mo = move_only{42}]() mutable -> move_only<int> {
                  return std::move(mo);
              });
     STATIC_REQUIRE(async::singleshot_sender<decltype(n), universal_receiver>);
@@ -150,17 +150,25 @@ TEST_CASE("then propagates forwarding queries to its child environment",
     CHECK(get_fwd(async::get_env(t)) == 42);
 }
 
+namespace {
+template <auto> struct arg_t {
+    int value{};
+};
+} // namespace
+
 TEST_CASE("then advertises what it sends (variadic)", "[then]") {
-    auto s = async::just(true, false) |
-             async::then([](auto) { return 42; }, [](auto) { return 17; });
+    auto s =
+        async::just(arg_t<0>{}, arg_t<1>{}) |
+        async::then([](arg_t<0>) { return 42; }, [](arg_t<1>) { return 17; });
     STATIC_REQUIRE(async::sender_of<decltype(s), async::set_value_t(int, int)>);
 }
 
 TEST_CASE("then (variadic)", "[then]") {
     int x{};
     int y{};
-    auto s = async::just(2, 3) | async::then([](auto i) { return i * 2; },
-                                             [](auto i) { return i * 3; });
+    auto s = async::just(arg_t<0>{2}, arg_t<1>{3}) |
+             async::then([](arg_t<0> i) { return i.value * 2; },
+                         [](arg_t<1> i) { return i.value * 3; });
     auto op = async::connect(s, receiver{[&](auto i, auto j) {
                                  x = i;
                                  y = j;
@@ -173,8 +181,9 @@ TEST_CASE("then (variadic)", "[then]") {
 TEST_CASE("variadic then can have void-returning functions", "[then]") {
     int x{};
     int y{42};
-    auto s = async::just(2, 3) |
-             async::then([](auto i) { return i * 2; }, [](auto) {});
+    auto s =
+        async::just(arg_t<0>{2}, arg_t<1>{3}) |
+        async::then([](arg_t<0> i) { return i.value * 2; }, [](arg_t<1>) {});
     STATIC_REQUIRE(async::sender_of<decltype(s), async::set_value_t(int)>);
     auto op = async::connect(s, receiver{[&](auto i) { x = i; }});
     async::start(op);
@@ -184,8 +193,9 @@ TEST_CASE("variadic then can have void-returning functions", "[then]") {
 
 TEST_CASE("move-only value (from then) (variadic)", "[then]") {
     int x{};
-    auto s = async::just(2, 3) |
-             async::then([](auto i) { return move_only{i}; }, [](auto) {});
+    auto s = async::just(arg_t<0>{2}, arg_t<1>{3}) |
+             async::then([](arg_t<0> i) { return move_only{i.value}; },
+                         [](arg_t<1>) {});
     STATIC_REQUIRE(
         async::sender_of<decltype(s), async::set_value_t(move_only<int>)>);
     auto op = async::connect(s, receiver{[&](auto i) { x = i.value; }});
@@ -196,7 +206,7 @@ TEST_CASE("move-only value (from then) (variadic)", "[then]") {
 TEST_CASE("move-only value (to then) (variadic)", "[then]") {
     int x{};
     auto s = async::just(move_only{2}, move_only{3}) |
-             async::then([](auto i) { return i.value; }, [](auto) {});
+             async::then([](auto i) { return i.value; }, [](auto, auto) {});
     STATIC_REQUIRE(async::sender_of<decltype(s), async::set_value_t(int)>);
     auto op = async::connect(std::move(s), receiver{[&](auto i) { x = i; }});
     async::start(op);
@@ -207,9 +217,10 @@ TEST_CASE("variadic then can take heteroadic functions", "[then]") {
     int x{};
     int y{42};
     bool z{};
-    auto s = async::just(2, 3, 4) |
-             async::then([](auto i, auto j) { return i + j; },
-                         [](auto k) { return k; }, [] { return true; });
+    auto s =
+        async::just(arg_t<0>{2}, arg_t<1>{3}, arg_t<2>{4}) |
+        async::then([](arg_t<0> i, arg_t<1> j) { return i.value + j.value; },
+                    [](arg_t<2> k) { return k.value; }, [] { return true; });
     STATIC_REQUIRE(
         async::sender_of<decltype(s), async::set_value_t(int, int, bool)>);
     auto op = async::connect(s, receiver{[&](auto i, auto j, auto k) {
@@ -260,4 +271,29 @@ TEST_CASE("then can be named and debugged with a string", "[then]") {
                                 async::debug::named_interface<"op">{}}});
     async::start(op);
     CHECK(debug_events == std::vector{"op then_name set_value"s});
+}
+
+TEST_CASE("then with more functions than arguments", "[then]") {
+    int value{};
+
+    auto s = async::just(17);
+    auto n =
+        async::then(s, [](int i) { return i; }, [](int i) { return i + 1; });
+    auto op =
+        async::connect(n, receiver{[&](auto i, auto j) { value = i + j; }});
+    async::start(op);
+    CHECK(value == 35);
+}
+
+TEST_CASE("then calls functions by need", "[then]") {
+    int value{};
+
+    auto s = async::just(arg_t<0>{2}, arg_t<1>{3}, arg_t<2>{4});
+    auto n = async::then(
+        s, [](arg_t<0> i, arg_t<1> j) { return i.value + j.value; },
+        [](arg_t<1> j, arg_t<2> k) { return j.value + k.value; });
+    auto op =
+        async::connect(n, receiver{[&](auto i, auto j) { value = i + j; }});
+    async::start(op);
+    CHECK(value == 5 + 7);
 }

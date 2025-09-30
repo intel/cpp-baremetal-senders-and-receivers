@@ -20,7 +20,7 @@ TEST_CASE("transform_error", "[transform_error]") {
     int value{};
 
     auto s = async::just_error(17);
-    auto n = async::transform_error(s, [] { return 42; });
+    auto n = async::transform_error(s, [](int) { return 42; });
     auto op = async::connect(n, error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
@@ -38,7 +38,7 @@ TEST_CASE("transform_error propagates a value", "[transform_error]") {
 
 TEST_CASE("transform_error advertises what it sends", "[transform_error]") {
     auto s = async::just_error(17);
-    [[maybe_unused]] auto n = async::transform_error(s, [] { return 42; });
+    [[maybe_unused]] auto n = async::transform_error(s, [](int) { return 42; });
     STATIC_REQUIRE(async::sender_of<decltype(n), async::set_error_t(int)>);
 }
 
@@ -46,14 +46,15 @@ TEST_CASE("transform_error can send a reference", "[transform_error]") {
     int value{};
     auto s = async::just_error(17);
     [[maybe_unused]] auto n =
-        async::transform_error(s, [&]() -> int & { return value; });
+        async::transform_error(s, [&](int) -> int & { return value; });
     STATIC_REQUIRE(async::sender_of<decltype(n), async::set_error_t(int &)>);
 }
 
 TEST_CASE("transform_error is pipeable", "[transform_error]") {
     int value{};
 
-    auto n = async::just_error(17) | async::transform_error([] { return 42; });
+    auto n =
+        async::just_error(17) | async::transform_error([](int) { return 42; });
     auto op = async::connect(n, error_receiver{[&](auto i) { value = i; }});
     async::start(op);
     CHECK(value == 42);
@@ -62,7 +63,7 @@ TEST_CASE("transform_error is pipeable", "[transform_error]") {
 TEST_CASE("transform_error is adaptor-pipeable", "[transform_error]") {
     int value{};
 
-    auto n = async::transform_error([] { return 42; }) |
+    auto n = async::transform_error([](int) { return 42; }) |
              async::transform_error([](int i) { return i * 2; });
     auto op = async::connect(async::just_error(17) | n,
                              error_receiver{[&](auto i) { value = i; }});
@@ -74,7 +75,7 @@ TEST_CASE("transform_error can send nothing", "[transform_error]") {
     int value{};
 
     auto s = async::just_error(17);
-    auto n1 = async::transform_error(s, [] {});
+    auto n1 = async::transform_error(s, [](int) {});
     STATIC_REQUIRE(async::sender_of<decltype(n1), async::set_error_t()>);
     auto n2 = async::transform_error(n1, [] {});
     STATIC_REQUIRE(async::sender_of<decltype(n2), async::set_error_t()>);
@@ -87,7 +88,7 @@ TEST_CASE("move-only value", "[transform_error]") {
     int value{};
 
     auto n = async::just_error(17) |
-             async::transform_error([] { return move_only{42}; });
+             async::transform_error([](int) { return move_only{42}; });
     auto op = async::connect(
         std::move(n), error_receiver{[&](auto mo) { value = mo.value; }});
     async::start(op);
@@ -98,7 +99,7 @@ TEST_CASE("move-only lambda", "[transform_error]") {
     int value{};
     auto n = async::just_error(17) |
              async::transform_error(
-                 [mo = move_only{42}]() -> move_only<int> const && {
+                 [mo = move_only{42}](int) mutable -> move_only<int> {
                      return std::move(mo);
                  });
     STATIC_REQUIRE(async::singleshot_sender<decltype(n), universal_receiver>);
@@ -155,20 +156,26 @@ TEST_CASE(
     CHECK(get_fwd(async::get_env(t)) == 42);
 }
 
+namespace {
+template <auto> struct arg_t {
+    int value{};
+};
+} // namespace
+
 TEST_CASE("transform_error advertises what it sends (variadic)",
           "[transform_error]") {
-    auto s = async::just_error(true, false) |
-             async::transform_error([](auto) { return 42; },
-                                    [](auto) { return 17; });
+    auto s = async::just_error(arg_t<0>{}, arg_t<1>{}) |
+             async::transform_error([](arg_t<0>) { return 42; },
+                                    [](arg_t<1>) { return 17; });
     STATIC_REQUIRE(async::sender_of<decltype(s), async::set_error_t(int, int)>);
 }
 
 TEST_CASE("transform_error (variadic)", "[transform_error]") {
     int x{};
     int y{};
-    auto s = async::just_error(2, 3) |
-             async::transform_error([](auto i) { return i * 2; },
-                                    [](auto i) { return i * 3; });
+    auto s = async::just_error(arg_t<0>{2}, arg_t<1>{3}) |
+             async::transform_error([](arg_t<0> i) { return i.value * 2; },
+                                    [](arg_t<1> i) { return i.value * 3; });
     auto op = async::connect(s, error_receiver{[&](auto i, auto j) {
                                  x = i;
                                  y = j;
@@ -182,8 +189,9 @@ TEST_CASE("variadic transform_error can have void-returning functions",
           "[transform_error]") {
     int x{};
     int y{42};
-    auto s = async::just_error(2, 3) |
-             async::transform_error([](auto i) { return i * 2; }, [](auto) {});
+    auto s = async::just_error(arg_t<0>{2}, arg_t<1>{3}) |
+             async::transform_error([](arg_t<0> i) { return i.value * 2; },
+                                    [](arg_t<1>) {});
     STATIC_REQUIRE(async::sender_of<decltype(s), async::set_error_t(int)>);
     auto op = async::connect(s, error_receiver{[&](auto i) { x = i; }});
     async::start(op);
@@ -194,9 +202,10 @@ TEST_CASE("variadic transform_error can have void-returning functions",
 TEST_CASE("move-only value (from transform_error) (variadic)",
           "[transform_error]") {
     int x{};
-    auto s = async::just_error(2, 3) |
-             async::transform_error([](auto i) { return move_only{i}; },
-                                    [](auto) {});
+    auto s =
+        async::just_error(arg_t<0>{2}, arg_t<1>{3}) |
+        async::transform_error([](arg_t<0> i) { return move_only{i.value}; },
+                               [](arg_t<1>) {});
     STATIC_REQUIRE(
         async::sender_of<decltype(s), async::set_error_t(move_only<int>)>);
     auto op = async::connect(s, error_receiver{[&](auto i) { x = i.value; }});
@@ -207,9 +216,9 @@ TEST_CASE("move-only value (from transform_error) (variadic)",
 TEST_CASE("move-only value (to transform_error) (variadic)",
           "[transform_error]") {
     int x{};
-    auto s =
-        async::just_error(move_only{2}, move_only{3}) |
-        async::transform_error([](auto i) { return i.value; }, [](auto) {});
+    auto s = async::just_error(move_only{2}, move_only{3}) |
+             async::transform_error([](auto i) { return i.value; },
+                                    [](auto, auto) {});
     STATIC_REQUIRE(async::sender_of<decltype(s), async::set_error_t(int)>);
     auto op =
         async::connect(std::move(s), error_receiver{[&](auto i) { x = i; }});
@@ -222,10 +231,10 @@ TEST_CASE("variadic transform_error can take heteroadic functions",
     int x{};
     int y{42};
     bool z{};
-    auto s =
-        async::just_error(2, 3, 4) |
-        async::transform_error([](auto i, auto j) { return i + j; },
-                               [](auto k) { return k; }, [] { return true; });
+    auto s = async::just_error(arg_t<0>{2}, arg_t<1>{3}, arg_t<2>{4}) |
+             async::transform_error(
+                 [](arg_t<0> i, arg_t<1> j) { return i.value + j.value; },
+                 [](arg_t<2> k) { return k.value; }, [] { return true; });
     STATIC_REQUIRE(
         async::sender_of<decltype(s), async::set_error_t(int, int, bool)>);
     auto op = async::connect(s, error_receiver{[&](auto i, auto j, auto k) {
