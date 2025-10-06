@@ -30,6 +30,12 @@ TEST_CASE("upon_stopped advertises what it sends", "[upon_stopped]") {
     STATIC_REQUIRE(async::sender_of<decltype(n), async::set_value_t(int)>);
 }
 
+TEST_CASE("upon_stopped advertises what it sends (2)", "[upon_stopped]") {
+    auto s = async::just_stopped();
+    [[maybe_unused]] auto n = async::upon_stopped(s, [] { return 42; });
+    STATIC_REQUIRE(async::sender_of<decltype(n), async::set_value_t(int)>);
+}
+
 TEST_CASE("upon_stopped is pipeable", "[upon_stopped]") {
     int value{};
 
