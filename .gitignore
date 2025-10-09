@@ -13,3 +13,4 @@ CMakePresets.json
 mull.yml
 requirements.txt
 docs/puppeteer_config.json
+docs/mermaid.conf
