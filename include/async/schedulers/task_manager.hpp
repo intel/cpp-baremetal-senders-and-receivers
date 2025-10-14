@@ -67,13 +67,9 @@ struct priority_task_manager {
         requires(valid_priority<P>())
     {
         decltype(auto) q = RQP::template get_queue<P, mutex>(task_queues);
-        while (not std::empty(q)) {
-            auto &task = q.front();
-            conc::call_in_critical_section<mutex>([&]() {
-                q.pop_front();
-                task.pending = false;
-            });
-            task.run();
+        for (auto task = RQP::template pop<mutex>(q); task;
+             task = RQP::template pop<mutex>(q)) {
+            task->run();
             --task_count;
         }
     }
