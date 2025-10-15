@@ -13,7 +13,7 @@
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 
-#define SIMULATE_FREESTANDING
+#define ASYNC_FREESTANDING
 #include <async/sync_wait.hpp>
 
 #include <stdx/type_traits.hpp>
