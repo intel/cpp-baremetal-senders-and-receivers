@@ -12,8 +12,6 @@ cpmaddpackage(NAME async SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." GIT_TAG HEAD)
 add_executable(app main.cpp)
 target_link_libraries(app PRIVATE async)
 if(CPP_IMPLEMENTATION STREQUAL "FREESTANDING")
-    target_compile_definitions(
-        app PRIVATE SIMULATE_FREESTANDING STDX_FMT_FREESTANDING
-                    ASYNC_FREESTANDING)
+    target_compile_definitions(app PRIVATE SIMULATE_FREESTANDING)
     target_compile_options(app PRIVATE -ffreestanding)
 endif()

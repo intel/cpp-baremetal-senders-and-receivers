@@ -1,5 +1,7 @@
 #pragma once
 
+#include <async/detail/freestanding.hpp>
+
 #ifdef ASYNC_FREESTANDING
 #define HAS_CONDITION_VARIABLE 0
 #else
