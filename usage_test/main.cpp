@@ -32,9 +32,7 @@
 #include <async/schedulers/task.hpp>
 #include <async/schedulers/task_manager.hpp>
 #include <async/schedulers/task_manager_interface.hpp>
-#ifndef ASYNC_FREESTANDING
 #include <async/schedulers/thread_scheduler.hpp>
-#endif
 #include <async/schedulers/time_scheduler.hpp>
 #include <async/schedulers/timer_manager.hpp>
 #include <async/schedulers/timer_manager_interface.hpp>

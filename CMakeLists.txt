@@ -40,6 +40,7 @@ target_sources(
               include/async/connect.hpp
               include/async/continue_on.hpp
               include/async/debug.hpp
+              include/async/detail/freestanding.hpp
               include/async/env.hpp
               include/async/forwarding_query.hpp
               include/async/get_completion_scheduler.hpp

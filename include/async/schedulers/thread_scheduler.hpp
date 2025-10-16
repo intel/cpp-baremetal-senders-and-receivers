@@ -1,8 +1,14 @@
 #pragma once
 
-#if not __has_include(<thread>)
-#error async::thread_scheduler is unavailable: <thread> does not exist
+#include <async/detail/freestanding.hpp>
+
+#ifdef ASYNC_FREESTANDING
+#define HAS_THREAD 0
+#else
+#define HAS_THREAD __has_include(<thread>)
 #endif
+
+#if HAS_THREAD
 
 #include <async/completion_tags.hpp>
 #include <async/concepts.hpp>
@@ -74,3 +80,7 @@ struct debug::context_for<_thread_scheduler::op_state<Name, R>> {
     using type = _thread_scheduler::op_state<Name, R>;
 };
 } // namespace async
+
+#endif
+
+#undef HAS_THREAD
