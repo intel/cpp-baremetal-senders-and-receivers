@@ -51,6 +51,7 @@ concept timer_manager =
     };
 
 namespace detail {
+// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
 template <typename T> struct default_timer_task : task_base {
     T expiration_time{};
 
