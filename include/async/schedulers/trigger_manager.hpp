@@ -10,7 +10,6 @@
 #include <conc/concurrency.hpp>
 
 #include <array>
-#include <concepts>
 #include <iterator>
 #include <memory>
 #include <utility>
@@ -26,7 +25,6 @@ template <typename... Args> struct trigger_task {
 
     constexpr trigger_task() = default;
     constexpr trigger_task(trigger_task &&) = delete;
-    virtual ~trigger_task() = default;
 
   private:
     [[nodiscard]] friend constexpr auto operator==(trigger_task const &lhs,

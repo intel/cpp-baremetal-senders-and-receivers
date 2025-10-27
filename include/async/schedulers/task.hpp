@@ -6,16 +6,14 @@
 
 #include <concepts>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <utility>
 
 namespace async {
-// NOLINTNEXTLINE(*-special-member-functions)
+// NOLINTNEXTLINE(*-special-member-functions, *-virtual-class-destructor)
 struct task_base {
     bool pending{};
     virtual auto run() -> void = 0;
-    virtual ~task_base() = default;
 
   private:
     [[nodiscard]] friend constexpr auto operator==(task_base const &lhs,
