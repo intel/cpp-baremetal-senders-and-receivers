@@ -36,14 +36,13 @@ struct op_state_base : Task {
 
 struct DurationExpirationPolicy {
     template <typename Domain, typename Task> static auto schedule(Task &&t) {
-        detail::run_after<Domain>(std::forward<Task>(t), t.d);
+        run_after<Domain>(std::forward<Task>(t), t.d);
     }
 };
 
 struct TimepointExpirationPolicy {
     template <typename Domain, typename Task> static auto schedule(Task &&t) {
-        detail::run_at<Domain>(std::forward<Task>(t),
-                               get_expiration(get_env(t.rcvr)));
+        run_at<Domain>(std::forward<Task>(t), get_expiration(get_env(t.rcvr)));
     }
 };
 
@@ -102,7 +101,7 @@ struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
   private:
     struct stop_callback_fn {
         auto operator()() -> void {
-            if (detail::cancel<Domain>(*ops)) {
+            if (cancel<Domain>(*ops)) {
                 debug_signal<
                     "set_stopped",
                     debug::erased_context_for<op_state_base<Rcvr, Name, Task>>>(
@@ -162,7 +161,7 @@ class time_scheduler {
 
   public:
     [[nodiscard]] constexpr auto schedule() -> sender {
-        static_assert(timer_mgr::detail::valid_duration<Duration, Domain>(),
+        static_assert(timer_mgr::valid_duration<Duration, Domain>(),
                       "time_scheduler has invalid duration type for the "
                       "injected timer manager");
         return {d};
