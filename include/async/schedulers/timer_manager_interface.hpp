@@ -108,7 +108,6 @@ inline auto injected_timer_manager = detail::undefined_timer_manager{};
 namespace timer_mgr {
 struct default_domain;
 
-namespace detail {
 template <typename Domain, typename... DummyArgs>
     requires(sizeof...(DummyArgs) == 0)
 [[nodiscard]] constexpr auto get_injected_manager() -> auto & {
@@ -151,18 +150,17 @@ constexpr auto valid_duration() -> bool {
                decltype(get_injected_manager<Domain, DummyArgs...>())>::
                duration_t>;
 }
-} // namespace detail
 
 template <typename Domain = default_domain, typename... DummyArgs>
     requires(sizeof...(DummyArgs) == 0)
 auto service_task() -> void {
-    return detail::get_injected_manager<Domain, DummyArgs...>().service_task();
+    return get_injected_manager<Domain, DummyArgs...>().service_task();
 }
 
 template <typename Domain = default_domain, typename... DummyArgs>
     requires(sizeof...(DummyArgs) == 0)
 auto is_idle() -> bool {
-    return detail::get_injected_manager<Domain, DummyArgs...>().is_idle();
+    return get_injected_manager<Domain, DummyArgs...>().is_idle();
 }
 } // namespace timer_mgr
 } // namespace async

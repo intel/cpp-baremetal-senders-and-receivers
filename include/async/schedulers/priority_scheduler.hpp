@@ -36,7 +36,7 @@ struct op_state final : Task {
         debug_signal<"start", debug::erased_context_for<op_state>>(
             get_env(rcvr));
         if (not check_stopped()) {
-            detail::enqueue_task(*this, P);
+            enqueue_task(*this, P);
         }
     }
 
@@ -98,7 +98,7 @@ class fixed_priority_scheduler {
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender {
-        static_assert(task_mgr::detail::valid_priority<P>(),
+        static_assert(task_mgr::valid_priority<P>(),
                       "fixed_priority_scheduler has invalid priority for the "
                       "injected task manager");
         return {};
