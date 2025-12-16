@@ -64,6 +64,28 @@ TEST_CASE("run a task with bound args", "[task_manager]") {
     CHECK(var == 42);
 }
 
+TEST_CASE("rebind args for a task with bound args", "[task_manager]") {
+    int var{};
+    auto task = task_manager_t::create_task([&](int x) { var = x; });
+    task.bind_front(42).run();
+    CHECK(var == 42);
+    task.bind_front(17).run();
+    CHECK(var == 17);
+}
+
+namespace {
+struct no_def_const {
+    explicit(true) no_def_const(int) {}
+};
+} // namespace
+
+TEST_CASE("bound args do not require default construction", "[task_manager]") {
+    int var{};
+    auto task = task_manager_t::create_task([&](no_def_const) { var = 42; });
+    task.bind_front(no_def_const{0}).run();
+    CHECK(var == 42);
+}
+
 TEST_CASE("tasks have reference equality", "[task_manager]") {
     auto t = task_manager_t::create_task([] {});
     auto u = task_manager_t::create_task([] {});

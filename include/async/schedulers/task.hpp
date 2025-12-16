@@ -5,8 +5,8 @@
 #include <stdx/tuple.hpp>
 
 #include <concepts>
-#include <cstddef>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace async {
@@ -37,28 +37,68 @@ template <std::derived_from<task_base> Base> struct double_linked_task : Base {
     double_linked_task *prev{};
 };
 
-template <stdx::callable F, typename ArgTuple, typename Base>
-struct task : Base {
-    constexpr explicit(true) task(F const &f) : func(f) {}
-    constexpr explicit(true) task(F &&f) : func(std::move(f)) {}
+template <typename...> struct task;
 
-    template <typename... Args> auto bind_front(Args &&...args) -> task & {
-        [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            ((get<Is>(bound_args) = std::forward<Args>(args)), ...);
-        }(std::index_sequence_for<Args...>{});
-        return *this;
-    }
+template <stdx::callable F, typename Base>
+struct task<F, Base, stdx::tuple<>> : Base {
+    constexpr explicit(true) task(F const &f) : func{f} {}
+    constexpr explicit(true) task(F &&f) : func{std::move(f)} {}
 
-    auto run() -> void final { bound_args.apply(func); }
+    auto run() -> void final { func(); }
 
     [[no_unique_address]] F func;
-    [[no_unique_address]] ArgTuple bound_args{};
+};
+
+template <stdx::callable F, typename Base, typename... Args>
+struct bound_task : Base {
+    constexpr explicit(true) bound_task(F const &f) : func{f} {}
+    constexpr explicit(true) bound_task(F &&f) : func{std::move(f)} {}
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+    auto run() -> void final { args.apply(func); }
+
+    [[no_unique_address]] F func;
+    union {
+        char unused{};
+        [[no_unique_address]] stdx::tuple<Args...> args;
+    };
+};
+
+namespace task_detail {
+template <typename T>
+concept union_usable = std::is_trivially_copy_constructible_v<T> and
+                       std::is_trivially_destructible_v<T>;
+
+struct poisoned_run {
+    template <typename... CantRunWithUnboundArguments> auto run() const -> void;
+};
+} // namespace task_detail
+
+template <stdx::callable F, typename Base, typename... Args>
+struct task<F, Base, stdx::tuple<Args...>> {
+    static_assert(
+        stdx::always_false_v<task>,
+        "task: bound arguments must be trivially copyable and destructible");
+};
+
+template <stdx::callable F, typename Base, task_detail::union_usable... Args>
+struct task<F, Base, stdx::tuple<Args...>> : bound_task<F, Base, Args...>,
+                                             task_detail::poisoned_run {
+    using bound_t = bound_task<F, Base, Args...>;
+
+    using bound_t::bound_t;
+
+    template <typename... As>
+    constexpr auto bind_front(As &&...as) -> bound_t & {
+        this->args = {std::forward<As>(as)...};
+        return *this;
+    }
 };
 
 template <typename T>
 constexpr auto create_task = []<typename F>(F &&f) {
     using func_t = std::remove_cvref_t<F>;
     using args_t = stdx::decayed_args_t<func_t, stdx::tuple>;
-    return task<func_t, args_t, T>{std::forward<F>(f)};
+    return task<func_t, T, args_t>{std::forward<F>(f)};
 };
 } // namespace async
