@@ -82,10 +82,12 @@ struct task<F, Base, stdx::tuple<Args...>> {
 };
 
 template <stdx::callable F, typename Base, task_detail::union_usable... Args>
-struct task<F, Base, stdx::tuple<Args...>> : bound_task<F, Base, Args...>,
-                                             task_detail::poisoned_run {
+struct task<F, Base, stdx::tuple<Args...>>
+    : private bound_task<F, Base, Args...>, task_detail::poisoned_run {
+  private:
     using bound_t = bound_task<F, Base, Args...>;
 
+  public:
     using bound_t::bound_t;
 
     template <typename... As>

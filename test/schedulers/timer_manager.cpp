@@ -181,12 +181,10 @@ TEST_CASE("task can reschedule itself", "[timer_manager]") {
 
     m.service_task();
     CHECK(var == 1);
-    CHECK(task.pending);
     CHECK(not m.is_idle());
 
     m.service_task();
     CHECK(var == 2);
-    CHECK(task.pending);
     CHECK(not m.is_idle());
 }
 
@@ -238,7 +236,6 @@ TEST_CASE("cancel during task run", "[timer_manager]") {
 
     m.service_task();
     CHECK(var == 42);
-    CHECK(not task.pending);
     CHECK(m.is_idle());
 }
 
