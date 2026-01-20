@@ -34,7 +34,9 @@ struct std_hal {
                 while (not stopping) {
                     auto next = [&] {
                         std::unique_lock lock{m};
-                        cv.wait_until(lock, next_wakeup);
+                        cv.wait_until(lock, next_wakeup, [] {
+                            return next_wakeup == time_point_t::max();
+                        });
                         return next_wakeup;
                     }();
                     if (not stopping and now() >= next) {
