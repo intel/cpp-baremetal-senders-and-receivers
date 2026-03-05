@@ -216,3 +216,74 @@ TEST_CASE("trigger_scheduler produces set_stopped debug signal",
     CHECK(debug_events ==
           std::vector{"op sched start"s, "op sched set_stopped"s});
 }
+
+TEMPLATE_TEST_CASE("trigger_scheduler runs all triggers by default",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::trigger_scheduler<name>{};
+
+    int var1{};
+    async::sender auto sndr1 =
+        async::start_on(s, async::just_result_of([&] { var1 = 42; }));
+    CHECK(async::start_detached(sndr1));
+
+    int var2{};
+    async::sender auto sndr2 =
+        async::start_on(s, async::just_result_of([&] { var2 = 42; }));
+    CHECK(async::start_detached(sndr2));
+
+    async::run_triggers<name>();
+    CHECK(var1 == 42);
+    CHECK(var2 == 42);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+TEMPLATE_TEST_CASE("trigger_scheduler can be policized for multi-stimulus",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::trigger_scheduler<name>{};
+
+    int var1{};
+    async::sender auto sndr1 =
+        async::start_on(s, async::just_result_of([&] { var1 = 42; }));
+    CHECK(async::start_detached(sndr1));
+
+    int var2{};
+    async::sender auto sndr2 =
+        async::start_on(s, async::just_result_of([&] { var2 = 17; }));
+    CHECK(async::start_detached(sndr2));
+
+    async::run_one_trigger<name>();
+    CHECK(var1 == 42);
+    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+
+    async::run_one_trigger<name>();
+    CHECK(var2 == 17);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+TEMPLATE_TEST_CASE("triggered task can start a new task on the same trigger",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::trigger_scheduler<name>{};
+
+    auto start = [&](auto f) {
+        async::sender auto sndr = async::start_on(s, async::just_result_of(f));
+        CHECK(async::start_detached(sndr));
+    };
+
+    int var{};
+    start([&] {
+        if (var++ == 0) {
+            start([&] { var = 42; });
+        }
+    });
+
+    async::run_one_trigger<name>();
+    CHECK(var == 1);
+    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+
+    async::run_one_trigger<name>();
+    CHECK(var == 42);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
