@@ -147,7 +147,7 @@ struct sender {
 template <stdx::ct_string Name, typename HandleTag, typename CompleteTag,
           typename... Fs>
 struct pipeable {
-    stdx::tuple<Fs...> fs;
+    [[no_unique_address]] stdx::tuple<Fs...> fs;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>

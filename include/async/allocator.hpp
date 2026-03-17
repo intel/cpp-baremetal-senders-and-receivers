@@ -43,8 +43,9 @@ constexpr inline struct get_allocator_t : forwarding_query_t {
         return std::forward<T>(t).query(*this);
     }
 
-    template <typename T> constexpr auto operator()(T &&) const {
-        if constexpr (completes_synchronously(T{})) {
+    template <typename T> constexpr auto operator()(T &&t) const {
+        if constexpr (std::remove_cvref_t<decltype(completes_synchronously(
+                          t))>::value) {
             return stack_allocator{};
         } else {
             return static_allocator{};

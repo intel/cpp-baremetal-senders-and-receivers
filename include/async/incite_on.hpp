@@ -185,7 +185,7 @@ class trigger_scheduler
 };
 
 template <typename Uniq, typename... Scheds> struct any_pipeable {
-    stdx::tuple<Scheds...> scheds;
+    [[no_unique_address]] stdx::tuple<Scheds...> scheds;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<any_pipeable> Self>

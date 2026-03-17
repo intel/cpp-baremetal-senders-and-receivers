@@ -2,13 +2,6 @@
 
 [![Unit Tests](https://github.com/intel/cpp-baremetal-senders-and-receivers/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/intel/cpp-baremetal-senders-and-receivers/actions/workflows/unit_tests.yml)
 
-## WARNING: Work in Progress!
-
-This library is under active development. It is a work in progress and has not
-yet been proved in production. Proceed at your own risk.
-
-## Abstract
-
 *C++ Bare Metal Senders and Receivers* is a C++ header-only library that
 partially implements [P2300](https://wg21.link/p2300), the proposed C++ standard
 design for asynchronous computation.
@@ -24,7 +17,8 @@ notable differences here from the standard proposal are:
   coroutines as senders, but in a bare metal environment, the lack of
   non-allocation guarantees currently makes using coroutines an uncertain
   proposition at best.
-- Generalized tag dispatch may be missing for some functions.
+- Some functions are missing, some have different names, and some are
+  non-standard.
 
 In general, although the P2300 design allows mechanism-agnostic handling of
 concurrency, the main mechanism of concurrency targeted by this library is
@@ -33,9 +27,16 @@ interrupts. A careful reading of
 recommended to understand how the C++ memory model defines well-formed
 concurrent execution.
 
-C++20 is required. The following compilers are supported:
- 
-- clang 14 through 21
-- gcc 12 through 14
+C++ standard support is as follows:
+
+- C++23: [main branch](https://github.com/intel/cpp-baremetal-senders-and-receivers/tree/main) (active development)
+- C++20: [cpp20 branch](https://github.com/intel/cpp-baremetal-senders-and-receivers/tree/cpp20) (supported)
 
 See the [full documentation](https://intel.github.io/cpp-baremetal-senders-and-receivers/).
+
+Compiler support:
+
+| Branch | GCC versions | Clang versions |
+| --- | --- | --- |
+| [main](https://github.com/intel/cpp-baremetal-senders-and-receivers/tree/main) | 12 thru 14 | 19 thru 21 |
+| [cpp20](https://github.com/intel/cpp-baremetal-senders-and-receivers/tree/cpp20) | 12 thru 14 | 14 thru 21 |
