@@ -15,9 +15,13 @@ else()
     cpmaddpackage("gh:intel/cicd-repo-infrastructure#3e2bef0")
 endif()
 
-add_versioned_package("gh:intel/cpp-baremetal-concurrency#cea9d67")
-add_versioned_package("gh:intel/cpp-std-extensions#48b3f4c")
+add_versioned_package("gh:intel/cpp-baremetal-concurrency#63230eb")
+add_versioned_package("gh:intel/cpp-std-extensions#2b7917f")
 add_versioned_package("gh:boostorg/mp11#boost-1.83.0")
+
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 23)
+endif()
 
 add_library(async INTERFACE)
 target_compile_features(async INTERFACE cxx_std_20)
