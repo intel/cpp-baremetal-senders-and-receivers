@@ -59,12 +59,16 @@ concept valid_completion_for = requires(Signature *sig) {
         requires std::invocable<Tag, std::remove_cvref_t<R>, Args...>
     {}(sig);
 };
+
+template <typename R>
+constexpr auto valid_completion_sigs =
+    []<valid_completion_for<R>... Sigs>(
+        completion_signatures<Sigs...> *) -> void {};
 } // namespace detail
 
 template <typename R, typename Completions>
 concept receiver_of = receiver<R> and requires(Completions *completions) {
-    []<detail::valid_completion_for<R>... Sigs>(
-        completion_signatures<Sigs...> *) {}(completions);
+    { detail::valid_completion_sigs<R>(completions) } -> std::same_as<void>;
 };
 
 namespace detail {

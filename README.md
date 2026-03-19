@@ -38,5 +38,5 @@ Compiler support:
 
 | Branch | GCC versions | Clang versions |
 | --- | --- | --- |
-| [main](https://github.com/intel/cpp-baremetal-senders-and-receivers/tree/main) | 12 thru 14 | 19 thru 21 |
+| [main](https://github.com/intel/cpp-baremetal-senders-and-receivers/tree/main) | 12 thru 14 | 19 thru 22 |
 | [cpp20](https://github.com/intel/cpp-baremetal-senders-and-receivers/tree/cpp20) | 12 thru 14 | 14 thru 21 |
