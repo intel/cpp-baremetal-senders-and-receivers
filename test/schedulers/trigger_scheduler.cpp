@@ -19,8 +19,11 @@
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/format.h>
 
+#include <atomic>
 #include <concepts>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -164,12 +167,15 @@ namespace {
 std::vector<std::string> debug_events{};
 
 struct debug_handler {
+    std::mutex m;
+
     template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
     constexpr auto signal(auto &&...) {
         if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
                                      async::trigger_scheduler_sender_t>) {
             static_assert(
                 boost::mp11::mp_empty<async::debug::children_of<Ctx>>::value);
+            std::lock_guard lock{m};
             debug_events.push_back(
                 fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
         }
@@ -286,4 +292,44 @@ TEMPLATE_TEST_CASE("triggered task can start a new task on the same trigger",
     async::run_one_trigger<name>();
     CHECK(var == 42);
     CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+TEST_CASE("thread safety for immediate execution", "[trigger_scheduler]") {
+    auto s = async::trigger_scheduler<"rqp_imm">{};
+
+    std::atomic<bool> ready1{};
+    std::atomic<bool> ready2{};
+    int var1{};
+    int var2{};
+
+    auto start = [&](auto f) {
+        async::sender auto sndr = async::start_on(s, async::just_result_of(f));
+        CHECK(async::start_detached(sndr));
+    };
+
+    auto t1 = std::thread{[&] {
+        start([&] {
+            var1 = 17;
+            start([&] { ++var1; });
+        });
+        ready1 = true;
+        ready1.notify_one();
+    }};
+    auto t2 = std::thread{[&] {
+        start([&] { var2 = 42; });
+        ready2 = true;
+        ready2.notify_one();
+    }};
+
+    ready1.wait(false);
+    async::run_triggers<"rqp_imm", async::requeue_policy::immediate>();
+
+    ready2.wait(false);
+    async::run_triggers<"rqp_imm", async::requeue_policy::immediate>();
+
+    t1.join();
+    t2.join();
+    CHECK(var1 == 18);
+    CHECK(var2 == 42);
+    CHECK(async::triggers<stdx::cts_t<"rqp_imm">>.empty());
 }
