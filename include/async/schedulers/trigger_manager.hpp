@@ -35,36 +35,26 @@ template <typename... Args> struct trigger_task {
 };
 
 namespace run_policy {
-struct base {
-    template <typename M, typename... Args>
-    static auto run(auto &&q, auto &count, Args &&...args) {
-        auto &task = q.front();
-        conc::call_in_critical_section<M>([&]() {
-            q.pop_front();
-            task.pending = false;
-        });
-        task.run(std::forward<Args>(args)...);
-        --count;
-    }
-};
-
-struct one : base {
+struct one {
     template <typename, typename M, typename... Args>
     static auto run(auto &&tasks, auto &count, Args &&...args) {
-        decltype(auto) q =
-            requeue_policy::immediate::template get_queue<0, M>(tasks);
-        if (not std::empty(q)) {
-            base::run<M>(q, count, std::forward<Args>(args)...);
+        using RQP = requeue_policy::immediate;
+        decltype(auto) q = RQP::template get_queue<0, M>(tasks);
+        if (auto task = RQP::template pop<M>(q); task) {
+            task->run(std::forward<Args>(args)...);
+            --count;
         }
     }
 };
 
-struct all : base {
-    template <typename RQP, typename M>
-    static auto run(auto &&tasks, auto &count, auto &&...args) {
+struct all {
+    template <typename RQP, typename M, typename... Args>
+    static auto run(auto &&tasks, auto &count, Args &&...args) {
         decltype(auto) q = RQP::template get_queue<0, M>(tasks);
-        while (not std::empty(q)) {
-            base::run<M>(q, count, args...);
+        for (auto task = RQP::template pop<M>(q); task;
+             task = RQP::template pop<M>(q)) {
+            task->run(args...);
+            --count;
         }
     }
 };
