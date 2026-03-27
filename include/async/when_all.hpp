@@ -196,7 +196,7 @@ struct op_state
 
     template <typename S, typename R>
     constexpr op_state(S &&s, R &&r)
-        : base_op_state<Rcvr>{std::forward<R>(r), {}},
+        : base_op_state<Rcvr>{std::forward<R>(r)},
           sub_op_state_t<Sndrs>{std::forward<S>(s)}... {}
 
     auto notify() -> void {
