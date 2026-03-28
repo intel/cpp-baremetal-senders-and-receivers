@@ -459,3 +459,79 @@ TEST_CASE("when_any can be named and debugged with a string", "[when_any]") {
     CHECK(debug_events == std::vector{"op when_any_name start"s,
                                       "op when_any_name set_value"s});
 }
+
+namespace {
+template <typename R> struct env_looking_op_state {
+    R rcvr;
+    int value{};
+
+    constexpr auto start() & -> void {
+        async::set_value(std::move(rcvr), value);
+    }
+};
+
+template <bool Stoppable = false> struct env_looking_sender {
+    using is_sender = void;
+
+    template <typename Env>
+    [[nodiscard]] constexpr static auto get_completion_signatures(Env const &) {
+        if constexpr (Stoppable) {
+            return async::completion_signatures<async::set_value_t(int),
+                                                async::set_stopped_t()>{};
+        } else {
+            return async::completion_signatures<async::set_value_t(int)>{};
+        }
+    }
+
+    template <typename R>
+    [[nodiscard]] constexpr auto connect(R const &r) const
+        -> env_looking_op_state<R> {
+        auto e = async::get_env(r);
+        auto value = get_fwd(e);
+        return {r, value};
+    }
+};
+
+struct env_looking_t;
+} // namespace
+
+template <typename R>
+struct async::debug::context_for<env_looking_op_state<R>> {
+    using tag = env_looking_t;
+    constexpr static auto name = stdx::ct_string{""};
+    using children = stdx::type_list<>;
+    using type = env_looking_op_state<R>;
+};
+
+TEST_CASE("during connect call, when_all avoids uninitialized read from env "
+          "(unstoppable)",
+          "[when_any]") {
+    int value{};
+    auto w = async::when_any(env_looking_sender{}, env_looking_sender{});
+    auto op = async::connect(w, with_env{receiver{[&](auto i) {
+                                             CHECK(i == 17);
+                                             value = i;
+                                         }},
+                                         async::prop{get_fwd_t{}, 17}});
+    async::start(op);
+    CHECK(value == 17);
+}
+
+TEST_CASE("during connect call, when_all avoids uninitialized read from env "
+          "(stoppable)",
+          "[when_any]") {
+    auto stop = async::inplace_stop_source{};
+    int value{};
+    auto w =
+        async::when_any(env_looking_sender<true>{}, env_looking_sender<true>{});
+    auto op = async::connect(
+        w, with_env{receiver{[&](auto i) {
+                        CHECK(i == 17);
+                        value = i;
+                    }},
+                    async::env{async::prop{get_fwd_t{}, 17},
+                               async::prop{async::get_stop_token_t{},
+                                           stop.get_token()}}});
+    async::start(op);
+    CHECK(value == 17);
+}

@@ -198,10 +198,16 @@ template <typename Tag> struct prepend {
 template <typename Tag, typename L>
 using apply_tag = boost::mp11::mp_transform_q<prepend<Tag>, L>;
 
+template <typename Rcvr> struct base_op_state {
+    [[no_unique_address]] Rcvr rcvr;
+    inplace_stop_source stop_source{};
+};
+
 template <stdx::ct_string Name, typename StopPolicy, typename Rcvr,
           typename... Sndrs>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
+struct op_state : base_op_state<Rcvr>,
+                  sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
                                Sndrs, inplace_stop_token>... {
     template <typename S>
     using sub_op_state_t = sub_op_state<op_state, Rcvr, S, inplace_stop_token>;
@@ -216,8 +222,8 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
 
     template <typename S, typename R>
     constexpr op_state(S &&s, R &&r)
-        : sub_op_state_t<Sndrs>{std::forward<S>(s)}...,
-          rcvr{std::forward<R>(r)} {}
+        : base_op_state<Rcvr>{std::forward<R>(r)},
+          sub_op_state_t<Sndrs>{std::forward<S>(s)}... {}
     constexpr op_state(op_state &&) = delete;
 
     using env_t = overriding_env<get_stop_token_t, inplace_stop_token, Rcvr>;
@@ -235,7 +241,7 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
 
     template <typename Tag, typename... Args>
     auto emplace(Args &&...args) -> void {
-        StopPolicy::template emplace<mutex, Tag>(completions, stop_source,
+        StopPolicy::template emplace<mutex, Tag>(completions, this->stop_source,
                                                  std::forward<Args>(args)...);
         if (--count == 0) {
             complete();
@@ -246,11 +252,12 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
         stop_cb.reset();
         if constexpr (not async::unstoppable_token<
                           async::stop_token_of_t<async::env_of_t<Rcvr>>>) {
-            if (async::get_stop_token(async::get_env(rcvr)).stop_requested()) {
+            if (async::get_stop_token(async::get_env(this->rcvr))
+                    .stop_requested()) {
                 debug_signal<set_stopped_t::name,
                              debug::erased_context_for<op_state>>(
-                    get_env(rcvr));
-                set_stopped(std::move(rcvr));
+                    get_env(this->rcvr));
+                set_stopped(std::move(this->rcvr));
                 return;
             }
         }
@@ -266,11 +273,13 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
                         // thing of using Tag::name - this workaround is
                         // hopefully temporary
                         if constexpr (std::same_as<Tag, set_value_t>) {
-                            debug_signal<set_value_t::name, ctx>(get_env(rcvr));
+                            debug_signal<set_value_t::name, ctx>(
+                                get_env(this->rcvr));
                         } else if constexpr (std::same_as<Tag, set_error_t>) {
-                            debug_signal<set_error_t::name, ctx>(get_env(rcvr));
+                            debug_signal<set_error_t::name, ctx>(
+                                get_env(this->rcvr));
                         }
-                        tag(std::move(rcvr), std::forward<Args>(args)...);
+                        tag(std::move(this->rcvr), std::forward<Args>(args)...);
                     });
                 },
                 [](std::monostate) {}},
@@ -279,13 +288,14 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
 
     constexpr auto start() & -> void {
         debug_signal<"start", debug::erased_context_for<op_state>>(
-            get_env(rcvr));
-        stop_cb.emplace(async::get_stop_token(get_env(rcvr)),
-                        stop_callback_fn{std::addressof(stop_source)});
-        if (stop_source.stop_requested()) {
+            get_env(this->rcvr));
+        stop_cb.emplace(async::get_stop_token(get_env(this->rcvr)),
+                        stop_callback_fn{std::addressof(this->stop_source)});
+        if (this->stop_source.stop_requested()) {
             debug_signal<set_stopped_t::name,
-                         debug::erased_context_for<op_state>>(get_env(rcvr));
-            set_stopped(std::move(rcvr));
+                         debug::erased_context_for<op_state>>(
+                get_env(this->rcvr));
+            set_stopped(std::move(this->rcvr));
         } else {
             count = sizeof...(Sndrs);
             (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops),
@@ -294,24 +304,27 @@ struct op_state : sub_op_state<op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
     }
 
     [[nodiscard]] auto get_stop_token() const -> inplace_stop_token {
-        return stop_source.get_token();
+        return this->stop_source.get_token();
     }
 
     using stop_callback_t =
         stop_callback_for_t<stop_token_of_t<env_of_t<Rcvr>>, stop_callback_fn>;
 
-    [[no_unique_address]] Rcvr rcvr;
     completions_t completions{};
     stdx::atomic<std::size_t> count;
-    inplace_stop_source stop_source;
     std::optional<stop_callback_t> stop_cb{};
+};
+
+template <typename Rcvr> struct nostop_base_op_state {
+    [[no_unique_address]] Rcvr rcvr;
 };
 
 template <stdx::ct_string Name, typename StopPolicy, typename Rcvr,
           typename... Sndrs>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct nostop_op_state
-    : sub_op_state<nostop_op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
+    : nostop_base_op_state<Rcvr>,
+      sub_op_state<nostop_op_state<Name, StopPolicy, Rcvr, Sndrs...>, Rcvr,
                    Sndrs, never_stop_token>... {
     template <typename S>
     using sub_op_state_t =
@@ -322,8 +335,8 @@ struct nostop_op_state
 
     template <typename S, typename R>
     constexpr nostop_op_state(S &&s, R &&r)
-        : sub_op_state_t<Sndrs>{std::forward<S>(s)}...,
-          rcvr{std::forward<R>(r)} {}
+        : nostop_base_op_state<Rcvr>{std::forward<R>(r)},
+          sub_op_state_t<Sndrs>{std::forward<S>(s)}... {}
     constexpr nostop_op_state(nostop_op_state &&) = delete;
 
     using env_t = overriding_env<get_stop_token_t, never_stop_token, Rcvr>;
@@ -341,7 +354,7 @@ struct nostop_op_state
 
     template <typename Tag, typename... Args>
     auto emplace(Args &&...args) -> void {
-        StopPolicy::template emplace<mutex, Tag>(completions, stop_source,
+        StopPolicy::template emplace<mutex, Tag>(completions, this->stop_source,
                                                  std::forward<Args>(args)...);
         if (--count == 0) {
             complete();
@@ -357,8 +370,9 @@ struct nostop_op_state
                                                             Args &&...args) {
                             debug_signal<Tag::name, debug::erased_context_for<
                                                         nostop_op_state>>(
-                                get_env(rcvr));
-                            tag(std::move(rcvr), std::forward<Args>(args)...);
+                                get_env(this->rcvr));
+                            tag(std::move(this->rcvr),
+                                std::forward<Args>(args)...);
                         });
                 },
                 [](std::monostate) {}},
@@ -367,14 +381,15 @@ struct nostop_op_state
 
     constexpr auto start() & -> void {
         debug_signal<"start", debug::erased_context_for<nostop_op_state>>(
-            get_env(rcvr));
+            get_env(this->rcvr));
         count = sizeof...(Sndrs);
         (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
     }
 
-    [[nodiscard]] auto get_stop_token() const -> never_stop_token { return {}; }
+    [[nodiscard]] static auto get_stop_token() -> never_stop_token {
+        return {};
+    }
 
-    [[no_unique_address]] Rcvr rcvr;
     completions_t completions{};
     stdx::atomic<std::size_t> count;
     [[no_unique_address]] never_stop_source stop_source{};
