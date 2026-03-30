@@ -170,7 +170,7 @@ struct debug_handler {
     std::mutex m;
 
     template <stdx::ct_string C, stdx::ct_string S, typename Ctx>
-    constexpr auto signal(auto &&...) {
+    auto signal(auto &&...) {
         if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
                                      async::trigger_scheduler_sender_t>) {
             static_assert(
