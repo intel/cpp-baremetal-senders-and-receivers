@@ -15,9 +15,9 @@ else()
     cpmaddpackage("gh:intel/cicd-repo-infrastructure#3e2bef0")
 endif()
 
+add_versioned_package(URI "gh:boostorg/mp11#boost-1.83.0" TARGET boost_mp11)
 add_versioned_package("gh:intel/cpp-baremetal-concurrency#63230eb")
 add_versioned_package("gh:intel/cpp-std-extensions#2b7917f")
-add_versioned_package("gh:boostorg/mp11#boost-1.83.0")
 
 if(NOT DEFINED CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 23)
