@@ -8,7 +8,6 @@
 #include <async/stop_token.hpp>
 #include <async/type_traits.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/function_traits.hpp>
 #include <stdx/type_traits.hpp>
@@ -169,7 +168,7 @@ concept scheduler = queryable<S> and
                     } and std::equality_comparable<std::remove_cvref_t<S>> and
                     std::copy_constructible<std::remove_cvref_t<S>>;
 
-template <typename S, typename R> CONSTEVAL auto check_connect() -> void {
+template <typename S, typename R> consteval auto check_connect() -> void {
     if constexpr (not receiver_from<R, S>) {
         static_assert(
             stdx::always_false_v<S, R,
