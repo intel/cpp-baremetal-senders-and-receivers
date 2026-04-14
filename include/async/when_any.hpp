@@ -10,7 +10,6 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/atomic.hpp>
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
@@ -419,7 +418,7 @@ template <stdx::ct_string Name, typename StopPolicy, typename... Sndrs>
 struct sender : Sndrs... {
     using is_sender = void;
 
-    template <typename Env> CONSTEVAL static auto check_completeable() -> void {
+    template <typename Env> consteval static auto check_completeable() -> void {
         static_assert(
             not boost::mp11::mp_any<std::is_same<
                 completion_signatures<>,
