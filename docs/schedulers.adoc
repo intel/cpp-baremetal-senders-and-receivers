@@ -381,6 +381,28 @@ async::run_triggers<"name">(42);
 // x is now 42
 ----
 
+The default behaviour is to run all of the scheduled work when
+`async::triggers<"name">.run()` or `async::run_triggers<"name">()` is called.
+To run only one work item in FIFO order, call `async::run_one_trigger<"name">()`.
+
+[source,cpp]
+----
+int x{};
+async::trigger_scheduler<"name", int>{}.schedule()
+  | async::then([&] (auto i) { x = i; })
+  | async::start_detached();
+
+async::trigger_scheduler<"name", int>{}.schedule()
+  | async::then([&] (auto i) { x = i*2; })
+  | async::start_detached();
+
+// when event occurs
+async::run_one_trigger<"name">(42);
+// x is now 42
+async::run_triggers<"name">(12);
+// x is now 24
+----
+
 NOTE: It is possible to use a `trigger_scheduler` that takes arguments as a
 "normal" scheduler, i.e. functions like `start_on` will work; however the
 arguments passed to `run_triggers` will be discarded when used with constructs
