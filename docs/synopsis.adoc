@@ -150,6 +150,8 @@ xref:schedulers.adoc#_time_scheduler[time_scheduler].
 * `timer_mgr::time_point_for` - a class template that can be specialized to specify a `time_point` type corresponding to a `duration` type
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_manager.hpp[schedulers/trigger_manager.hpp]
+* `run_triggers<"name">()` - a function that runs all the named xref:schedulers.adoc#_trigger_scheduler[trigger_scheduler]s
+* `run_one_trigger<"name">()` - a function that runs one named xref:schedulers.adoc#_trigger_scheduler[trigger_scheduler] in FIFO order
 * `triggers<"name">` - a named trigger manager that is used with xref:schedulers.adoc#_trigger_scheduler[trigger_scheduler]
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_scheduler.hpp[schedulers/trigger_scheduler.hpp]
@@ -273,6 +275,8 @@ contains traits and metaprogramming constructs used by many senders.
 * `requeue_policy::deferred` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/requeue_policy.hpp[`#include <async/schedulers/requeue_policy.hpp>`]
 * xref:sender_adaptors.adoc#_retry[`retry`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/retry.hpp[`#include <async/retry.hpp>`]
 * xref:sender_adaptors.adoc#_retry_until[`retry_until`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/retry.hpp[`#include <async/retry.hpp>`]
+* xref:schedulers.adoc#_trigger_scheduler[`run_one_trigger<"name">`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_manager.hpp[`#include <async/schedulers/trigger_manager.hpp>`]
+* xref:schedulers.adoc#_trigger_scheduler[`run_triggers<"name">`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/trigger_manager.hpp[`#include <async/schedulers/trigger_manager.hpp>`]
 * xref:schedulers.adoc#_runloop_scheduler[`runloop_scheduler`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/runloop_scheduler.hpp[`#include <async/schedulers/runloop_scheduler.hpp>`]
 * `scheduler<S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
 * `sender<S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
