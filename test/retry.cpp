@@ -103,6 +103,19 @@ TEST_CASE("retry_until retries on error", "[retry]") {
     CHECK(var == 3);
 }
 
+TEST_CASE("retry_until terse form", "[retry]") {
+    int var{};
+
+    auto sub = async::just() | async::sequence([&] {
+                   ++var;
+                   return async::just_error(var);
+               });
+    auto s = sub | async::retry_until(3);
+    auto op = async::connect(s, receiver{[] {}});
+    async::start(op);
+    CHECK(var == 3);
+}
+
 TEST_CASE("retry can be cancelled", "[retry]") {
     int var{};
     stoppable_receiver r{[&] { var += 42; }};

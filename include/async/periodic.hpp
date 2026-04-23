@@ -238,18 +238,43 @@ struct sender {
     }
 };
 
+template <stdx::ct_string, typename, typename, typename> struct pipeable;
+
+template <stdx::ct_string Name, typename Expiry, typename... Args>
+constexpr auto make_sender(Args &&...args)
+    -> sender<Name, Expiry, std::remove_cvref_t<Args>...> {
+    return {std::forward<Args>(args)...};
+}
+
+template <stdx::ct_string Name, typename Expiry, typename Duration,
+          typename MatchValue>
+struct pipeable {
+    Duration d;
+    MatchValue v;
+
+  private:
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
+    friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
+        return make_sender<Name, Expiry>(
+            std::forward<S>(s), std::forward<Self>(self).d,
+            [value = std::forward<Self>(self).v](auto const &x) {
+                return x == value;
+            });
+    }
+};
+
 template <stdx::ct_string Name, typename Expiry, typename Duration,
           stdx::callable Pred>
-struct pipeable {
+struct pipeable<Name, Expiry, Duration, Pred> {
     Duration d;
     Pred p;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Name, Expiry, std::remove_cvref_t<S>, Duration, Pred>{
-            std::forward<S>(s), std::forward<Self>(self).d,
-            std::forward<Self>(self).p};
+        return make_sender<Name, Expiry>(std::forward<S>(s),
+                                         std::forward<Self>(self).d,
+                                         std::forward<Self>(self).p);
     }
 };
 } // namespace _periodic

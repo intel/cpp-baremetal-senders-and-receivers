@@ -132,6 +132,23 @@ TEST_CASE("periodic repeats periodically", "[periodic]") {
     CHECK(var == 42);
 }
 
+TEST_CASE("periodic_until terse form", "[periodic]") {
+    int var{};
+    [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
+                              async::then([&] { return ++var; }) |
+                              async::periodic_until(1s, 2);
+    auto op = async::connect(s, receiver{[&](auto) { var = 42; }});
+    async::start(op);
+    CHECK(enabled<default_domain>);
+    CHECK(not async::timer_mgr::is_idle());
+    async::timer_mgr::service_task();
+    CHECK(var == 1);
+    CHECK(not async::timer_mgr::is_idle());
+    async::timer_mgr::service_task();
+    CHECK(async::timer_mgr::is_idle());
+    CHECK(var == 42);
+}
+
 TEST_CASE("periodic allows continue_on another scheduler", "[periodic]") {
     int var{};
     [[maybe_unused]] auto s =
