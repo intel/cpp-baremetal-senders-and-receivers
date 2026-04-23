@@ -190,23 +190,48 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, stdx::callable Pred, stdx::callable LoopFn>
+template <stdx::ct_string, typename, stdx::callable> struct pipeable;
+
+template <stdx::ct_string Name, typename... Args>
+constexpr auto make_sender(Args &&...args)
+    -> sender<Name, std::remove_cvref_t<Args>...> {
+    return {std::forward<Args>(args)...};
+}
+
+template <stdx::ct_string Name, typename MatchValue, stdx::callable LoopFn>
 struct pipeable {
+    MatchValue v;
+    LoopFn f;
+
+  private:
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
+    friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
+        return make_sender<Name>(
+            std::forward<S>(s),
+            [value = std::forward<Self>(self).v](auto const &x) {
+                return x == value;
+            },
+            std::forward<Self>(self).f);
+    }
+};
+
+template <stdx::ct_string Name, stdx::callable Pred, stdx::callable LoopFn>
+struct pipeable<Name, Pred, LoopFn> {
     Pred p;
     LoopFn f;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Name, std::remove_cvref_t<S>, Pred, LoopFn>{
-            std::forward<S>(s), std::forward<Self>(self).p,
-            std::forward<Self>(self).f};
+        return make_sender<Name>(std::forward<S>(s), std::forward<Self>(self).p,
+                                 std::forward<Self>(self).f);
     }
 };
 } // namespace _repeat
 
 template <stdx::ct_string Name = "repeat_until", typename P,
           typename F = std::remove_cvref_t<decltype(_repeat::no_loop_fn)>>
+    requires(not sender<P>)
 [[nodiscard]] constexpr auto repeat_until(P &&p, F &&f = {})
     -> _repeat::pipeable<Name, std::remove_cvref_t<P>, std::remove_cvref_t<F>> {
     return {std::forward<P>(p), std::forward<F>(f)};

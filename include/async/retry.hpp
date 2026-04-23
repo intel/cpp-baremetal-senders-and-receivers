@@ -180,14 +180,35 @@ template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename Pred> struct pipeable {
+template <stdx::ct_string, typename> struct pipeable;
+
+template <stdx::ct_string Name, typename... Args>
+constexpr auto make_sender(Args &&...args)
+    -> sender<Name, std::remove_cvref_t<Args>...> {
+    return {std::forward<Args>(args)...};
+}
+
+template <stdx::ct_string Name, typename MatchValue> struct pipeable {
+    MatchValue v;
+
+  private:
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
+    friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
+        return make_sender<Name>(std::forward<S>(s),
+                                 [value = std::forward<Self>(self).v](
+                                     auto const &x) { return x == value; });
+    }
+};
+
+template <stdx::ct_string Name, stdx::callable Pred>
+struct pipeable<Name, Pred> {
     Pred p;
 
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
-        return sender<Name, std::remove_cvref_t<S>, Pred>{
-            std::forward<S>(s), std::forward<Self>(self).p};
+        return make_sender<Name>(std::forward<S>(s),
+                                 std::forward<Self>(self).p);
     }
 };
 } // namespace _retry

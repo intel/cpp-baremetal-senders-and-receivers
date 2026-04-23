@@ -296,6 +296,18 @@ NOTE: `periodic` never completes other than by error or cancellation, but
 `periodic_n` and `periodic_until` both complete successfully with the same
 completion as the adapted sender.
 
+`periodic_until` can take a plain value rather than a predicate, and this is a
+terse way to repeat until the argument is equal to that value.
+
+[source,cpp]
+----
+// these senders are equivalent
+auto s1 = some_sender | async::periodic_until(1s, [] (auto const&x) { return x == 42; });
+auto s2 = some_sender | async::periodic_until(1s, 42);
+----
+
+NOTE: A "plain value" given to `periodic_until` must be movable.
+
 === `repeat`
 
 Found in the header: `async/repeat.hpp`
@@ -375,6 +387,18 @@ NOTE: `repeat` never completes other than by error or cancellation, but
 `repeat_n` and `repeat_until` both complete successfully with the same
 completion as the adapted sender.
 
+`repeat_until` can take a plain value rather than a predicate, and this is a
+terse way to repeat until the argument is equal to that value.
+
+[source,cpp]
+----
+// these senders are equivalent
+auto s1 = some_sender | async::repeat_until([] (auto const&x) { return x == 42; });
+auto s2 = some_sender | async::repeat_until(42);
+----
+
+NOTE: A "plain value" given to `repeat_until` must be movable.
+
 === `retry`
 
 Found in the header: `async/retry.hpp`
@@ -408,6 +432,19 @@ auto s = some_sender | async::retry_until([] (auto&&) { return true; });
 
 NOTE: The arguments passed to the predicate are those in the error completion(s)
 of the sender.
+
+Like `repeat_until`, `retry_until` can take a plain value rather than a
+predicate, and this is a terse way to retry until the (error channel) argument
+is equal to that value.
+
+[source,cpp]
+----
+// these senders are equivalent
+auto s1 = some_sender | async::retry_until([] (auto const&x) { return x == 42; });
+auto s2 = some_sender | async::retry_until(42);
+----
+
+NOTE: A "plain value" given to `retry_until` must be movable.
 
 === `sequence`
 
