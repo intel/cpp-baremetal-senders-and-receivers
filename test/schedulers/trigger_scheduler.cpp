@@ -34,20 +34,22 @@ constexpr auto type_string =
 } // namespace
 
 TEST_CASE("trigger_scheduler fulfils concept", "[trigger_scheduler]") {
-    static_assert(async::scheduler<async::trigger_scheduler<"name">>);
+    STATIC_CHECK(async::scheduler<async::trigger_scheduler<"name">>);
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler sender advertises nothing",
                    "[trigger_scheduler]", decltype([] {})) {
-    static_assert(async::sender_of<decltype(async::trigger_scheduler<
-                                            type_string<TestType>>::schedule()),
-                                   async::set_value_t()>);
+    using expected_t = async::completion_signatures<async::set_value_t(),
+                                                    async::set_stopped_t()>;
+    using actual_t = async::completion_signatures_of_t<
+        decltype(async::trigger_scheduler<type_string<TestType>>::schedule())>;
+    STATIC_CHECK(std::same_as<actual_t, expected_t>);
 }
 
 TEMPLATE_TEST_CASE(
     "trigger_scheduler sender advertises args that will be used to trigger it",
     "[trigger_scheduler]", decltype([] {})) {
-    static_assert(
+    STATIC_CHECK(
         async::sender_of<decltype(async::trigger_scheduler<
                                   type_string<TestType>, int>::schedule()),
                          async::set_value_t(int const &)>);
@@ -60,7 +62,7 @@ TEMPLATE_TEST_CASE(
     auto s = S::schedule();
     auto cs =
         async::get_completion_scheduler<async::set_value_t>(async::get_env(s));
-    static_assert(std::same_as<decltype(cs), S>);
+    STATIC_CHECK(std::same_as<decltype(cs), S>);
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler schedules tasks", "[trigger_scheduler]",
@@ -132,6 +134,22 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable after start",
     CHECK(async::triggers<stdx::cts_t<name>>.empty());
 }
 
+TEMPLATE_TEST_CASE("trigger_scheduler is cancellable by cancel_triggers",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::trigger_scheduler<name>{};
+    int var{};
+    async::sender auto sndr =
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
+    auto r = stopped_receiver{[&] { var = 17; }};
+    auto op = async::connect(sndr, r);
+
+    async::start(op);
+    async::cancel_triggers<name>();
+    CHECK(var == 17);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
 TEST_CASE("request and response", "[trigger_scheduler]") {
     int var{};
 
@@ -173,9 +191,9 @@ struct debug_handler {
     auto signal(auto &&...) {
         if constexpr (std::is_same_v<async::debug::tag_of<Ctx>,
                                      async::trigger_scheduler_sender_t>) {
-            static_assert(
-                boost::mp11::mp_empty<async::debug::children_of<Ctx>>::value);
             std::lock_guard lock{m};
+            STATIC_CHECK(
+                boost::mp11::mp_empty<async::debug::children_of<Ctx>>::value);
             debug_events.push_back(
                 fmt::format("{} {} {}", C, async::debug::name_of<Ctx>, S));
         }
