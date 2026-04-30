@@ -81,6 +81,11 @@ struct op_state final : op_state_base<Rcvr, op_state<Name, Rcvr, Args...>>,
         set_value(std::move(rcvr), args...);
     }
 
+    auto cancel() -> void final {
+        this->clear_stop_cb();
+        complete_stopped();
+    }
+
     constexpr auto start() & -> void {
         debug_signal<"start", debug::erased_context_for<op_state>>(
             get_env(rcvr));
@@ -110,24 +115,13 @@ template <typename S, typename Name, typename... Args> class scheduler {
     struct sender {
         using is_sender = void;
 
+        using completion_signatures =
+            async::completion_signatures<set_value_t(Args const &...),
+                                         set_stopped_t()>;
+
         [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
-            return prop{get_completion_scheduler_t<set_value_t>{}, S{}};
-        }
-
-        template <typename Env>
-        [[nodiscard]] constexpr static auto
-        get_completion_signatures(Env const &) noexcept
-            -> completion_signatures<set_value_t(Args const &...),
-                                     set_stopped_t()> {
-            return {};
-        }
-
-        template <typename Env>
-            requires unstoppable_token<stop_token_of_t<Env>>
-        [[nodiscard]] constexpr static auto
-        get_completion_signatures(Env const &) noexcept
-            -> completion_signatures<set_value_t(Args const &...)> {
-            return {};
+            return env{prop{get_completion_scheduler_t<set_value_t>{}, S{}},
+                       prop{get_completion_scheduler_t<set_stopped_t>{}, S{}}};
         }
 
         template <receiver R>
