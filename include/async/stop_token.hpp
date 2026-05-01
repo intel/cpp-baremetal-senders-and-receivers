@@ -60,13 +60,12 @@ template <typename Source> struct stop_token {
         -> bool = default;
 };
 
-// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+// NOLINTNEXTLINE(*-special-member-functions, *-virtual-class-destructor)
 struct stop_callback_base {
     virtual auto run() -> void = 0;
 
     constexpr stop_callback_base() = default;
     constexpr stop_callback_base(stop_callback_base &&) = delete;
-    virtual ~stop_callback_base() = default;
 
     bool pending{};
     stop_callback_base *prev{};
@@ -175,7 +174,7 @@ struct never_stop_source {
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-template <typename F> struct inplace_stop_callback : stop_callback_base {
+template <typename F> struct inplace_stop_callback final : stop_callback_base {
     inplace_stop_callback(never_stop_token, F const &f) : callback(f) {}
     inplace_stop_callback(never_stop_token, F &&f) : callback(std::move(f)) {}
 
@@ -194,7 +193,7 @@ template <typename F> struct inplace_stop_callback : stop_callback_base {
             callback();
         }
     }
-    ~inplace_stop_callback() override {
+    ~inplace_stop_callback() {
         if (source != nullptr) {
             source->unregister_callback(this);
         }
