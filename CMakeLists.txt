@@ -12,7 +12,7 @@ include(cmake/get_cpm.cmake)
 if(PROJECT_IS_TOP_LEVEL)
     cpmaddpackage("gh:intel/cicd-repo-infrastructure#dev")
 else()
-    cpmaddpackage("gh:intel/cicd-repo-infrastructure#3e2bef0")
+    cpmaddpackage("gh:intel/cicd-repo-infrastructure#6021593")
 endif()
 
 add_versioned_package(URI "gh:boostorg/mp11#boost-1.83.0" TARGET boost_mp11)
