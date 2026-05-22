@@ -89,7 +89,7 @@ TEST_CASE("just op state is synchronous", "[just]") {
 
 template <>
 inline auto async::injected_debug_handler<> =
-    debug_handler<async::just_t, true>{};
+    debug_handler<async::just_value_t, true>{};
 
 TEST_CASE("just can be debugged with a string", "[just]") {
     using namespace std::string_literals;
@@ -100,13 +100,14 @@ TEST_CASE("just can be debugged with a string", "[just]") {
                     async::prop{async::get_debug_interface_t{},
                                 async::debug::named_interface<"op">{}}});
     async::start(op);
-    CHECK(debug_events == std::vector{"op just start"s, "op just set_value"s});
+    CHECK(debug_events ==
+          std::vector{"op just_value start"s, "op just_value set_value"s});
 }
 
 TEST_CASE("just can be named and debugged with a string", "[just]") {
     using namespace std::string_literals;
     debug_events.clear();
-    auto s = async::just<"just_name">();
+    auto s = async::just_value<"just_name">();
     auto op = async::connect(
         s, with_env{universal_receiver{},
                     async::prop{async::get_debug_interface_t{},
@@ -114,4 +115,13 @@ TEST_CASE("just can be named and debugged with a string", "[just]") {
     async::start(op);
     CHECK(debug_events ==
           std::vector{"op just_name start"s, "op just_name set_value"s});
+}
+
+TEST_CASE("just<> is equivalent to just_value", "[just]") {
+    int value{};
+    auto s = async::just_value(42);
+    auto r = receiver{[&](auto i) { value = i; }};
+    auto op = async::connect(s, r);
+    async::start(op);
+    CHECK(value == 42);
 }

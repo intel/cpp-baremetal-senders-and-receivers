@@ -13,12 +13,14 @@ auto sndr = async::just(42, 17);
 // sndr produces (sends) the values 42 and 17
 ----
 
-`just` can be given a name that is used for debug events. By default, its name
-is `"just"`.
+By default, `just` sends on the value channel, but it can send on any channel.
+This is useful for generic code. It can also be given a name that is used for
+debug events. By default, its name is either `"just"`, `"just_error"` or
+`"just_stopped"` according to the channel selected.
 
 [source,cpp]
 ----
-auto sndr = async::just<"the answer">(42);
+auto sndr = async::just<set_value_t, "the answer">(42);
 ----
 
 [NOTE]
@@ -32,8 +34,7 @@ continuation monad.
 
 Found in the header: `async/just.hpp`
 
-`just_error` is like `just`, but instead of completing by calling `set_value` on
-a receiver, it will call `set_error`.
+`just_error` is `just<set_error_t>`.
 
 [source,cpp]
 ----
@@ -129,8 +130,7 @@ auto s = async::just() | async::then([] { return 42; });
 
 Found in the header: `async/just.hpp`
 
-`just_stopped` is like `just`, but instead of completing by calling `set_value` on
-a receiver, it will call `set_stopped`.
+`just_stopped` is `just<set_stopped_t>`.
 
 [source,cpp]
 ----
@@ -144,6 +144,26 @@ is `"just_stopped"`.
 [source,cpp]
 ----
 auto sndr = async::just_stopped<"cancel">();
+----
+
+=== `just_value`
+
+Found in the header: `async/just.hpp`
+
+`just_value` is `just<set_value_t>`.
+
+[source,cpp]
+----
+auto sndr = async::just_value(42);
+// sndr produces (sends) the value 42 on the value channel
+----
+
+`just_value` can be given a name that is used for debug events. By default, its name
+is `"just_value"`.
+
+[source,cpp]
+----
+auto sndr = async::just_value<"oops">(42);
 ----
 
 === `read_env`

@@ -65,9 +65,10 @@
 * `into_variant` - a xref:sender_adaptors.adoc#_into_variant[sender adaptor] that collapses value completions into a variant
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[just.hpp]
-* `just` - a xref:sender_factories.adoc#_just[sender factory] that sends on the value channel
+* `just` - a xref:sender_factories.adoc#_just[sender factory] that sends on the selected channel (value by default)
 * `just_error` - a xref:sender_factories.adoc#_just_error[sender factory] that sends on the error channel
 * `just_stopped` - a xref:sender_factories.adoc#_just_stopped[sender factory] that sends on the stopped channel
+* `just_value` - a xref:sender_factories.adoc#_just[sender factory] that sends on the value channel
 
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just_result_of.hpp[just_result_of.hpp]
 * `just_error_result_of` - a xref:sender_factories.adoc#_just_error_result_of[sender factory] that sends lazily computed values on the error channel
@@ -253,6 +254,7 @@ contains traits and metaprogramming constructs used by many senders.
 * xref:sender_factories.adoc#_just_error_result_of[`just_error_result_of`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just_result_of.hpp[`#include <async/just_result_of.hpp>`]
 * xref:sender_factories.adoc#_just_result_of[`just_result_of`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just_result_of.hpp[`#include <async/just_result_of.hpp>`]
 * xref:sender_factories.adoc#_just_stopped[`just_stopped`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[`#include <async/just.hpp>`]
+* xref:sender_factories.adoc#_just_value[`just_value`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/just.hpp[`#include <async/just.hpp>`]
 * xref:sender_adaptors.adoc#_let_error[`let_error`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_error.hpp[`#include <async/let_error.hpp>`]
 * xref:sender_adaptors.adoc#_let_stopped[`let_stopped`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_stopped.hpp[`#include <async/let_stopped.hpp>`]
 * xref:sender_adaptors.adoc#_let_value[`let_value`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_value.hpp[`#include <async/let_value.hpp>`]

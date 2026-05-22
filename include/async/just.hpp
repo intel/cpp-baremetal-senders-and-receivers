@@ -63,32 +63,49 @@ template <stdx::ct_string Name, typename Tag, typename... Vs> struct sender {
         return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
+
+template <channel_tag Tag> constexpr inline auto name = stdx::ct_string{""};
+
+template <>
+constexpr inline auto name<set_value_t> = stdx::ct_string{"just_value"};
+template <>
+constexpr inline auto name<set_error_t> = stdx::ct_string{"just_error"};
+template <>
+constexpr inline auto name<set_stopped_t> = stdx::ct_string{"just_stopped"};
 } // namespace _just
 
-template <stdx::ct_string Name = "just", typename... Vs>
+template <channel_tag Tag = set_value_t,
+          stdx::ct_string Name = _just::name<Tag>, typename... Vs>
 [[nodiscard]] constexpr auto just(Vs &&...vs) -> sender auto {
-    return _just::sender<Name, set_value_t, std::remove_cvref_t<Vs>...>{
+    static_assert(sizeof...(Vs) == 0 or not std::same_as<Tag, set_stopped_t>,
+                  "Can't send any values on the stopped channel");
+
+    return _just::sender<Name, Tag, std::remove_cvref_t<Vs>...>{
         {std::forward<Vs>(vs)...}};
 }
 
-template <stdx::ct_string Name = "just_error", typename... Vs>
+template <stdx::ct_string Name = _just::name<set_value_t>, typename... Vs>
+[[nodiscard]] constexpr auto just_value(Vs &&...vs) -> sender auto {
+    return just<set_value_t, Name>(std::forward<Vs>(vs)...);
+}
+
+template <stdx::ct_string Name = _just::name<set_error_t>, typename... Vs>
 [[nodiscard]] constexpr auto just_error(Vs &&...vs) -> sender auto {
-    return _just::sender<Name, set_error_t, std::remove_cvref_t<Vs>...>{
-        {std::forward<Vs>(vs)...}};
+    return just<set_error_t, Name>(std::forward<Vs>(vs)...);
 }
 
-template <stdx::ct_string Name = "just_stopped">
+template <stdx::ct_string Name = _just::name<set_stopped_t>>
 [[nodiscard]] constexpr auto just_stopped() -> sender auto {
-    return _just::sender<Name, set_stopped_t>{};
+    return just<set_stopped_t, Name>();
 }
 
-struct just_t;
+struct just_value_t;
 struct just_error_t;
 struct just_stopped_t;
 
 template <typename Tag>
 using just_tag_for =
-    stdx::conditional_t<std::same_as<Tag, set_value_t>, just_t,
+    stdx::conditional_t<std::same_as<Tag, set_value_t>, just_value_t,
                         stdx::conditional_t<std::same_as<Tag, set_error_t>,
                                             just_error_t, just_stopped_t>>;
 
