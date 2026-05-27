@@ -277,7 +277,7 @@ constexpr auto make_variant_sender(bool b, F1 &&f1, F2 &&f2) {
 
 template <stdx::callable F> constexpr auto make_optional_sender(bool b, F &&f) {
     return make_variant_sender(b, std::forward<F>(f),
-                               [] { return just<"opt-else">(); });
+                               [] { return just<set_value_t, "opt-else">(); });
 }
 
 struct variant_t;
