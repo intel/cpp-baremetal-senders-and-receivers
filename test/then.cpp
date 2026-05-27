@@ -8,6 +8,7 @@
 #include <async/just_result_of.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/then.hpp>
+#include <async/variant_sender.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -296,4 +297,46 @@ TEST_CASE("then calls functions by need", "[then]") {
         async::connect(n, receiver{[&](auto i, auto j) { value = i + j; }});
     async::start(op);
     CHECK(value == 5 + 7);
+}
+
+TEST_CASE("multithen advertises what it sends", "[then]") {
+    auto const i = 0;
+    auto const s = async::make_variant_sender(
+        i == 0, [] { return async::just(42.0); },
+        [] { return async::just_error(17.0f); });
+
+    [[maybe_unused]] auto n = s | async::multithen([](auto) { return 42; });
+
+    STATIC_CHECK(
+        std::is_same_v<async::completion_signatures_of_t<decltype(n)>,
+                       async::completion_signatures<async::set_value_t(int)>>);
+}
+
+TEST_CASE("multithen handles multiple channels (value)", "[then]") {
+    int value{};
+    constexpr auto channels =
+        async::set_value | async::set_error | async::set_stopped;
+    auto n = async::multithen<channels>([](auto...) { return 42; });
+
+    {
+        value = 0;
+        auto op = async::connect(async::just(17) | n,
+                                 receiver{[&](auto i) { value = i; }});
+        async::start(op);
+        CHECK(value == 42);
+    }
+    {
+        value = 0;
+        auto op = async::connect(async::just_error(17) | n,
+                                 receiver{[&](auto i) { value = i; }});
+        async::start(op);
+        CHECK(value == 42);
+    }
+    {
+        value = 0;
+        auto op = async::connect(async::just_stopped() | n,
+                                 receiver{[&](auto i) { value = i; }});
+        async::start(op);
+        CHECK(value == 42);
+    }
 }

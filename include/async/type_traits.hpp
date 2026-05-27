@@ -28,8 +28,17 @@ template <typename... Tags> struct with_any_tag {
         std::bool_constant<(... or std::is_same_v<Tags, stdx::return_t<Sig>>)>;
 };
 
+template <typename Sigs, typename Tag> struct signatures_by_tag_t {
+    using type = boost::mp11::mp_copy_if_q<Sigs, with_any_tag<Tag>>;
+};
+
+template <typename Sigs, typename... Tags>
+struct signatures_by_tag_t<Sigs, with_any_tag<Tags...>> {
+    using type = boost::mp11::mp_copy_if_q<Sigs, with_any_tag<Tags...>>;
+};
+
 template <typename Sigs, typename Tag>
-using signatures_by_tag = boost::mp11::mp_copy_if_q<Sigs, with_any_tag<Tag>>;
+using signatures_by_tag = typename signatures_by_tag_t<Sigs, Tag>::type;
 
 template <bool> struct indirect_meta_apply {
     template <template <typename...> typename T, typename... As>
