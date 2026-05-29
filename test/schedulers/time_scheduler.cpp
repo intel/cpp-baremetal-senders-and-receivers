@@ -15,13 +15,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/format.h>
 
-#include <atomic>
 #include <chrono>
 #include <concepts>
-#include <condition_variable>
 #include <functional>
 #include <mutex>
-#include <thread>
 #include <utility>
 #include <vector>
 

@@ -319,10 +319,13 @@ TEST_CASE("thread safety for immediate execution", "[trigger_scheduler]") {
     std::atomic<bool> ready2{};
     int var1{};
     int var2{};
+    std::atomic<int> started{};
 
     auto start = [&](auto f) {
         async::sender auto sndr = async::start_on(s, async::just_result_of(f));
-        CHECK(async::start_detached(sndr));
+        if (async::start_detached(sndr)) {
+            ++started;
+        }
     };
 
     auto t1 = std::thread{[&] {
@@ -347,6 +350,7 @@ TEST_CASE("thread safety for immediate execution", "[trigger_scheduler]") {
 
     t1.join();
     t2.join();
+    CHECK(started == 3);
     CHECK(var1 == 18);
     CHECK(var2 == 42);
     CHECK(async::triggers<stdx::cts_t<"rqp_imm">>.empty());

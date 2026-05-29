@@ -10,7 +10,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <atomic>
 #include <cstddef>
+#include <random>
 #include <thread>
 #include <type_traits>
 
@@ -68,22 +70,29 @@ TEST_CASE("static allocate fails when limit is reached", "[allocator]") {
 
 TEST_CASE("static allocator is thread-safe", "[allocator]") {
     auto alloc = async::static_allocator{};
+    std::atomic<int> val{};
+    std::atomic<int> successes{};
 
     auto const f = [&] {
         return alloc.construct<domain, S>(
             [&](auto &&s) {
-                CHECK(s.i == 42);
+                ++successes;
+                val += s.i;
                 alloc.destruct<domain>(&s);
             },
-            42);
+            17);
     };
     {
         auto t1 = std::thread{f};
         auto t2 = std::thread{f};
         t1.join();
         t2.join();
+        CHECK(successes > 0);
+        CHECK(val == 17 * successes);
     }
     CHECK(f());
+    CHECK(successes > 1);
+    CHECK(val == 17 * successes);
 }
 
 template <>
