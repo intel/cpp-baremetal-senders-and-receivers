@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build_and_test_24:
-    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-24.04
+    runs-on: &runner ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -99,7 +99,7 @@ jobs:
             stdlib: libc++
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: &checkout actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install build tools
         run: |
@@ -112,7 +112,8 @@ jobs:
             sudo apt update && sudo apt install -y ninja-build gcc-${{matrix.version}} g++-${{matrix.version}}
           fi
 
-      - name: Restore CPM cache
+      - &restore_cpm_cache
+        name: Restore CPM cache
         env:
           cache-name: cpm-cache-0
         id: cpm-cache-restore
@@ -129,7 +130,8 @@ jobs:
           CXX: ${{matrix.toolchain_root}}/bin/${{matrix.cxx}}
         run: cmake -B ${{github.workspace}}/build -DCMAKE_CXX_STANDARD=${{matrix.cxx_standard}} -DCMAKE_CXX_FLAGS_INIT=${{matrix.cxx_flags}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCPM_SOURCE_CACHE=~/cpm-cache
 
-      - name: Save CPM cache
+      - &save_cpm_cache
+        name: Save CPM cache
         env:
           cache-name: cpm-cache-0
         if: steps.cpm-cache-restore.outputs.cache-hit != 'true'
@@ -146,10 +148,10 @@ jobs:
         run: ctest --output-on-failure -j $(nproc) -C ${{matrix.build_type}}
 
   quality_checks_pass:
-    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-24.04
+    runs-on: *runner
     steps:
       - name: Checkout target branch
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: *checkout
         with:
           ref: ${{github.base_ref}}
 
@@ -158,7 +160,7 @@ jobs:
         id: target_branch
 
       - name: Checkout PR branch
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: *checkout
 
       - name: Setup python venv
         run: |
@@ -177,16 +179,7 @@ jobs:
         run: |
           pip install cmakelang pyyaml
 
-      - name: Restore CPM cache
-        env:
-          cache-name: cpm-cache-0
-        id: cpm-cache-restore
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/cpm-cache
-          key: ${{runner.os}}-${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
-          restore-keys: |
-            ${{runner.os}}-${{env.cache-name}}-
+      - *restore_cpm_cache
 
       - name: Configure CMake
         env:
@@ -195,20 +188,13 @@ jobs:
           PR_TARGET_BRANCH: ${{ steps.target_branch.outputs.branch }}
         run: cmake -B ${{github.workspace}}/build -DCMAKE_CXX_STANDARD=${{env.DEFAULT_CXX_STANDARD}} -DCPM_SOURCE_CACHE=~/cpm-cache
 
-      - name: Save CPM cache
-        env:
-          cache-name: cpm-cache-0
-        if: steps.cpm-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/cpm-cache
-          key: ${{runner.os}}-${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
+      - *save_cpm_cache
 
       - name: Run quality checks
         run: cmake --build ${{github.workspace}}/build -t ci-quality
 
   sanitize:
-    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-24.04
+    runs-on: *runner
     strategy:
       fail-fast: false
       matrix:
@@ -225,7 +211,7 @@ jobs:
             toolchain_root: "/usr"
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: *checkout
 
       - name: Install build tools
         run: |
@@ -238,16 +224,7 @@ jobs:
             sudo apt update && sudo apt install -y ninja-build ${{matrix.cc}} ${{matrix.cxx}}
           fi
 
-      - name: Restore CPM cache
-        env:
-          cache-name: cpm-cache-0
-        id: cpm-cache-restore
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/cpm-cache
-          key: ${{runner.os}}-${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
-          restore-keys: |
-            ${{runner.os}}-${{env.cache-name}}-
+      - *restore_cpm_cache
 
       - name: Configure CMake
         env:
@@ -256,14 +233,7 @@ jobs:
           SANITIZERS: ${{matrix.sanitizer}}
         run: cmake -B ${{github.workspace}}/build -DCMAKE_CXX_STANDARD=${{env.DEFAULT_CXX_STANDARD}} -DCPM_SOURCE_CACHE=~/cpm-cache
 
-      - name: Save CPM cache
-        env:
-          cache-name: cpm-cache-0
-        if: steps.cpm-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/cpm-cache
-          key: ${{runner.os}}-${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
+      - *save_cpm_cache
 
       # https://github.com/actions/runner-images/issues/9524
       - name: Fix kernel mmap rnd bits
@@ -276,24 +246,15 @@ jobs:
         run: cmake --build ${{github.workspace}}/build -t unit_tests
 
   valgrind:
-    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-24.04
+    runs-on: *runner
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: *checkout
 
       - name: Install build tools
         run: |
           sudo apt update && sudo apt install -y gcc-${{env.DEFAULT_GCC_VERSION}} g++-${{env.DEFAULT_GCC_VERSION}} ninja-build valgrind
 
-      - name: Restore CPM cache
-        env:
-          cache-name: cpm-cache-0
-        id: cpm-cache-restore
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/cpm-cache
-          key: ${{runner.os}}-${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
-          restore-keys: |
-            ${{runner.os}}-${{env.cache-name}}-
+      - *restore_cpm_cache
 
       - name: Configure CMake
         env:
@@ -301,14 +262,7 @@ jobs:
           CXX: "/usr/bin/g++-${{env.DEFAULT_GCC_VERSION}}"
         run: cmake -B ${{github.workspace}}/build -DCMAKE_CXX_STANDARD=${{env.DEFAULT_CXX_STANDARD}} -DCPM_SOURCE_CACHE=~/cpm-cache
 
-      - name: Save CPM cache
-        env:
-          cache-name: cpm-cache-0
-        if: steps.cpm-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/cpm-cache
-          key: ${{runner.os}}-${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
+      - *save_cpm_cache
 
       - name: Build Unit Tests
         run: cmake --build ${{github.workspace}}/build -t build_unit_tests
@@ -347,7 +301,7 @@ jobs:
           test $FAILSIZE = "0"
 
   merge_ok:
-    runs-on: ${{ github.repository_owner == 'intel' && 'intel-' || '' }}ubuntu-24.04
+    runs-on: *runner
     needs: [build_and_test_24, quality_checks_pass, sanitize, valgrind]
     if: ${{ !cancelled() }}
     steps:
