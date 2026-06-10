@@ -35,7 +35,7 @@ template <typename... Ts> adaptor(stdx::tuple<Ts...>) -> adaptor<Ts...>;
 
 template <typename S>
 concept is_adaptor_composition =
-    requires { typename S::is_adaptor_composition; };
+    requires { typename std::remove_cvref_t<S>::is_adaptor_composition; };
 
 template <is_adaptor_composition A, is_adaptor_composition B>
 constexpr auto operator|(A &&a, B &&b) {
