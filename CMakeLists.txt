@@ -8,6 +8,8 @@ project(
         "A header-only C++ library that implements low-level async senders and receivers framework."
 )
 
+set(INFRA_PYTHON_FORMATTER black)
+
 include(cmake/get_cpm.cmake)
 if(PROJECT_IS_TOP_LEVEL)
     cpmaddpackage("gh:intel/cicd-repo-infrastructure#dev")
