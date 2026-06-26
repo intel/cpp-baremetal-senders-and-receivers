@@ -23,19 +23,19 @@
 
 #include <conc/concurrency.hpp>
 
-#include <cstdint>
+#include <concepts>
 #if HAS_CONDITION_VARIABLE
 #include <condition_variable>
 #include <mutex>
 #endif
+#include <utility>
 
 namespace async {
 namespace detail {
 #if HAS_CONDITION_VARIABLE
-template <typename Uniq, std::size_t N> struct synchronizer {
+struct synchronizer_impl {
     template <typename... Fs> auto notify(Fs &&...fs) {
-        static_assert(sizeof...(Fs) <= N);
-        std::unique_lock l{m};
+        std::unique_lock const l{m};
         (std::forward<Fs>(fs)(), ...);
         if constexpr (sizeof...(Fs) == 0) {
             done = true;
@@ -44,7 +44,6 @@ template <typename Uniq, std::size_t N> struct synchronizer {
     }
 
     template <typename... Ps> auto wait(Ps &&...ps) {
-        static_assert(sizeof...(Ps) <= N);
         std::unique_lock l{m};
         cv.wait(l, [&] { return (ps() or ... or done); });
     }
@@ -53,10 +52,13 @@ template <typename Uniq, std::size_t N> struct synchronizer {
     std::condition_variable cv;
     bool done{};
 };
+
+template <typename Uniq> using runloop_synchronizer = synchronizer_impl;
+using simple_synchronizer = synchronizer_impl;
+
 #else
-template <typename Uniq, std::size_t N> struct synchronizer {
+template <typename Uniq> struct runloop_synchronizer {
     template <typename... Fs> auto notify(Fs &&...fs) {
-        static_assert(sizeof...(Fs) <= N);
         conc::call_in_critical_section<Uniq>([&] {
             (std::forward<Fs>(fs)(), ...);
             if constexpr (sizeof...(Fs) == 0) {
@@ -65,16 +67,15 @@ template <typename Uniq, std::size_t N> struct synchronizer {
         });
     }
 
-    template <typename... Ps> auto wait(Ps &&...ps) {
-        static_assert(sizeof...(Ps) <= N);
-        conc::call_in_critical_section<Uniq>(
-            [] {}, [&] { return (ps() or ... or done); });
+    template <typename P> auto wait(P &&p) {
+        conc::call_in_critical_section<Uniq>([] {},
+                                             [&] { return p() or done; });
     }
 
     bool done{};
 };
 
-template <typename Uniq> struct synchronizer<Uniq, 0> {
+struct simple_synchronizer {
     auto notify() { done = true; }
 
     auto wait() {
@@ -201,7 +202,7 @@ template <typename Uniq = decltype([] {})> class run_loop {
     }
 
   private:
-    async::detail::synchronizer<Uniq, 1> sync{};
+    async::detail::runloop_synchronizer<Uniq> sync{};
     stdx::intrusive_list<op_state_base> tasks{};
 };
 } // namespace _run_loop

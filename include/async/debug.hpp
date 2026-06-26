@@ -66,7 +66,8 @@ constexpr auto make_named_interface = []<typename... Ts>(Ts &&...ts) {
         std::forward<Ts>(ts)...};
 };
 
-using default_interface = named_interface<"unknown">;
+constexpr static auto default_chain_name = stdx::ct_string{"unknown"};
+using default_interface = named_interface<default_chain_name>;
 } // namespace debug
 
 constexpr inline struct get_debug_interface_t : forwarding_query_t {

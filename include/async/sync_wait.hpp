@@ -72,10 +72,9 @@ struct dynamic_receiver : receiver<V, Env> {
     }
 };
 
-template <typename V, typename Env, typename Uniq>
-struct static_receiver : receiver<V, Env> {
+template <typename V, typename Env> struct static_receiver : receiver<V, Env> {
     // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
-    async::detail::synchronizer<Uniq, 0> &sync;
+    async::detail::simple_synchronizer &sync;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
     template <typename... Args>
@@ -109,47 +108,12 @@ template <typename E, sender_in<E> S>
 using sync_wait_type = value_types_of_t<S, E, decayed_tuple, std::optional>;
 } // namespace detail
 
-struct dynamic_t;
-struct static_t;
-
 template <typename Env> struct pipeable_base {
     [[no_unique_address]] Env e;
 };
 
-template <typename Uniq, typename Env, typename Flavor> class pipeable;
-
 template <typename Uniq, typename Env>
-class pipeable<Uniq, Env, static_t> : public pipeable_base<Env> {
-    template <sender S> static auto wait(S &&s, Env const &e) {
-        static_assert(detail::single_sender<S, set_value_t, Env>,
-                      "sync_wait requires a single set_value completion: "
-                      "consider using into_variant");
-        static_assert(sender_in<S, Env>,
-                      "Sender given to sync_wait_static cannot run with that "
-                      "environment: did you mean to use sync_wait_dynamic?");
-
-        return [&]() -> detail::sync_wait_type<Env, S> {
-            async::detail::synchronizer<Uniq, 0> sync{};
-            using V = detail::sync_wait_type<Env, S>;
-            V values{};
-            auto r = static_receiver<V, Env, Uniq>{values, e, sync};
-
-            auto op_state = connect(std::forward<S>(s), r);
-            r.signal_start();
-            start(op_state);
-            sync.wait();
-            return values;
-        }();
-    }
-
-    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
-    [[nodiscard]] friend auto operator|(S &&s, Self &&self) {
-        return wait(std::forward<S>(s), std::forward<Self>(self).e);
-    }
-};
-
-template <typename Uniq, typename Env>
-class pipeable<Uniq, Env, dynamic_t> : public pipeable_base<Env> {
+class pipeable : public pipeable_base<Env> {
     template <sender S> static auto wait(S &&s, Env const &e) {
         run_loop<Uniq> rl{};
         auto sched = rl.get_scheduler();
@@ -178,12 +142,44 @@ class pipeable<Uniq, Env, dynamic_t> : public pipeable_base<Env> {
         return wait(std::forward<S>(s), std::forward<Self>(self).e);
     }
 };
+
+struct static_t;
+
+template <typename Env>
+class pipeable<static_t, Env> : public pipeable_base<Env> {
+    template <sender S> static auto wait(S &&s, Env const &e) {
+        static_assert(detail::single_sender<S, set_value_t, Env>,
+                      "sync_wait requires a single set_value completion: "
+                      "consider using into_variant");
+        static_assert(sender_in<S, Env>,
+                      "Sender given to sync_wait_static cannot run with that "
+                      "environment: did you mean to use sync_wait_dynamic?");
+
+        return [&]() -> detail::sync_wait_type<Env, S> {
+            async::detail::simple_synchronizer sync{};
+            using V = detail::sync_wait_type<Env, S>;
+            V values{};
+            auto r = static_receiver<V, Env>{values, e, sync};
+
+            auto op_state = connect(std::forward<S>(s), r);
+            r.signal_start();
+            start(op_state);
+            sync.wait();
+            return values;
+        }();
+    }
+
+    template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
+    [[nodiscard]] friend auto operator|(S &&s, Self &&self) {
+        return wait(std::forward<S>(s), std::forward<Self>(self).e);
+    }
+};
 } // namespace _sync_wait
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait_dynamic(Env &&e = {})
-    -> _sync_wait::pipeable<Uniq, Env, _sync_wait::dynamic_t> {
+    -> _sync_wait::pipeable<Uniq, Env> {
     return {std::forward<Env>(e)};
 }
 
@@ -205,52 +201,44 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
     return std::forward<S>(s) | sync_wait_dynamic<Name>(std::forward<Env>(e));
 }
 
-template <typename Uniq = decltype([] {}), typename Env = empty_env>
+template <typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait_static(Env &&e = {})
-    -> _sync_wait::pipeable<Uniq, Env, _sync_wait::static_t> {
+    -> _sync_wait::pipeable<_sync_wait::static_t, Env> {
     return {std::forward<Env>(e)};
 }
 
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait_static(Env &&e = {}) {
-    return sync_wait_static<stdx::cts_t<Name>>(
+    return sync_wait_static(
         env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
             std::forward<Env>(e)});
 }
 
-template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
-[[nodiscard]] auto sync_wait_static(S &&s, Env &&e = {}) {
-    return std::forward<S>(s) | sync_wait_static<Uniq>(std::forward<Env>(e));
-}
-
-template <stdx::ct_string Name, sender S, typename Env = empty_env>
+template <stdx::ct_string Name = debug::default_chain_name, sender S,
+          typename Env = empty_env>
 [[nodiscard]] auto sync_wait_static(S &&s, Env &&e = {}) {
     return std::forward<S>(s) | sync_wait_static<Name>(std::forward<Env>(e));
 }
 
-template <typename Uniq = decltype([] {}), typename Env = empty_env>
+template <typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait(Env &&e = {})
-    -> _sync_wait::pipeable<Uniq, Env, _sync_wait::static_t> {
+    -> _sync_wait::pipeable<_sync_wait::static_t, Env> {
     return {std::forward<Env>(e)};
 }
 
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait(Env &&e = {}) {
-    return sync_wait<stdx::cts_t<Name>>(
+    return sync_wait(
         env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
             std::forward<Env>(e)});
 }
 
-template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
-[[nodiscard]] auto sync_wait(S &&s, Env &&e = {}) {
-    return std::forward<S>(s) | sync_wait<Uniq>(std::forward<Env>(e));
-}
-
-template <stdx::ct_string Name, sender S, typename Env = empty_env>
+template <stdx::ct_string Name = debug::default_chain_name, sender S,
+          typename Env = empty_env>
 [[nodiscard]] auto sync_wait(S &&s, Env &&e = {}) {
     return std::forward<S>(s) | sync_wait<Name>(std::forward<Env>(e));
 }
