@@ -231,8 +231,16 @@ time_scheduler(D)
 
 template <typename Domain = timer_mgr::default_domain,
           stdx::ct_string Name = "time_scheduler">
-constexpr auto time_scheduler_factory =
-    []<typename D>(D d) -> time_scheduler<Domain, Name, D> { return {d}; };
+constexpr auto time_scheduler_factory = []<typename... Ds>
+    requires(sizeof...(Ds) <= 1u)
+(Ds... ds) {
+    if constexpr (sizeof...(Ds) == 0) {
+        return time_scheduler<Domain, Name, detail::no_duration_t,
+                              detail::no_task_t>{};
+    } else {
+        return time_scheduler<Domain, Name, Ds...>{ds...};
+    }
+};
 
 struct time_scheduler_sender_t;
 
