@@ -117,9 +117,8 @@ TEST_CASE("periodic_n advertises what it sends", "[periodic]") {
 
 TEST_CASE("periodic repeats periodically", "[periodic]") {
     int var{};
-    [[maybe_unused]] auto s =
-        async::time_scheduler{}.schedule() | async::then([&] { ++var; }) |
-        async::periodic_until(1s, [&] { return var == 2; });
+    auto s = async::time_scheduler{}.schedule() | async::then([&] { ++var; }) |
+             async::periodic_until(1s, [&] { return var == 2; });
     auto op = async::connect(s, receiver{[&] { var = 42; }});
     async::start(op);
     CHECK(enabled<default_domain>);
@@ -134,9 +133,8 @@ TEST_CASE("periodic repeats periodically", "[periodic]") {
 
 TEST_CASE("periodic_until terse form", "[periodic]") {
     int var{};
-    [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
-                              async::then([&] { return ++var; }) |
-                              async::periodic_until(1s, 2);
+    auto s = async::time_scheduler{}.schedule() |
+             async::then([&] { return ++var; }) | async::periodic_until(1s, 2);
     auto op = async::connect(s, receiver{[&](auto) { var = 42; }});
     async::start(op);
     CHECK(enabled<default_domain>);
@@ -151,11 +149,10 @@ TEST_CASE("periodic_until terse form", "[periodic]") {
 
 TEST_CASE("periodic allows continue_on another scheduler", "[periodic]") {
     int var{};
-    [[maybe_unused]] auto s =
-        async::time_scheduler{}.schedule() |
-        async::continue_on(async::fixed_priority_scheduler<0>{}) |
-        async::then([&] { ++var; }) |
-        async::periodic_until(1s, [&] { return var == 2; });
+    auto s = async::time_scheduler{}.schedule() |
+             async::continue_on(async::fixed_priority_scheduler<0>{}) |
+             async::then([&] { ++var; }) |
+             async::periodic_until(1s, [&] { return var == 2; });
     auto op = async::connect(s, receiver{[&] { var = 42; }});
     async::start(op);
     CHECK(enabled<default_domain>);
@@ -173,9 +170,8 @@ TEST_CASE("periodic allows continue_on another scheduler", "[periodic]") {
 
 TEST_CASE("periodic_n repeats n times", "[periodic]") {
     int var{};
-    [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
-                              async::then([&] { ++var; }) |
-                              async::periodic_n(1s, 2);
+    auto s = async::time_scheduler{}.schedule() | async::then([&] { ++var; }) |
+             async::periodic_n(1s, 2);
     auto op = async::connect(s, receiver{[&] { var = 42; }});
     async::start(op);
     CHECK(enabled<default_domain>);
@@ -195,8 +191,8 @@ TEST_CASE("periodic can be cancelled", "[periodic]") {
     int var{};
     stoppable_receiver r{[&] { var += 42; }};
 
-    [[maybe_unused]] auto s = async::time_scheduler{}.schedule() |
-                              async::then([&] { ++var; }) | async::periodic(1s);
+    auto s = async::time_scheduler{}.schedule() | async::then([&] { ++var; }) |
+             async::periodic(1s);
     auto op = async::connect(s, r);
     async::start(op);
     async::timer_mgr::service_task();
@@ -215,8 +211,7 @@ TEST_CASE("periodic sets the correct first expiration time", "[periodic]") {
     using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
-    [[maybe_unused]] auto s =
-        async::time_scheduler{}.schedule() | async::periodic(1s);
+    auto s = async::time_scheduler{}.schedule() | async::periodic(1s);
     auto op = async::connect(s, r);
 
     current_time<default_domain, TP> = TP{1s};
@@ -240,8 +235,7 @@ TEST_CASE("periodic sets the nth expiration time without drift", "[periodic]") {
     using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
-    [[maybe_unused]] auto s =
-        async::time_scheduler{}.schedule() | async::periodic(1s);
+    auto s = async::time_scheduler{}.schedule() | async::periodic(1s);
     auto op = async::connect(s, r);
 
     current_time<default_domain, TP> = TP{1s};
@@ -271,8 +265,7 @@ TEST_CASE("periodic sets the nth expiration time safely", "[periodic]") {
     using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
-    [[maybe_unused]] auto s =
-        async::time_scheduler{}.schedule() | async::periodic(1s);
+    auto s = async::time_scheduler{}.schedule() | async::periodic(1s);
     auto op = async::connect(s, r);
 
     current_time<default_domain, TP> = TP{1s};
@@ -342,9 +335,8 @@ TEST_CASE("periodic can be parameterized with a quantized provider",
     using hal_t = timer_hal<default_domain>;
     using TP = typename hal_t::time_point_t;
 
-    [[maybe_unused]] auto s =
-        async::time_scheduler{}.schedule() |
-        async::periodic<"", async::safe_quantized_expiry>(1s);
+    auto s = async::time_scheduler{}.schedule() |
+             async::periodic<"", async::safe_quantized_expiry>(1s);
     auto op = async::connect(s, r);
 
     current_time<default_domain, TP> = TP{1s};
@@ -441,4 +433,32 @@ TEST_CASE("periodic can be named and debugged", "[periodic]") {
     CHECK(async::timer_mgr::is_idle());
     CHECK(debug_events == std::vector{"op periodic_name start"s,
                                       "op periodic_name set_stopped"s});
+}
+
+namespace {
+struct alt_domain;
+using alt_timer_manager_t = async::generic_timer_manager<timer_hal<alt_domain>>;
+} // namespace
+template <>
+[[maybe_unused]] inline auto async::injected_timer_manager<alt_domain> =
+    alt_timer_manager_t{};
+
+TEST_CASE("periodic repeats periodically (different domain)", "[periodic]") {
+    enabled<default_domain> = false;
+    int var{};
+    auto scheduler_factory = async::time_scheduler_factory<alt_domain>;
+
+    auto s = scheduler_factory().schedule() | async::then([&] { ++var; }) |
+             async::periodic_until(1s, [&] { return var == 2; });
+    [[maybe_unused]] auto op = async::connect(s, receiver{[&] { var = 42; }});
+    async::start(op);
+    CHECK(enabled<alt_domain>);
+    CHECK(not enabled<default_domain>);
+    CHECK(not async::timer_mgr::is_idle<alt_domain>());
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(var == 1);
+    CHECK(not async::timer_mgr::is_idle<alt_domain>());
+    async::timer_mgr::service_task<alt_domain>();
+    CHECK(async::timer_mgr::is_idle<alt_domain>());
+    CHECK(var == 42);
 }
