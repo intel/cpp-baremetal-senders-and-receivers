@@ -67,9 +67,10 @@ struct op_state_base<Rcvr, Ops> {
     auto clear_stop_cb() -> void {}
 };
 
-template <typename Name, typename Rcvr, typename... Args>
-struct op_state final : op_state_base<Rcvr, op_state<Name, Rcvr, Args...>>,
-                        trigger_task<Args...> {
+template <typename Name, typename Rcvr, typename QueuePolicy, typename... Args>
+struct op_state final
+    : op_state_base<Rcvr, op_state<Name, Rcvr, QueuePolicy, Args...>>,
+      trigger_task<Args...> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state(R &&r) : rcvr{std::forward<R>(r)} {}
@@ -93,7 +94,7 @@ struct op_state final : op_state_base<Rcvr, op_state<Name, Rcvr, Args...>>,
             complete_stopped();
             return;
         }
-        triggers<Name, Args...>.enqueue(*this);
+        triggers<Name, Args...>.template enqueue<QueuePolicy>(*this);
         this->emplace_stop_cb();
     }
 
@@ -111,7 +112,8 @@ struct op_state final : op_state_base<Rcvr, op_state<Name, Rcvr, Args...>>,
     [[no_unique_address]] Rcvr rcvr;
 };
 
-template <typename S, typename Name, typename... Args> class scheduler {
+template <typename S, typename Name, typename QueuePolicy, typename... Args>
+class scheduler {
     struct sender {
         using is_sender = void;
 
@@ -127,7 +129,8 @@ template <typename S, typename Name, typename... Args> class scheduler {
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const {
             check_connect<sender, R>();
-            return trigger_mgr::op_state<Name, std::remove_cvref_t<R>, Args...>{
+            return trigger_mgr::op_state<Name, std::remove_cvref_t<R>,
+                                         QueuePolicy, Args...>{
                 std::forward<R>(r)};
         }
     };
@@ -140,6 +143,7 @@ template <typename S, typename Name, typename... Args> class scheduler {
 };
 } // namespace trigger_mgr
 
+namespace detail {
 template <stdx::ct_string Name, typename... Args>
 class trigger_scheduler
     : public trigger_mgr::scheduler<trigger_scheduler<Name, Args...>,
@@ -148,6 +152,15 @@ class trigger_scheduler
                                                    trigger_scheduler)
         -> bool = default;
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename... Args>
+using trigger_scheduler =
+    detail::trigger_scheduler<Name, trigger_mgr::queue_at_back, Args...>;
+
+template <stdx::ct_string Name, typename... Args>
+using urgent_trigger_scheduler =
+    detail::trigger_scheduler<Name, trigger_mgr::queue_at_front, Args...>;
 
 struct trigger_scheduler_sender_t;
 

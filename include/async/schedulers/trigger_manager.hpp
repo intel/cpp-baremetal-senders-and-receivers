@@ -77,6 +77,20 @@ struct all {
 };
 } // namespace run_policy
 
+namespace trigger_mgr {
+struct queue_at_front {
+    constexpr static auto push(auto &list, auto &task) -> void {
+        list.push_front(std::addressof(task));
+    }
+};
+
+struct queue_at_back {
+    constexpr static auto push(auto &list, auto &task) -> void {
+        list.push_back(std::addressof(task));
+    }
+};
+} // namespace trigger_mgr
+
 template <typename Name, typename... Args> struct trigger_manager {
     using task_t = trigger_task<Args...>;
 
@@ -86,12 +100,12 @@ template <typename Name, typename... Args> struct trigger_manager {
     stdx::atomic<int> task_count;
 
   public:
-    auto enqueue(task_t &t) -> bool {
+    template <typename QueuePolicy> auto enqueue(task_t &t) -> bool {
         return conc::call_in_critical_section<mutex>([&]() -> bool {
             auto const added = not std::exchange(t.pending, true);
             if (added) {
                 ++task_count;
-                tasks[0].push_back(std::addressof(t));
+                QueuePolicy::push(tasks[0], t);
             }
             return added;
         });

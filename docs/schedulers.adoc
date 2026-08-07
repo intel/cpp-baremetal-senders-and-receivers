@@ -407,3 +407,30 @@ NOTE: It is possible to use a `trigger_scheduler` that takes arguments as a
 "normal" scheduler, i.e. functions like `start_on` will work; however the
 arguments passed to `run_triggers` will be discarded when used with constructs
 like `start_on(trigger_scheduler<"name", int>{}, just(42))`.
+
+Normally, calling `run_triggers` runs all the work in order -- and there can be
+multiple senders waiting to run on a given trigger. Occasionally it is useful to
+have a sender jump to the head of the queue. To do this use an `urgent_trigger_scheduler`:
+
+[source,cpp]
+----
+int x{};
+async::trigger_scheduler<"name", int>{}.schedule()
+  | async::then([&] (auto i) { x = i; })
+  | async::start_detached();
+
+// this sender will be queued before the one above
+async::urgent_trigger_scheduler<"name", int>{}.schedule()
+  | async::then([&] (auto i) { x = i*2; })
+  | async::start_detached();
+
+// when event occurs
+async::run_one_trigger<"name">(42);
+// x is now 84
+async::run_triggers<"name">(12);
+// x is now 12
+----
+
+This is not a general-purpose priority management mechanism, but it can be
+useful to prevent priority inversion when integrating triggers with other work
+that uses fixed interrupt priorities.
