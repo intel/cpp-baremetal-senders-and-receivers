@@ -178,7 +178,8 @@ template <sender S, typename Sched>
 namespace _incite_on {
 template <typename Uniq>
 class trigger_scheduler
-    : public trigger_mgr::scheduler<trigger_scheduler<Uniq>, Uniq> {
+    : public trigger_mgr::scheduler<trigger_scheduler<Uniq>, Uniq,
+                                    trigger_mgr::queue_at_back> {
     [[nodiscard]] friend constexpr auto operator==(trigger_scheduler,
                                                    trigger_scheduler)
         -> bool = default;

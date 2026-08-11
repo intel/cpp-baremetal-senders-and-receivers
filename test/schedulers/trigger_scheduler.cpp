@@ -355,3 +355,22 @@ TEST_CASE("thread safety for immediate execution", "[trigger_scheduler]") {
     CHECK(var2 == 42);
     CHECK(async::triggers<stdx::cts_t<"rqp_imm">>.empty());
 }
+
+TEMPLATE_TEST_CASE(
+    "urgent_trigger_scheduler puts a task at the front of the queue",
+    "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::urgent_trigger_scheduler<name>{};
+
+    int var1{};
+    async::sender auto sndr1 =
+        async::start_on(s, async::just_result_of([&] { var1 *= 2; }));
+    CHECK(async::start_detached(sndr1));
+    async::sender auto sndr2 =
+        async::start_on(s, async::just_result_of([&] { var1 += 42; }));
+    CHECK(async::start_detached(sndr2));
+
+    async::run_triggers<name>();
+    CHECK(var1 == 84);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
