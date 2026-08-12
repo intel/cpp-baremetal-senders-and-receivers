@@ -1,7 +1,11 @@
 #pragma once
 
 #include <stdx/ct_string.hpp>
+#include <stdx/type_traits.hpp>
 
+#include <boost/mp11/algorithm.hpp>
+
+#include <concepts>
 #include <type_traits>
 #include <utility>
 
@@ -44,4 +48,34 @@ constexpr inline struct set_stopped_t {
         return std::forward<R>(r).set_stopped();
     }
 } set_stopped{};
+
+template <typename T>
+concept channel_tag =
+    std::same_as<set_value_t, T> or std::same_as<set_error_t, T> or
+    std::same_as<set_stopped_t, T>;
+
+template <channel_tag T, channel_tag U>
+[[nodiscard]] consteval auto operator|(T, U)
+    -> boost::mp11::mp_unique<stdx::type_list<T, U>> {
+    return {};
+}
+
+template <channel_tag T, channel_tag... Us>
+[[nodiscard]] consteval auto operator|(T, stdx::type_list<Us...>)
+    -> boost::mp11::mp_unique<stdx::type_list<T, Us...>> {
+    return {};
+}
+
+template <channel_tag T, channel_tag... Us>
+[[nodiscard]] consteval auto operator|(stdx::type_list<Us...>, T)
+    -> boost::mp11::mp_unique<stdx::type_list<T, Us...>> {
+    return {};
+}
+
+template <channel_tag... Ts, channel_tag... Us>
+[[nodiscard]] consteval auto operator|(stdx::type_list<Ts...>,
+                                       stdx::type_list<Us...>)
+    -> boost::mp11::mp_unique<stdx::type_list<Ts..., Us...>> {
+    return {};
+}
 } // namespace async

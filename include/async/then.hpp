@@ -229,31 +229,6 @@ template <
            multithen<Channels, Name>(std::forward<Fs>(fs)...);
 }
 
-template <channel_tag T, channel_tag U>
-[[nodiscard]] consteval auto operator|(T, U)
-    -> boost::mp11::mp_unique<stdx::type_list<T, U>> {
-    return {};
-}
-
-template <channel_tag T, channel_tag... Us>
-[[nodiscard]] consteval auto operator|(T, stdx::type_list<Us...>)
-    -> boost::mp11::mp_unique<stdx::type_list<T, Us...>> {
-    return {};
-}
-
-template <channel_tag T, channel_tag... Us>
-[[nodiscard]] consteval auto operator|(stdx::type_list<Us...>, T)
-    -> boost::mp11::mp_unique<stdx::type_list<T, Us...>> {
-    return {};
-}
-
-template <channel_tag... Ts, channel_tag... Us>
-[[nodiscard]] consteval auto operator|(stdx::type_list<Ts...>,
-                                       stdx::type_list<Us...>)
-    -> boost::mp11::mp_unique<stdx::type_list<Ts..., Us...>> {
-    return {};
-}
-
 struct then_t;
 struct upon_error_t;
 struct upon_stopped_t;

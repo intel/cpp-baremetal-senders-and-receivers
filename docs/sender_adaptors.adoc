@@ -206,6 +206,54 @@ auto let_sndr = async::let_value(
 This works: using the helper function `make_variant_sender`, `let_value` can
 successfully make a runtime choice about which sender to proceed with.
 
+=== `observe`
+
+Found in the header: `async/observe.hpp`
+
+`observe` takes a sender and a function, and returns a sender that will call the
+function with the values that the sender sends. Unlike `then`, the sender
+produced by `observe` will not send the values produced by the function: it will
+pass through the values from upstream.
+
+`observe`​'s primary use is to see what was sent (on any channel) without changing it.
+
+[source,cpp]
+----
+auto sndr = async::just(42);
+auto observe_sndr = async::observe(sndr, [] (int i) { LOG("{} was sent", i); });
+// when run, observe_sndr will produce the int 42
+----
+
+By default, `observe` handles any channel: its function will be called (as is
+possible) whether the upstream sender completes on the value, error, or stopped
+channel. But it's possible to constrain which channel(s) are handled:
+
+[source,cpp]
+----
+auto s = ...
+       | async::observe<async::set_value | async::set_error>(
+           [] (auto value) { LOG("{} was sent", value); })
+       | ...;
+----
+
+It's also possible to observe the completion channel:
+
+[source,cpp]
+----
+auto s = ...
+       | async::observe([] <async::channel_tag C> (auto value) {
+                            LOG("{} was sent on channel {}", value, C::name);
+                       })
+       | ...;
+----
+
+where `async::channel_tag` is a concept matching one of `set_value_t`, `set_error_t`, or `set_stopped_t`.
+
+NOTE: Functions passed to `observe` work the same way as functions passed to
+xref:sender_adaptors.adoc#_then[`then`]: they use
+https://intel.github.io/cpp-std-extensions/#_call_by_need_hpp[`call_by_need`].
+
+
 === `periodic`
 
 Found in the header: `async/periodic.hpp`

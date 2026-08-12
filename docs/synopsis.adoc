@@ -87,6 +87,9 @@ by `let_error.hpp`, `let_stopped.hpp`, and `let_value.hpp`
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_value.hpp[let_value.hpp]
 * `let_value` - a xref:sender_adaptors.adoc#_let_value[sender adaptor] that can make runtime decisions on the value channel
 
+==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/observe.hpp[observe.hpp]
+* `observe` - a xref:sender_adaptors.adoc#_observe[sender adaptor] that can observe values without changing them
+
 ==== https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/periodic.hpp[periodic.hpp]
 * `periodic` - a xref:sender_adaptors.adoc#_periodic[sender adaptor] that repeats a sender indefinitely, periodically without drift
 * `periodic_n` - a xref:sender_adaptors.adoc#_periodic_n[sender adaptor] that repeats a sender a set number of times, periodically without drift
@@ -260,6 +263,7 @@ contains traits and metaprogramming constructs used by many senders.
 * xref:sender_adaptors.adoc#_let_value[`let_value`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/let_value.hpp[`#include <async/let_value.hpp>`]
 * xref:variant_senders.adoc#_variant_senders[`make_variant_sender`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/variant_sender.hpp[`#include <async/variant_sender.hpp>`]
 * `multishot_sender<S>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
+* xref:sender_adaptors.adoc#_observe[`observe`] - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/observe.hpp[`#include <async/observe.hpp>`]
 * `operation_state<O>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/concepts.hpp[`#include <async/concepts.hpp>`]
 * `priority_t` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager_interface.hpp[`#include <async/schedulers/task_manager_interface.hpp>`]
 * `priority_task_manager<HAL, NumPriorities>` - https://github.com/intel/cpp-baremetal-senders-and-receivers/blob/main/include/async/schedulers/task_manager.hpp[`#include <async/schedulers/task_manager.hpp>`]
