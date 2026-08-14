@@ -20,6 +20,7 @@
 #include <async/let_error.hpp>
 #include <async/let_stopped.hpp>
 #include <async/let_value.hpp>
+#include <async/observe.hpp>
 #include <async/periodic.hpp>
 #include <async/read_env.hpp>
 #include <async/repeat.hpp>
