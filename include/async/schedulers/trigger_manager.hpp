@@ -172,4 +172,14 @@ auto run_one_trigger(Args &&...args) -> void {
     run_triggers<stdx::cts_t<Name>, RQP, run_policy::one>(
         std::forward<Args>(args)...);
 }
+
+template <typename Name, typename... Args> auto cancel_one_trigger() -> void {
+    triggers<Name, Args...>.template run<requeue_policy::deferred, run_policy::one, detail::canceller>();
+}
+
+template <stdx::ct_string Name, typename... Args>
+auto cancel_one_trigger() -> void {
+    cancel_one_trigger<stdx::cts_t<Name>, Args...>();
+}
+
 } // namespace async
