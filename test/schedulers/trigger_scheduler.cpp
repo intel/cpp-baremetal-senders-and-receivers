@@ -374,3 +374,27 @@ TEMPLATE_TEST_CASE(
     CHECK(var1 == 84);
     CHECK(async::triggers<stdx::cts_t<name>>.empty());
 }
+
+TEMPLATE_TEST_CASE("cancel one trigger", "[trigger_scheduler]",
+                   decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::trigger_scheduler<name>{};
+
+    int var1{};
+    async::sender auto sndr1 =
+        async::start_on(s, async::just_result_of([&] { var1 = 42; }));
+    CHECK(async::start_detached(sndr1));
+
+    int var2{};
+    async::sender auto sndr2 =
+        async::start_on(s, async::just_result_of([&] { var2 = 17; }));
+    CHECK(async::start_detached(sndr2));
+
+    async::cancel_one_trigger<name>();
+    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+
+    async::run_triggers<name>();
+    CHECK(var1 == 0);
+    CHECK(var2 == 17);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
