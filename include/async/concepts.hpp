@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/completion_tags.hpp>
 #include <async/connect.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
@@ -16,15 +17,6 @@
 #include <type_traits>
 
 namespace async {
-struct set_value_t;
-struct set_error_t;
-struct set_stopped_t;
-
-template <typename T>
-concept channel_tag =
-    std::same_as<set_value_t, T> or std::same_as<set_error_t, T> or
-    std::same_as<set_stopped_t, T>;
-
 template <typename T>
 concept queryable = std::destructible<T>;
 

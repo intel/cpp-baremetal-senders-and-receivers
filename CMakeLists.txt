@@ -17,7 +17,7 @@ endif()
 
 add_versioned_package(URI "gh:boostorg/mp11#boost-1.83.0" TARGET boost_mp11)
 add_versioned_package("gh:intel/cpp-baremetal-concurrency#63230eb")
-add_versioned_package("gh:intel/cpp-std-extensions#2b7917f")
+add_versioned_package("gh:intel/cpp-std-extensions#ddaaa70")
 
 if(NOT DEFINED CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 23)
@@ -44,6 +44,7 @@ target_sources(
               include/async/connect.hpp
               include/async/continue_on.hpp
               include/async/debug.hpp
+              include/async/debug_context.hpp
               include/async/detail/freestanding.hpp
               include/async/env.hpp
               include/async/forwarding_query.hpp
@@ -56,6 +57,8 @@ target_sources(
               include/async/let.hpp
               include/async/let_stopped.hpp
               include/async/let_value.hpp
+              include/async/observe.hpp
+              include/async/periodic.hpp
               include/async/read_env.hpp
               include/async/repeat.hpp
               include/async/retry.hpp
@@ -90,6 +93,10 @@ target_sources(
               include/async/when_any.hpp)
 
 if(PROJECT_IS_TOP_LEVEL)
+    set_target_properties(async PROPERTIES VERIFY_INTERFACE_HEADER_SETS true)
+    add_dependencies(${INFRA_TARGET_NAMESPACE}quality
+                     async_verify_interface_header_sets)
+
     include(CTest)
     add_docs(docs)
     add_subdirectory(test)
