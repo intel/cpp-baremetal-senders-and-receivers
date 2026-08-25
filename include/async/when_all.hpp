@@ -11,6 +11,7 @@
 #include <stdx/atomic.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
+#include <stdx/meta.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/tuple_algorithms.hpp>
 #include <stdx/type_traits.hpp>
@@ -193,10 +194,11 @@ struct op_state
         inplace_stop_source *stop_source;
     };
 
-    template <typename S, typename R>
-    constexpr op_state(S &&s, R &&r)
+    template <stdx::same_as_unqualified<Rcvr> R,
+              stdx::same_as_unqualified<Sndrs>... Ss>
+    constexpr explicit(true) op_state(R &&r, Ss &&...ss)
         : base_op_state<Rcvr>{std::forward<R>(r)},
-          sub_op_state_t<Sndrs>{std::forward<S>(s)}... {}
+          sub_op_state_t<Sndrs>{std::forward<Ss>(ss)}... {}
 
     auto notify() -> void {
         if (--count == 0) {
@@ -294,10 +296,11 @@ struct nostop_op_state
     using child_ops_t =
         stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
 
-    template <typename S, typename R>
-    constexpr nostop_op_state(S &&s, R &&r)
+    template <stdx::same_as_unqualified<Rcvr> R,
+              stdx::same_as_unqualified<Sndrs>... Ss>
+    constexpr explicit(true) nostop_op_state(R &&r, Ss &&...ss)
         : nostop_base_op_state<Rcvr>{std::forward<R>(r)},
-          sub_op_state_t<Sndrs>{std::forward<S>(s)}... {}
+          sub_op_state_t<Sndrs>{std::forward<Ss>(ss)}... {}
 
     auto notify() -> void {
         if (--count == 0) {
@@ -352,61 +355,120 @@ struct nostop_op_state
     stdx::atomic<std::size_t> count;
 };
 
-template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
-struct sync_op_state
-    : nostop_base_op_state<Rcvr>,
-      error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
-      sub_op_state<sync_op_state<Name, Rcvr, Sndrs...>, Rcvr, Sndrs,
-                   never_stop_token>... {
-    template <typename S>
-    using sub_op_state_t =
-        sub_op_state<sync_op_state, Rcvr, S, never_stop_token>;
+template <typename Ops, typename Rcvr> struct base_sync_receiver {
+    using is_receiver = void;
 
-    using child_ops_t =
-        stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
+    Ops *ops;
+    bool *nonvalue_completion;
 
-    template <typename S, typename R>
-    constexpr sync_op_state(S &&s, R &&r)
-        : nostop_base_op_state<Rcvr>{std::forward<R>(r)},
-          sub_op_state_t<Sndrs>{std::forward<S>(s)}... {}
-
-    auto notify() -> void {}
-
-    template <typename... Args> auto notify_error(Args &&...args) -> void {
-        this->store_error(std::forward<Args>(args)...);
+    [[nodiscard]] constexpr auto query(async::get_env_t) const
+        -> forwarding_env<env_of_t<Rcvr>> {
+        return forward_env_of(ops->rcvr);
     }
 
-    auto notify_stopped() -> void {}
+    template <typename... Args>
+    auto set_error(Args &&...args) const && -> void {
+        *nonvalue_completion = true;
+        ops->template passthrough<set_error_t>(std::forward<Args>(args)...);
+    }
+    auto set_stopped() const && -> void {
+        *nonvalue_completion = true;
+        ops->template passthrough<set_stopped_t>();
+    }
+};
+
+template <std::size_t N, typename Ops, typename Rcvr>
+struct sync_receiver : base_sync_receiver<Ops, Rcvr> {
+    template <typename... Args>
+    auto set_value(Args &&...args) const && -> void {
+        this->ops->template complete<N>(std::forward<Args>(args)...);
+    }
+};
+
+template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
+struct sync_op_state {
+    using base_receiver = base_sync_receiver<sync_op_state, Rcvr>;
+    using env_t = env_of_t<base_receiver>;
+    using senders_t = stdx::tuple<typename Sndrs::sender_t...>;
+    using child_ops_t = stdx::type_list<connect_result_t<
+        typename Sndrs::sender_t, sync_receiver<0, sync_op_state, Rcvr>>...>;
 
     template <typename S>
     using single_value_sender_t =
-        std::bool_constant<single_sender<S, set_value_t, env_of_t<Rcvr>>>;
+        std::bool_constant<single_sender<S, set_value_t, env_t>>;
 
-    auto complete() -> void {
-        if (this->template release_error<Name, sync_op_state>(
-                std::move(this->rcvr))) {
-        } else {
-            using value_senders =
-                boost::mp11::mp_copy_if<boost::mp11::mp_list<Sndrs...>,
-                                        single_value_sender_t>;
-            [&]<typename... Ss>(boost::mp11::mp_list<Ss...>) {
-                debug_signal<set_value_t::name,
-                             debug::erased_context_for<sync_op_state>>(
-                    get_env(this->rcvr));
-                stdx::tuple_cat(
-                    static_cast<sub_op_state_t<Ss> &&>(*this).load()...)
-                    .apply([&](auto &...args) {
-                        set_value(std::move(this->rcvr), std::move(args)...);
-                    });
-            }(value_senders{});
+    using value_senders_t =
+        boost::mp11::mp_copy_if<senders_t, single_value_sender_t>;
+
+    template <typename S>
+    using single_values_t =
+        value_types_of_t<S, env_t, stdx::tuple, std::optional>;
+    using values_t = boost::mp11::mp_apply<
+        stdx::tuple,
+        boost::mp11::mp_transform<single_values_t, value_senders_t>>;
+
+    template <stdx::same_as_unqualified<Rcvr> R,
+              stdx::same_as_unqualified<Sndrs>... Ss>
+    constexpr explicit(true) sync_op_state(R &&r, Ss &&...ss)
+        : rcvr{std::forward<R>(r)}, sndrs{std::forward<Ss>(ss)...} {}
+
+    template <std::size_t N, typename... Args>
+    auto complete(Args &&...args) -> void {
+        using result_idx =
+            stdx::mp::filtered_index_c<senders_t, single_value_sender_t, N>;
+        if constexpr (not std::same_as<result_idx,
+                                       boost::mp11::mp_size<value_senders_t>>) {
+            stdx::get<result_idx::value>(values).emplace(
+                stdx::tuple<Args...>{std::forward<Args>(args)...});
         }
+    }
+
+    template <channel_tag Tag, typename... Args>
+    auto passthrough(Args &&...args) -> void {
+        debug_signal<Tag::name, debug::erased_context_for<sync_op_state>>(
+            get_env(rcvr));
+        Tag{}(std::move(rcvr), std::forward<Args>(args)...);
+    }
+
+    template <std::size_t N> constexpr auto start_one() -> bool {
+        bool nonvalue_completion{};
+        [[maybe_unused]] auto ops = connect(
+            get<N>(std::move(sndrs)),
+            sync_receiver<N, sync_op_state, Rcvr>{this, &nonvalue_completion});
+        async::start(ops);
+        return nonvalue_completion;
+    }
+
+    template <std::size_t... Is>
+    constexpr auto start_all_impl(std::index_sequence<Is...>) -> bool {
+        return not(... or start_one<Is>());
+    }
+
+    constexpr auto start_all() -> bool {
+        // an IILE here causes clang to get confused... hence the impl function
+        return start_all_impl(std::index_sequence_for<Sndrs...>{});
     }
 
     constexpr auto start() & -> void {
         debug_signal<"start", debug::erased_context_for<sync_op_state>>(
-            get_env(this->rcvr));
-        (async::start(static_cast<sub_op_state_t<Sndrs> &>(*this).ops), ...);
-        complete();
+            get_env(rcvr));
+
+        if (start_all()) {
+            finish();
+        }
+    }
+
+    constexpr auto finish() -> void {
+        std::move(values).apply([&]<typename... Ts>(Ts &&...ts) {
+            stdx::apply(
+                [&]<typename... Args>(Args &&...args) {
+                    debug_signal<set_value_t::name,
+                                 debug::erased_context_for<sync_op_state>>(
+                        get_env(rcvr));
+                    set_value(std::move(rcvr), std::forward<Args>(args)...);
+                },
+                *std::forward<Ts>(ts)...);
+        });
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
@@ -416,6 +478,10 @@ struct sync_op_state
     [[nodiscard]] static auto get_stop_token() -> never_stop_token {
         return {};
     }
+
+    [[no_unique_address]] Rcvr rcvr;
+    [[no_unique_address]] senders_t sndrs;
+    [[no_unique_address]] values_t values;
 };
 
 template <typename S, typename R>
@@ -423,7 +489,9 @@ concept not_stoppable = not stoppable_sender<S, env_of_t<R>>;
 
 template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
 constexpr auto select_op_state() {
-    if constexpr ((... and synchronous<Sndrs>)) {
+    if constexpr ((... and
+                   synchronous<connect_result_t<
+                       Sndrs, detail::universal_receiver<env_of_t<Rcvr>>>>)) {
         return std::type_identity<sync_op_state<Name, Rcvr, Sndrs...>>{};
     } else if constexpr ((... and not_stoppable<Sndrs, Rcvr>)) {
         return std::type_identity<nostop_op_state<Name, Rcvr, Sndrs...>>{};
@@ -443,8 +511,10 @@ concept allowed_sender =
     std::same_as<value_signatures_of_t<S, E>, completion_signatures<>>;
 }
 
-template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
+template <stdx::ct_string Name, typename... Sndrs> struct sender {
     using is_sender = void;
+
+    [[no_unique_address]] stdx::tuple<Sndrs...> sndrs;
 
     template <typename... Ts>
     using as_value_signature = completion_signatures<set_value_t(Ts...)>;
@@ -464,15 +534,20 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
     }
 
     template <typename R>
-    [[nodiscard]] constexpr auto
-    connect(R &&r) && -> op_state_t<Name, std::remove_cvref_t<R>, Sndrs...> {
+    using op_state_for = op_state_t<Name, std::remove_cvref_t<R>, Sndrs...>;
+
+    template <typename R>
+    [[nodiscard]] constexpr auto connect(R &&r) && -> op_state_for<R> {
         check_connect<sender &&, R>();
         static_assert(
             (... and detail::allowed_sender<Sndrs, set_value_t,
                                             env_of_t<std::remove_cvref_t<R>>>),
             "when_all requires each sender to complete with at most one "
             "set_value completion");
-        return {std::move(*this), std::forward<R>(r)};
+        return std::move(sndrs).apply([&]<typename... Ts>(
+                                          Ts &&...ts) -> op_state_for<R> {
+            return op_state_for<R>{std::forward<R>(r), std::forward<Ts>(ts)...};
+        });
     }
 
     template <typename R>
@@ -480,15 +555,16 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender : Sndrs... {
                  multishot_sender<typename Sndrs::sender_t,
                                   ::async::detail::universal_receiver<
                                       env_of_t<std::remove_cvref_t<R>>>>)
-    [[nodiscard]] constexpr auto connect(
-        R &&r) const & -> op_state_t<Name, std::remove_cvref_t<R>, Sndrs...> {
+    [[nodiscard]] constexpr auto connect(R &&r) const & -> op_state_for<R> {
         check_connect<sender const &, R>();
         static_assert(
             (... and detail::allowed_sender<Sndrs, set_value_t,
                                             env_of_t<std::remove_cvref_t<R>>>),
             "when_all requires each sender to complete with at most one "
             "set_value completion");
-        return {*this, std::forward<R>(r)};
+        return sndrs.apply([&]<typename... Ts>(Ts &&...ts) -> op_state_for<R> {
+            return op_state_for<R>{std::forward<R>(r), std::forward<Ts>(ts)...};
+        });
     }
 
     [[nodiscard]] constexpr static auto query(get_env_t) {
@@ -564,7 +640,7 @@ template <stdx::ct_string Name = "when_all", sender... Sndrs>
         return [&]<auto... Is>(std::index_sequence<Is...>) {
             return _when_all::sender<
                 Name, _when_all::sub_sender<std::remove_cvref_t<Sndrs>, Is>...>{
-                {std::forward<Sndrs>(sndrs)}...};
+                std::forward<Sndrs>(sndrs)...};
         }(std::make_index_sequence<sizeof...(Sndrs)>{});
     }
 }
