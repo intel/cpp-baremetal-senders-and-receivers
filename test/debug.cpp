@@ -9,6 +9,7 @@
 #include <concepts>
 #include <functional>
 #include <memory>
+#include <tuple>
 #include <type_traits>
 
 namespace {
@@ -102,10 +103,52 @@ template <>
 inline auto async::injected_debug_handler<stdx::cts_t<"chainB">> =
     debug_handler_B<int, double>{};
 
-TEST_CASE("send debug signal", "[debug]") {
+TEST_CASE("send debug signal through environment", "[debug]") {
     handled<"chainB", "linkB", "signal"> = false;
     auto iface = async::debug::make_named_interface<"chainB">(42);
     auto e = async::prop{async::get_debug_interface_t{}, std::cref(iface)};
     async::debug_signal<"signal", context<"linkB">>(e, 1.0);
     CHECK(handled<"chainB", "linkB", "signal">);
+}
+
+namespace {
+template <stdx::ct_string S> bool custom_signal_handled{};
+
+struct custom_signal_handler {
+    template <stdx::ct_string S, typename... Ts>
+        requires(S == stdx::ct_string{"custom signal"})
+    auto signal(auto... args) const {
+        STATIC_CHECK(
+            std::same_as<std::tuple<Ts...>, std::tuple<int, float, bool>>);
+        CHECK((std::tuple{args...} == std::tuple{42, 17}));
+        custom_signal_handled<S> = true;
+    }
+};
+} // namespace
+
+TEST_CASE("custom signal with custom signal handler in environment",
+          "[debug]") {
+    custom_signal_handled<"custom signal"> = false;
+    auto e =
+        async::prop{async::get_debug_interface_t{}, custom_signal_handler{}};
+    async::debug_signal<"custom signal", int, float, bool>(e, 42, 17);
+    CHECK(custom_signal_handled<"custom signal">);
+}
+
+template <>
+inline auto async::injected_debug_handler<stdx::cts_t<"unknown">> =
+    debug_handler<"unknown", "">{};
+
+TEST_CASE(
+    "conventional signals unhandled by custom signal handler go to default",
+    "[debug]") {
+    custom_signal_handled<"custom signal"> = false;
+    handled<"unknown", "", "signal"> = false;
+
+    auto e =
+        async::prop{async::get_debug_interface_t{}, custom_signal_handler{}};
+    async::debug_signal<"signal", context<"link">>(e);
+
+    CHECK(not custom_signal_handled<"custom signal">);
+    CHECK(handled<"unknown", "", "signal">);
 }
