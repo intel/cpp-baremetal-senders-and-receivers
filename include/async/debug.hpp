@@ -87,10 +87,17 @@ constexpr inline struct get_debug_interface_t : forwarding_query_t {
     }
 } get_debug_interface{};
 
-template <stdx::ct_string Signal, debug::contextlike Ctx, queryable Q,
-          typename... Args>
+template <stdx::ct_string Signal, typename... Ts, queryable Q, typename... Args>
 constexpr auto debug_signal(Q &&q, Args &&...args) -> void {
-    get_debug_interface(q).template signal<Signal, Ctx>(
-        std::forward<Args>(args)...);
+    if constexpr (requires {
+                      get_debug_interface(q).template signal<Signal, Ts...>(
+                          std::forward<Args>(args)...);
+                  }) {
+        get_debug_interface(q).template signal<Signal, Ts...>(
+            std::forward<Args>(args)...);
+    } else {
+        debug::default_interface{}.template signal<Signal, Ts...>(
+            std::forward<Args>(args)...);
+    }
 }
 } // namespace async
