@@ -117,18 +117,19 @@ struct op_state_base {
                            decltype(std::declval<StopSource>().get_token())>,
                       Env>;
 
-    constexpr explicit(true) op_state_base(Env &&env) : e{std::move(env)} {}
+    template <stdx::same_as_unqualified<Env> E>
+    constexpr explicit(true) op_state_base(E &&e) : envmt{std::forward<E>(e)} {}
     constexpr op_state_base(op_state_base &&) = delete;
 
     template <stdx::ct_string> auto die() {}
 
     [[nodiscard]] constexpr auto query(get_env_t) const -> env_t {
-        return env{prop{get_stop_token_t{}, stop_src.get_token()}, e};
+        return env{prop{get_stop_token_t{}, stop_src.get_token()}, envmt};
     }
 
     using stop_source_t = StopSource;
     [[no_unique_address]] stop_source_t stop_src{};
-    [[no_unique_address]] Env e;
+    [[no_unique_address]] Env envmt;
 };
 
 template <typename Uniq, typename Sndr, typename Alloc, typename StopSource,
@@ -137,13 +138,14 @@ struct op_state : op_state_base<StopSource, Env> {
     using receiver_t = receiver<op_state>;
     using ops_t = connect_result_t<Sndr, receiver_t>;
 
-    template <typename S>
-    constexpr explicit(true) op_state(S &&s, Env &&env)
-        : op_state_base<StopSource, Env>{std::move(env)},
+    template <stdx::same_as_unqualified<Sndr> S,
+              stdx::same_as_unqualified<Env> E>
+    constexpr explicit(true) op_state(S &&s, E &&e)
+        : op_state_base<StopSource, Env>{std::forward<E>(e)},
           ops{connect(std::forward<S>(s), receiver_t{this})} {}
 
     template <stdx::ct_string S> auto die() {
-        debug_signal<S, debug::erased_context_for<op_state>>(this->e);
+        debug_signal<S, debug::erased_context_for<op_state>>(this->envmt);
         if constexpr (use_single_stop_source<Uniq, Alloc, StopSource>) {
             stop_handle<Uniq>{}.notify();
         }
@@ -151,7 +153,7 @@ struct op_state : op_state_base<StopSource, Env> {
     }
 
     constexpr auto start() & -> void {
-        debug_signal<"start", debug::erased_context_for<op_state>>(this->e);
+        debug_signal<"start", debug::erased_context_for<op_state>>(this->envmt);
         async::start(ops);
     }
 
@@ -211,8 +213,7 @@ template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached_stoppable(Env &&e = {}) {
     return start_detached_stoppable<stdx::cts_t<Name>>(
-        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
-            std::forward<Env>(e)});
+        with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
 template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
@@ -238,8 +239,7 @@ template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached_unstoppable(Env &&e = {}) {
     return start_detached_unstoppable<stdx::cts_t<Name>>(
-        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
-            std::forward<Env>(e)});
+        with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
 template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
@@ -265,8 +265,7 @@ template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached(Env &&e = {}) {
     return start_detached<stdx::cts_t<Name>>(
-        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
-            std::forward<Env>(e)});
+        with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
 template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>

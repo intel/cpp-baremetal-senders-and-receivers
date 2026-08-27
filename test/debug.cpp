@@ -152,3 +152,20 @@ TEST_CASE(
     CHECK(not custom_signal_handled<"custom signal">);
     CHECK(handled<"unknown", "", "signal">);
 }
+
+TEST_CASE("provide debug interface when one is not already in environment",
+          "[debug]") {
+    auto e = async::with_debug_interface<"debug">(async::env<>{});
+    auto dbg = async::get_debug_interface(e);
+    STATIC_CHECK(
+        std::same_as<decltype(dbg), async::debug::named_interface<"debug">>);
+}
+
+TEST_CASE("use existing debug interface when it is already in environment",
+          "[debug]") {
+    auto e =
+        async::prop{async::get_debug_interface_t{}, custom_signal_handler{}};
+    auto new_e = async::with_debug_interface<"debug">(e);
+    auto dbg = async::get_debug_interface(new_e);
+    STATIC_CHECK(std::same_as<decltype(dbg), custom_signal_handler>);
+}
