@@ -1,10 +1,12 @@
 #include "detail/common.hpp"
 
 #include <async/allocator.hpp>
+#include <async/completes_synchronously.hpp>
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
 #include <async/just.hpp>
+#include <async/just_result_of.hpp>
 #include <async/let_value.hpp>
 #include <async/read_env.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
@@ -426,7 +428,7 @@ TEST_CASE("when_all can be named and debugged with a string", "[when_all]") {
 }
 
 namespace {
-template <typename R> struct env_looking_op_state {
+template <typename R> struct env_reading_op_state {
     R rcvr;
     int value{};
 
@@ -435,7 +437,7 @@ template <typename R> struct env_looking_op_state {
     }
 };
 
-struct env_looking_sender {
+struct env_reading_sender {
     using is_sender = void;
 
     template <typename Env>
@@ -450,29 +452,29 @@ struct env_looking_sender {
 
     template <typename R>
     [[nodiscard]] constexpr auto connect(R const &r) const
-        -> env_looking_op_state<R> {
+        -> env_reading_op_state<R> {
         auto e = async::get_env(r);
         auto value = get_fwd(e);
         return {r, value};
     }
 };
 
-struct env_looking_t;
+struct env_reading_t;
 } // namespace
 
 template <typename R>
-struct async::debug::context_for<env_looking_op_state<R>> {
-    using tag = env_looking_t;
+struct async::debug::context_for<env_reading_op_state<R>> {
+    using tag = env_reading_t;
     constexpr static auto name = stdx::ct_string{""};
     using children = stdx::type_list<>;
-    using type = env_looking_op_state<R>;
+    using type = env_reading_op_state<R>;
 };
 
 TEST_CASE("during connect call, when_all avoids uninitialized read from env "
           "(unstoppable)",
           "[when_all]") {
     int value{};
-    auto w = async::when_all(env_looking_sender{}, env_looking_sender{});
+    auto w = async::when_all(env_reading_sender{}, env_reading_sender{});
     auto op = async::connect(w, with_env{receiver{[&](auto i, auto j) {
                                              CHECK(i == 17);
                                              CHECK(j == 17);
@@ -488,7 +490,7 @@ TEST_CASE("during connect call, when_all avoids uninitialized read from env "
           "[when_all]") {
     auto stop = async::inplace_stop_source{};
     int value{};
-    auto w = async::when_all(env_looking_sender{}, env_looking_sender{});
+    auto w = async::when_all(env_reading_sender{}, env_reading_sender{});
     auto op = async::connect(
         w, with_env{receiver{[&](auto i, auto j) {
                         CHECK(i == 17);
@@ -500,4 +502,43 @@ TEST_CASE("during connect call, when_all avoids uninitialized read from env "
                                            stop.get_token()}}});
     async::start(op);
     CHECK(value == 34);
+}
+
+TEST_CASE("when_all completes synchronously when sub senders do",
+          "[when_all]") {
+    auto s1 = async::just(42);
+    auto s2 = async::just(17);
+    auto w = async::when_all(s1, s2);
+
+    [[maybe_unused]] auto op = async::connect(w, receiver{[](auto...) {}});
+    STATIC_CHECK(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("when_all completes synchronously when sub operation states do but "
+          "sub senders don't",
+          "[when_all]") {
+    auto s1 = async::just(42);
+    auto s2 = async::just(17) |
+              async::let_value([](int x) { return async::just(x); });
+    STATIC_CHECK(not async::synchronous<decltype(s2)>);
+    auto w = async::when_all(s1, s2);
+
+    [[maybe_unused]] auto op = async::connect(w, receiver{[](auto...) {}});
+    STATIC_CHECK(async::synchronous<decltype(op)>);
+}
+
+TEST_CASE("synchronous when_all doesn't run sub senders after error",
+          "[when_all]") {
+    int value{};
+    bool run_after_error{};
+
+    auto s1 = async::just_error(42);
+    auto s2 = async::just_result_of([&] { run_after_error = true; });
+    auto w = async::when_all(s1, s2);
+
+    [[maybe_unused]] auto op =
+        async::connect(w, error_receiver{[&](auto x) { value = x; }});
+    async::start(op);
+    CHECK(value == 42);
+    CHECK(not run_after_error);
 }
