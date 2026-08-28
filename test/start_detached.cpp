@@ -374,3 +374,28 @@ TEST_CASE("start_detached_stoppable can later be waited on using a name",
     CHECK(sync_wait_success);
     CHECK(var == 17);
 }
+
+namespace {
+template <stdx::ct_string S> bool custom_signal_handled{};
+
+struct custom_signal_handler {
+    template <stdx::ct_string S, typename... Ts>
+        requires(S == stdx::ct_string{"custom signal"})
+    auto signal() const {
+        custom_signal_handled<S> = true;
+    }
+};
+} // namespace
+
+TEST_CASE("pass custom signal handler in environment", "[start_detached]") {
+    custom_signal_handled<"custom signal"> = false;
+
+    auto e =
+        async::prop{async::get_debug_interface_t{}, custom_signal_handler{}};
+    auto s = async::read_env(async::get_debug_interface) |
+             async::then([](auto handler) {
+                 handler.template signal<"custom signal">();
+             });
+    [[maybe_unused]] auto stop_handle = async::start_detached<"named">(s, e);
+    CHECK(custom_signal_handled<"custom signal">);
+}

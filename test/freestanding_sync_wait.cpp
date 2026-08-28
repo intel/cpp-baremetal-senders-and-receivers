@@ -124,3 +124,29 @@ TEST_CASE("not trivially_sync_waitable when dynamic",
              });
     STATIC_REQUIRE(not async::trivially_sync_waitable<decltype(s)>);
 }
+
+namespace {
+template <stdx::ct_string S> bool custom_signal_handled{};
+
+struct custom_signal_handler {
+    template <stdx::ct_string S, typename... Ts>
+        requires(S == stdx::ct_string{"custom signal"})
+    auto signal() const {
+        custom_signal_handled<S> = true;
+    }
+};
+} // namespace
+
+TEST_CASE("pass custom signal handler in environment",
+          "[freestanding_sync_wait]") {
+    custom_signal_handled<"custom signal"> = false;
+    auto e =
+        async::prop{async::get_debug_interface_t{}, custom_signal_handler{}};
+    auto value = async::read_env(async::get_debug_interface) |
+                 async::then([](auto handler) {
+                     handler.template signal<"custom signal">();
+                 }) |
+                 async::sync_wait(e);
+    REQUIRE(value.has_value());
+    CHECK(custom_signal_handled<"custom signal">);
+}

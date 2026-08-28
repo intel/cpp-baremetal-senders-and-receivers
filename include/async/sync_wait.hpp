@@ -187,8 +187,7 @@ template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait_dynamic(Env &&e = {}) {
     return sync_wait_dynamic<stdx::cts_t<Name>>(
-        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
-            std::forward<Env>(e)});
+        with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
 template <typename Uniq = decltype([] {}), sender S, typename Env = empty_env>
@@ -211,9 +210,7 @@ template <typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait_static(Env &&e = {}) {
-    return sync_wait_static(
-        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
-            std::forward<Env>(e)});
+    return sync_wait_static(with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
 template <stdx::ct_string Name = debug::default_chain_name, sender S,
@@ -232,9 +229,7 @@ template <typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait(Env &&e = {}) {
-    return sync_wait(
-        env{prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
-            std::forward<Env>(e)});
+    return sync_wait(with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
 template <stdx::ct_string Name = debug::default_chain_name, sender S,

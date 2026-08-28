@@ -7,6 +7,8 @@
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
 
+#include <concepts>
+#include <type_traits>
 #include <utility>
 
 namespace async {
@@ -98,6 +100,18 @@ constexpr auto debug_signal(Q &&q, Args &&...args) -> void {
     } else {
         debug::default_interface{}.template signal<Signal, Ts...>(
             std::forward<Args>(args)...);
+    }
+}
+
+template <stdx::ct_string Name, typename Env>
+constexpr auto with_debug_interface(Env &&e) {
+    if constexpr (std::same_as<decltype(get_debug_interface(e)),
+                               debug::default_interface>) {
+        return env{
+            prop{get_debug_interface_t{}, debug::named_interface<Name>{}},
+            std::forward<Env>(e)};
+    } else {
+        return e;
     }
 }
 } // namespace async
