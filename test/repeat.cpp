@@ -5,12 +5,14 @@
 #include <async/connect.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
+#include <async/let_value.hpp>
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
 #include <async/schedulers/trigger_scheduler.hpp>
 #include <async/sequence.hpp>
 #include <async/start_on.hpp>
+#include <async/sync_wait.hpp>
 #include <async/then.hpp>
 #include <async/variant_sender.hpp>
 #include <async/when_all.hpp>
@@ -293,6 +295,31 @@ TEST_CASE(
                              }});
     async::start(op);
     CHECK(var == -1);
+}
+
+TEST_CASE("repeat when synchronous and not final sequence works", "[repeat]") {
+    int loops{};
+    int after{};
+
+    auto loop = async::just()                                         //
+                | async::let_value([&loops] {                         //
+                      return async::just_result_of([&] { ++loops; }); //
+                  })                                                  //
+                | async::repeat_n(5)                                  //
+        ;
+
+    auto s = async::just()                                    //
+             | async::seq(std::move(loop))                    // not last seq
+             | async::seq(async::just()                       //
+                          | async::let_value([&after] {       //
+                                return async::just_result_of( //
+                                    [&] { ++after; });        //
+                            }))                               //
+        ;
+
+    [[maybe_unused]] auto r = std::move(s) | async::sync_wait();
+    CHECK(loops == 5);
+    CHECK(after == 1);
 }
 
 TEST_CASE("repeat with a loop function", "[repeat]") {

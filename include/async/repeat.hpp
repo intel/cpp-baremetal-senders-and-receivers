@@ -85,7 +85,9 @@ struct op_state {
                 std::same_as<LoopFn, std::remove_cvref_t<decltype(no_loop_fn)>>,
                 "repeat cannot have a loop function when the sender "
                 "it wraps is synchronous!");
-            while (state.has_value()) {
+            bool done = false;
+            done_flag = &done;
+            while (not done) {
                 begin_loop();
             }
         } else {
@@ -132,6 +134,9 @@ struct op_state {
     template <channel_tag Tag, typename... Args>
     auto passthrough(Args &&...args) -> void {
         state.reset();
+        if (done_flag != nullptr) {
+            *done_flag = true;
+        }
         debug_signal<Tag::name, debug::erased_context_for<op_state>>(
             get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
@@ -146,6 +151,7 @@ struct op_state {
     [[no_unique_address]] Pred pred;
     [[no_unique_address]] LoopFn loop_fn;
 
+    bool *done_flag{};
     std::optional<state_t> state{};
 };
 
