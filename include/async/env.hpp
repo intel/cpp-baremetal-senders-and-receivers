@@ -1,6 +1,7 @@
 #pragma once
 #include <async/forwarding_query.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/tuple.hpp>
 
 #include <boost/mp11/algorithm.hpp>
@@ -10,7 +11,8 @@
 
 namespace async {
 template <typename Query, typename Value> struct prop : Query {
-    [[nodiscard]] constexpr auto query(Query) const noexcept -> Value const & {
+    [[nodiscard]] constexpr auto query(Query) const noexcept LIFETIMEBOUND
+        -> Value const & {
         return value;
     }
 
@@ -30,7 +32,7 @@ template <template <typename> typename Query, typename Value, typename... Ts>
 struct template_prop {
     template <typename T>
         requires(... or std::same_as<T, Ts>)
-    [[nodiscard]] constexpr auto query(Query<T>) const noexcept
+    [[nodiscard]] constexpr auto query(Query<T>) const noexcept LIFETIMEBOUND
         -> Value const & {
         return value;
     }

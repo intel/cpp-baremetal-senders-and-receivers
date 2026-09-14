@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/function_traits.hpp>
 #include <stdx/tuple.hpp>
@@ -91,7 +92,7 @@ struct task<F, Base, stdx::tuple<Args...>>
     using bound_t::bound_t;
 
     template <typename... As>
-    constexpr auto bind_front(As &&...as) -> bound_t & {
+    constexpr auto bind_front(As &&...as) LIFETIMEBOUND -> bound_t & {
         this->args = {std::forward<As>(as)...};
         return *this;
     }

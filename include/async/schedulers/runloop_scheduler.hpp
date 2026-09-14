@@ -18,6 +18,7 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/atomic.hpp>
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/intrusive_list.hpp>
 
@@ -140,7 +141,8 @@ template <typename> class run_loop;
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 template <typename Uniq, typename Rcvr> struct op_state : op_state_base {
     template <typename R>
-    op_state(run_loop<Uniq> *rl, R &&r) : loop{rl}, rcvr{std::forward<R>(r)} {}
+    op_state(run_loop<Uniq> *rl LIFETIMEBOUND, R &&r)
+        : loop{rl}, rcvr{std::forward<R>(r)} {}
     op_state(op_state &&) = delete;
 
     auto execute() -> void override {

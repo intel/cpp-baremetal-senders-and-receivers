@@ -10,6 +10,7 @@
 #include <async/schedulers/timer_manager_interface.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
@@ -192,7 +193,9 @@ struct op_state {
         state.template emplace<0>();
     }
 
-    [[nodiscard]] auto get_receiver() const -> Rcvr const & { return rcvr; }
+    [[nodiscard]] auto get_receiver() const LIFETIMEBOUND -> Rcvr const & {
+        return rcvr;
+    }
 
     [[no_unique_address]] Sndr sndr;
     [[no_unique_address]] Rcvr rcvr;
