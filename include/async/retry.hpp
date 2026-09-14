@@ -34,14 +34,14 @@ template <typename Ops, typename Rcvr> struct receiver {
 
     template <typename... Args>
     auto set_value(Args &&...args) const && -> void {
-        ops->template passthrough<set_value_t>(std::forward<Args>(args)...);
+        ops->template complete<set_value_t>(std::forward<Args>(args)...);
     }
     template <typename... Args>
     auto set_error(Args &&...args) const && -> void {
         ops->retry(std::forward<Args>(args)...);
     }
     auto set_stopped() const && -> void {
-        ops->template passthrough<set_stopped_t>();
+        ops->template complete<set_stopped_t>();
     }
 };
 
@@ -79,13 +79,7 @@ struct op_state {
 
     constexpr auto start() & -> void {
         setup();
-        if constexpr (synchronous<state_t>) {
-            while (state.has_value()) {
-                begin_loop();
-            }
-        } else {
-            begin_loop();
-        }
+        begin_loop();
     }
 
     constexpr auto setup() -> void {
@@ -96,7 +90,7 @@ struct op_state {
     constexpr auto begin_loop() -> void {
         if constexpr (not stoppable_sender<Sndr, env_of_t<Rcvr>>) {
             if (get_stop_token(get_env(rcvr)).stop_requested()) {
-                passthrough<set_stopped_t>();
+                complete<set_stopped_t>();
                 return;
             }
         }
@@ -111,42 +105,139 @@ struct op_state {
             debug_signal<"eval_predicate", debug::erased_context_for<op_state>>(
                 get_env(rcvr));
             if (pred(args...)) {
-                passthrough<set_error_t>(std::forward<Args>(args)...);
+                complete<set_error_t>(std::forward<Args>(args)...);
                 return;
             }
         }
         setup();
-        if constexpr (not synchronous<state_t>) {
-            begin_loop();
-        }
+        begin_loop();
     }
 
     template <channel_tag Tag, typename... Args>
-    auto passthrough(Args &&...args) -> void {
-        state.reset();
+    auto complete(Args &&...args) -> void {
         debug_signal<Tag::name, debug::erased_context_for<op_state>>(
             get_env(rcvr));
         Tag{}(std::move(rcvr), std::forward<Args>(args)...);
     }
 
     [[nodiscard]] constexpr auto query(async::get_env_t) const {
-        return prop{completes_synchronously_t{}, synchronous_t<state_t>{}};
+        return prop{completes_synchronously_t{}, std::false_type{}};
     }
 
     [[no_unique_address]] Sndr sndr;
     [[no_unique_address]] Rcvr rcvr;
     [[no_unique_address]] Pred pred;
-
     std::optional<state_t> state{};
 };
 
+template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct sync_op_state {
+    using receiver_t = receiver<sync_op_state, Rcvr>;
+    using value_completions = error_signatures_of_t<Sndr, env_of_t<receiver_t>>;
+    static_assert(
+        boost::mp11::mp_all_of_q<value_completions, callable_with<Pred>>::value,
+        "Predicate is not callable with error completions of sender");
+    using state_t = async::connect_result_t<Sndr &, receiver_t>;
+
+    template <stdx::same_as_unqualified<Sndr> S,
+              stdx::same_as_unqualified<Rcvr> R,
+              stdx::same_as_unqualified<Pred> P>
+    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
+    constexpr sync_op_state(S &&s, R &&r, P &&p)
+        : sndr{std::forward<S>(s)}, rcvr{std::forward<R>(r)},
+          pred{std::forward<P>(p)} {}
+    constexpr sync_op_state(sync_op_state &&) = delete;
+
+    constexpr auto start() & -> void {
+        bool done{};
+
+        // We know that the operation is synchronous, so the call to start will
+        // cause a call to either retry or complete. Therefore we know that the
+        // lifetime of done on the stack here covers the execution.
+
+        STDX_PRAGMA(diagnostic push)
+        STDX_PRAGMA(diagnostic ignored "-Wunknown-warning-option")
+#ifdef __clang__
+#elifdef __GNUC__
+        STDX_PRAGMA(diagnostic ignored "-Wdangling-pointer")
+#endif
+        completed = &done;
+        STDX_PRAGMA(diagnostic pop)
+
+        while (not done) {
+            if constexpr (not stoppable_sender<Sndr, env_of_t<Rcvr>>) {
+                if (get_stop_token(get_env(rcvr)).stop_requested()) {
+                    complete<set_stopped_t>();
+                    return;
+                }
+            }
+            auto state = connect(sndr, receiver_t{this});
+            debug_signal<"start", debug::erased_context_for<sync_op_state>>(
+                get_env(rcvr));
+            async::start(state);
+        }
+
+        // At this point the lifetime of this operation state is over. The loop
+        // exited through a call to complete -- either directly from the
+        // receiver (in the case of value or stopped) or from retry (in the
+        // case of error).
+    }
+
+    template <typename... Args> auto retry(Args &&...args) -> void {
+        if constexpr (not std::same_as<
+                          Pred, std::remove_cvref_t<decltype(never_stop)>>) {
+            debug_signal<"eval_predicate",
+                         debug::erased_context_for<sync_op_state>>(
+                get_env(rcvr));
+            if (pred(args...)) {
+                complete<set_error_t>(std::forward<Args>(args)...);
+                return;
+            }
+        }
+        // By not calling set_error here, we go around the loop in start.
+    }
+
+    template <channel_tag Tag, typename... Args>
+    auto complete(Args &&...args) -> void {
+        // On return, we exit the loop in start.
+        *completed = true;
+        debug_signal<Tag::name, debug::erased_context_for<sync_op_state>>(
+            get_env(rcvr));
+        Tag{}(std::move(rcvr), std::forward<Args>(args)...);
+    }
+
+    [[nodiscard]] constexpr auto query(async::get_env_t) const {
+        return prop{completes_synchronously_t{}, std::true_type{}};
+    }
+
+    [[no_unique_address]] Sndr sndr;
+    [[no_unique_address]] Rcvr rcvr;
+    [[no_unique_address]] Pred pred;
+    bool *completed{};
+};
+
 namespace detail {
+template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred>
+constexpr auto select_op_state() {
+    if constexpr (synchronous<connect_result_t<
+                      Sndr,
+                      ::async::detail::universal_receiver<env_of_t<Rcvr>>>>) {
+        return std::type_identity<sync_op_state<Name, Sndr, Rcvr, Pred>>{};
+    } else {
+        return std::type_identity<op_state<Name, Sndr, Rcvr, Pred>>{};
+    }
+}
+
+template <stdx::ct_string Name, typename... Ts>
+using op_state_t = typename decltype(select_op_state<Name, Ts...>())::type;
+
 template <typename Env>
 using stopped_signatures =
     stdx::conditional_t<unstoppable_token<stop_token_of_t<Env>>,
                         completion_signatures<>,
                         completion_signatures<set_stopped_t()>>;
-}
+} // namespace detail
 
 template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
     using is_sender = void;
@@ -172,10 +263,13 @@ template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
         }
     }
 
+    template <typename R>
+    using op_state_for =
+        detail::op_state_t<Name, Sndr, std::remove_cvref_t<R>, Pred>;
+
     template <receiver_from<Sndr> R>
         requires multishot_sender<Sndr, R>
-    [[nodiscard]] constexpr auto connect(
-        R &&r) const & -> op_state<Name, Sndr, std::remove_cvref_t<R>, Pred> {
+    [[nodiscard]] constexpr auto connect(R &&r) const & -> op_state_for<R> {
         return {sndr, std::forward<R>(r), p};
     }
 };
@@ -243,4 +337,7 @@ struct debug::context_for<_retry::op_state<Name, Ts...>> {
     using children =
         stdx::type_list<debug::erased_context_for<typename type::state_t>>;
 };
+template <stdx::ct_string Name, typename... Ts>
+struct debug::context_for<_retry::sync_op_state<Name, Ts...>>
+    : debug::context_for<_retry::op_state<Name, Ts...>> {};
 } // namespace async

@@ -5,6 +5,7 @@
 #include <async/connect.hpp>
 #include <async/just.hpp>
 #include <async/just_result_of.hpp>
+#include <async/let_value.hpp>
 #include <async/repeat.hpp>
 #include <async/schedulers/inline_scheduler.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
@@ -318,4 +319,12 @@ TEST_CASE("repeat with a loop function", "[repeat]") {
     CHECK(var == 44);
     CHECK(sum == 34);
     CHECK(async::triggers<stdx::cts_t<"sched">>.empty());
+}
+
+TEST_CASE("sync repeat doesn't access state after completion", "[repeat]") {
+    auto sub = async::just() | async::let_value([] { return async::just(); });
+    auto loop = sub | async::repeat_n(1);
+    auto s = loop | async::seq(sub);
+    auto op = async::connect(s, receiver{[] {}});
+    async::start(op);
 }
