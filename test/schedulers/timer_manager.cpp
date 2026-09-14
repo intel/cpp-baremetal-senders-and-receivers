@@ -353,6 +353,7 @@ TEST_CASE("queue a task on interrupt during servicing", "[timer_manager]") {
     REQUIRE(not std::empty(hal::calls));
     CHECK(hal::calls.back() == 2);
     CHECK(hal::enabled);
+    interrupt_fn = nullptr;
 }
 
 namespace {

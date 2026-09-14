@@ -84,9 +84,11 @@ TEST_CASE("timeout_after can complete successfully", "[timeout_after]") {
     auto to = async::timeout_after(s, 2s, 17);
     auto op = async::connect(to, receiver{[&](int i) { var = i; }});
     async::start(op);
+    CHECK(enabled<default_domain>);
 
     current_time<default_domain, tp_t> = tp_t{3s};
     async::timer_mgr::service_task();
+    CHECK(not enabled<default_domain>);
     CHECK(var == 42);
     CHECK(async::timer_mgr::is_idle());
 }
