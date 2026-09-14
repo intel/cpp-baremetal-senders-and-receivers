@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdx/compiler.hpp>
+
 #include <conc/concurrency.hpp>
 
 #include <iterator>
@@ -9,7 +11,8 @@ namespace async {
 namespace requeue_policy {
 struct immediate {
     template <auto P, typename>
-    [[nodiscard]] constexpr static auto get_queue(auto &queues) -> auto & {
+    [[nodiscard]] constexpr static auto get_queue(auto &queues LIFETIMEBOUND)
+        -> auto & {
         return queues[P];
     }
 

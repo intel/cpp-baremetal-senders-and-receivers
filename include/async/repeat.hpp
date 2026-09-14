@@ -166,6 +166,7 @@ struct sync_op_state {
         STDX_PRAGMA(diagnostic push)
         STDX_PRAGMA(diagnostic ignored "-Wunknown-warning-option")
 #ifdef __clang__
+        STDX_PRAGMA(diagnostic ignored "-Wlifetime-safety-dangling-field")
 #elifdef __GNUC__
         STDX_PRAGMA(diagnostic ignored "-Wdangling-pointer")
 #endif

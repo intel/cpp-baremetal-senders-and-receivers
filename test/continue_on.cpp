@@ -23,7 +23,9 @@ template <typename R> struct test_op_state {
     constexpr auto start() & -> void { async::set_value(std::move(receiver)); }
 };
 
-template <auto> class test_scheduler {
+template <auto> int schedule_calls{};
+
+template <auto N> class test_scheduler {
     struct sender {
         using is_sender = void;
         using completion_signatures =
@@ -48,10 +50,9 @@ template <auto> class test_scheduler {
 
   public:
     auto schedule() {
-        ++schedule_calls;
+        ++schedule_calls<N>;
         return sender{};
     }
-    static inline int schedule_calls{};
 };
 } // namespace
 
@@ -64,8 +65,9 @@ template <typename R> struct async::debug::context_for<test_op_state<R>> {
 
 TEST_CASE("continue_on", "[continue_on]") {
     STATIC_REQUIRE(async::scheduler<test_scheduler<0>>);
-    test_scheduler<1>::schedule_calls = 0;
-    test_scheduler<2>::schedule_calls = 0;
+    CHECK(schedule_calls<0> == 0);
+    schedule_calls<1> = 0;
+    schedule_calls<2> = 0;
     int value{};
 
     auto sched1 = test_scheduler<1>{};
@@ -79,8 +81,8 @@ TEST_CASE("continue_on", "[continue_on]") {
     async::start(op);
     CHECK(value == 59);
 
-    CHECK(test_scheduler<1>::schedule_calls == 1);
-    CHECK(test_scheduler<2>::schedule_calls == 1);
+    CHECK(schedule_calls<1> == 1);
+    CHECK(schedule_calls<2> == 1);
 }
 
 TEST_CASE("continue_on advertises what it sends", "[continue_on]") {
@@ -92,8 +94,8 @@ TEST_CASE("continue_on advertises what it sends", "[continue_on]") {
 }
 
 TEST_CASE("continue_on is pipeable", "[continue_on]") {
-    test_scheduler<1>::schedule_calls = 0;
-    test_scheduler<2>::schedule_calls = 0;
+    schedule_calls<1> = 0;
+    schedule_calls<2> = 0;
     int value{};
 
     auto sched1 = test_scheduler<1>{};
@@ -106,13 +108,13 @@ TEST_CASE("continue_on is pipeable", "[continue_on]") {
     async::start(op);
     CHECK(value == 59);
 
-    CHECK(test_scheduler<1>::schedule_calls == 1);
-    CHECK(test_scheduler<2>::schedule_calls == 1);
+    CHECK(schedule_calls<1> == 1);
+    CHECK(schedule_calls<2> == 1);
 }
 
 TEST_CASE("continue_on is adaptor-pipeable", "[continue_on]") {
-    test_scheduler<1>::schedule_calls = 0;
-    test_scheduler<2>::schedule_calls = 0;
+    schedule_calls<1> = 0;
+    schedule_calls<2> = 0;
     int value{};
 
     auto sched1 = test_scheduler<1>{};
@@ -125,8 +127,8 @@ TEST_CASE("continue_on is adaptor-pipeable", "[continue_on]") {
     async::start(op);
     CHECK(value == 59);
 
-    CHECK(test_scheduler<1>::schedule_calls == 1);
-    CHECK(test_scheduler<2>::schedule_calls == 1);
+    CHECK(schedule_calls<1> == 1);
+    CHECK(schedule_calls<2> == 1);
 }
 
 TEST_CASE("continue_on advertises pass-through completions", "[continue_on]") {
@@ -136,8 +138,8 @@ TEST_CASE("continue_on advertises pass-through completions", "[continue_on]") {
 }
 
 TEST_CASE("move-only value", "[continue_on]") {
-    test_scheduler<1>::schedule_calls = 0;
-    test_scheduler<2>::schedule_calls = 0;
+    schedule_calls<1> = 0;
+    schedule_calls<2> = 0;
     int value{};
 
     auto sched1 = test_scheduler<1>{};
@@ -153,8 +155,8 @@ TEST_CASE("move-only value", "[continue_on]") {
     async::start(op);
     CHECK(value == 59);
 
-    CHECK(test_scheduler<1>::schedule_calls == 1);
-    CHECK(test_scheduler<2>::schedule_calls == 1);
+    CHECK(schedule_calls<1> == 1);
+    CHECK(schedule_calls<2> == 1);
 }
 
 TEST_CASE("singleshot continue_on", "[continue_on]") {
@@ -166,8 +168,8 @@ TEST_CASE("singleshot continue_on", "[continue_on]") {
 }
 
 TEST_CASE("continue_on cancellation", "[continue_on]") {
-    test_scheduler<1>::schedule_calls = 0;
-    test_scheduler<2>::schedule_calls = 0;
+    schedule_calls<1> = 0;
+    schedule_calls<2> = 0;
     int value{};
 
     auto sched1 = test_scheduler<1>{};
@@ -179,6 +181,6 @@ TEST_CASE("continue_on cancellation", "[continue_on]") {
     auto op = async::connect(s, stopped_receiver{[&] { value = 42; }});
     async::start(op);
     CHECK(value == 42);
-    CHECK(test_scheduler<1>::schedule_calls == 1);
-    CHECK(test_scheduler<2>::schedule_calls == 0);
+    CHECK(schedule_calls<1> == 1);
+    CHECK(schedule_calls<2> == 0);
 }

@@ -216,6 +216,7 @@ TEST_CASE("queue a task on interrupt during servicing (immediate execution)",
     m.service_tasks<1, async::requeue_policy::immediate>();
     CHECK(var == 2);
     CHECK(m.is_idle());
+    interrupt_fn = nullptr;
 }
 
 TEMPLATE_TEST_CASE("thread safety for execution", "[task_manager]",

@@ -46,10 +46,10 @@ template <typename Name, typename T, std::size_t N> struct static_allocator_t {
     }
 
     auto destruct(T const *t) -> void {
-        std::destroy_at(t);
         auto const ptr = stdx::bit_cast<std::byte *>(t);
         auto const idx =
             static_cast<std::size_t>(ptr - std::data(data)) / aligned_size;
+        std::destroy_at(t);
         conc::call_in_critical_section<mutex>([&] { used.reset(idx); });
     }
 };

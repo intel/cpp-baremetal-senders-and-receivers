@@ -3,7 +3,6 @@
 #include <async/forwarding_query.hpp>
 
 #include <stdx/ct_string.hpp>
-#include <stdx/type_traits.hpp>
 
 #include <utility>
 
