@@ -100,7 +100,31 @@ TEST_CASE("let_value is adaptor-pipeable", "[let_value]") {
     CHECK(value == 84);
 }
 
-TEST_CASE("move-only value", "[let_value]") {
+TEST_CASE("move-only by-value sent from upstream", "[let_value]") {
+    int value{};
+
+    auto s = async::just(move_only{42});
+    auto l = async::let_value(std::move(s),
+                              [](auto mo) { return async::just(mo.value); });
+    STATIC_REQUIRE(async::singleshot_sender<decltype(l), universal_receiver>);
+    auto op = async::connect(std::move(l), receiver{[&](int v) { value = v; }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
+TEST_CASE("move-only rvalue sent from upstream", "[let_value]") {
+    int value{};
+
+    auto s = async::just(move_only{42});
+    auto l = async::let_value(
+        std::move(s), [](move_only<> &&mo) { return async::just(mo.value); });
+    STATIC_REQUIRE(async::singleshot_sender<decltype(l), universal_receiver>);
+    auto op = async::connect(std::move(l), receiver{[&](int v) { value = v; }});
+    async::start(op);
+    CHECK(value == 42);
+}
+
+TEST_CASE("move-only value from dependent sender", "[let_value]") {
     int value{};
 
     auto sched = async::inline_scheduler{};
