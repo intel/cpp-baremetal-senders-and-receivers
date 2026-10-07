@@ -13,6 +13,7 @@
 #include <stdx/ct_conversions.hpp>
 #include <stdx/ct_format.hpp>
 #include <stdx/ct_string.hpp>
+#include <stdx/panic.hpp>
 
 #include <boost/mp11/list.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -41,8 +42,19 @@ TEMPLATE_TEST_CASE("trigger_scheduler sender advertises nothing",
                    "[trigger_scheduler]", decltype([] {})) {
     using expected_t = async::completion_signatures<async::set_value_t(),
                                                     async::set_stopped_t()>;
+
     using actual_t = async::completion_signatures_of_t<
         decltype(async::trigger_scheduler<type_string<TestType>>::schedule())>;
+    STATIC_CHECK(std::same_as<actual_t, expected_t>);
+}
+
+TEMPLATE_TEST_CASE("coop_trigger_scheduler sender advertises nothing",
+                   "[trigger_scheduler]", decltype([] {})) {
+    using expected_t = async::completion_signatures<async::set_value_t()>;
+
+    using actual_t = async::completion_signatures_of_t<
+        decltype(async::coop_trigger_scheduler<
+                 type_string<TestType>>::schedule())>;
     STATIC_CHECK(std::same_as<actual_t, expected_t>);
 }
 
@@ -69,6 +81,24 @@ TEMPLATE_TEST_CASE("trigger_scheduler schedules tasks", "[trigger_scheduler]",
                    decltype([] {})) {
     constexpr auto name = type_string<TestType>;
     auto s = async::trigger_scheduler<name>{};
+    int var{};
+    async::sender auto sndr =
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
+    auto op = async::connect(sndr, universal_receiver{});
+
+    async::triggers<stdx::cts_t<name>>.run();
+    CHECK(var == 0);
+
+    async::start(op);
+    async::triggers<stdx::cts_t<name>>.run();
+    CHECK(var == 42);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+TEMPLATE_TEST_CASE("coop_trigger_scheduler schedules tasks",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::coop_trigger_scheduler<name>{};
     int var{};
     async::sender auto sndr =
         async::start_on(s, async::just_result_of([&] { var = 42; }));
@@ -113,6 +143,7 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable before start",
     auto op = async::connect(sndr, r);
 
     r.request_stop();
+    CHECK(async::get_stop_token(async::get_env(r)).stop_requested());
     async::start(op);
     CHECK(var == 17);
     CHECK(async::triggers<stdx::cts_t<name>>.empty());
@@ -397,4 +428,36 @@ TEMPLATE_TEST_CASE("cancel one trigger", "[trigger_scheduler]",
     CHECK(var1 == 0);
     CHECK(var2 == 17);
     CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+namespace {
+auto panicked = false;
+
+struct injected_handler {
+    template <stdx::ct_string Why, typename... Ts>
+    static auto panic(Ts...) noexcept -> void {
+        CHECK(std::string_view{Why} ==
+              "cancel_triggers called on coop_trigger_scheduler sender");
+        panicked = true;
+        if constexpr (sizeof...(Ts) == 1) {
+            using Ctx = typename stdx::nth_t<0, Ts...>::context;
+            CHECK(std::string_view{Ctx::name} == "coop_cancel_test");
+        }
+    }
+};
+} // namespace
+
+template <> inline auto stdx::panic_handler<> = injected_handler{};
+
+TEST_CASE(
+    "coop_trigger_scheduler causes panic when cancelled by cancel_triggers",
+    "[trigger_scheduler]") {
+    auto s = async::coop_trigger_scheduler<"coop_cancel_test">{}.schedule();
+    auto r = receiver{[] {}};
+    auto op = async::connect(s, r);
+    async::start(op);
+
+    panicked = false;
+    async::cancel_triggers<"coop_cancel_test">();
+    CHECK(panicked);
 }
