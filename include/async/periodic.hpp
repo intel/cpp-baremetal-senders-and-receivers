@@ -26,13 +26,23 @@
 
 namespace async {
 namespace _periodic {
+namespace detail {
+template <typename Ops> auto extract_duration(Ops ops) {
+    if constexpr (std::invocable<decltype(ops->d)>) {
+        return ops->d();
+    } else {
+        return ops->d;
+    }
+}
+} // namespace detail
+
 template <typename Ops> struct first_expiration_provider {
     using time_point_t = typename Ops::time_point_t;
     Ops *ops;
 
     template <typename Hal>
     [[nodiscard]] auto compute_expiration() const -> time_point_t {
-        ops->tp = Hal::now() + ops->d;
+        ops->tp = Hal::now() + detail::extract_duration(ops);
         return ops->tp;
     }
 };
@@ -43,7 +53,7 @@ template <typename Ops> struct unsafe_nth_expiration_provider {
 
     template <typename Hal>
     [[nodiscard]] auto compute_expiration() const -> time_point_t {
-        ops->tp += ops->d;
+        ops->tp += detail::extract_duration(ops);
         return ops->tp;
     }
 };
@@ -54,7 +64,7 @@ template <typename Ops> struct safe_immediate_nth_expiration_provider {
 
     template <typename Hal>
     [[nodiscard]] auto compute_expiration() const -> time_point_t {
-        ops->tp += ops->d;
+        ops->tp += detail::extract_duration(ops);
         ops->tp = std::max(ops->tp, Hal::now());
         return ops->tp;
     }
@@ -66,11 +76,12 @@ template <typename Ops> struct safe_quantized_nth_expiration_provider {
 
     template <typename Hal>
     [[nodiscard]] auto compute_expiration() const -> time_point_t {
-        ops->tp += ops->d;
+        auto d = detail::extract_duration(ops);
+        ops->tp += d;
         if (auto now = Hal::now(); ops->tp < now) {
             auto diff = --(now - ops->tp);
-            auto num_ticks = (diff / ops->d) + 1;
-            ops->tp += ops->d * num_ticks;
+            auto num_ticks = (diff / d) + 1;
+            ops->tp += d * num_ticks;
         }
         return ops->tp;
     }

@@ -7,6 +7,7 @@
 
 #include <concepts>
 #include <functional>
+#include <type_traits>
 
 namespace async {
 namespace timer_mgr {
@@ -14,6 +15,10 @@ template <typename D> struct time_point_for {
     using type = D;
 };
 template <typename D> using time_point_for_t = typename time_point_for<D>::type;
+
+template <std::invocable D> struct time_point_for<D> {
+    using type = time_point_for_t<std::invoke_result_t<D>>;
+};
 } // namespace timer_mgr
 
 template <typename T>

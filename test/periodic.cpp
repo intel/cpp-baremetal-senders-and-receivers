@@ -462,3 +462,50 @@ TEST_CASE("periodic repeats periodically (different domain)", "[periodic]") {
     CHECK(async::timer_mgr::is_idle<alt_domain>());
     CHECK(var == 42);
 }
+
+TEST_CASE("periodic can take a duration function", "[periodic]") {
+    int var{};
+    auto d = 1s;
+
+    auto s = async::time_scheduler{}.schedule() | async::then([&] { ++var; }) |
+             async::periodic_until([&] { return d; }, [&] { return var == 2; });
+    auto op = async::connect(s, receiver{[&] { var = 42; }});
+    async::start(op);
+    CHECK(enabled<default_domain>);
+    CHECK(not async::timer_mgr::is_idle());
+    async::timer_mgr::service_task();
+    CHECK(var == 1);
+    CHECK(not async::timer_mgr::is_idle());
+    async::timer_mgr::service_task();
+    CHECK(async::timer_mgr::is_idle());
+    CHECK(var == 42);
+}
+
+namespace {
+template <typename F> struct ops_time_fn {
+    F d{};
+
+    using time_point_t = std::chrono::steady_clock::time_point;
+    time_point_t tp{};
+};
+template <typename F> ops_time_fn(F) -> ops_time_fn<F>;
+} // namespace
+
+TEST_CASE("expiration provider works with duration function", "[periodic]") {
+    using hal_t = timer_hal<default_domain>;
+    using TP = typename hal_t::time_point_t;
+
+    auto d = 1s;
+    auto t = ops_time_fn{[&] { return d; }};
+    async::safe_immediate_expiry::fn<decltype(t)> e{&t};
+
+    hal_t::enable();
+
+    current_time<default_domain, TP> = TP{};
+    CHECK(e.compute_expiration<hal_t>() == TP{1s});
+
+    d = 17s;
+    CHECK(e.compute_expiration<hal_t>() == TP{18s});
+
+    hal_t::disable();
+}
