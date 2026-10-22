@@ -14,6 +14,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
 #include <async/type_traits.hpp>
@@ -28,7 +29,8 @@
 
 namespace async {
 namespace _thread_scheduler {
-template <stdx::ct_string Name, typename R> struct op_state {
+namespace detail {
+template <typename Name, typename R> struct op_state {
     [[no_unique_address]] R receiver;
 
     auto start() & -> void {
@@ -41,6 +43,10 @@ template <stdx::ct_string Name, typename R> struct op_state {
         }}.detach();
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename R>
+using op_state = detail::op_state<async::detail::shrink_t<Name>, R>;
 } // namespace _thread_scheduler
 
 template <stdx::ct_string Name = "thread_scheduler"> class thread_scheduler {
@@ -72,12 +78,12 @@ template <stdx::ct_string Name = "thread_scheduler"> class thread_scheduler {
 
 struct thread_scheduler_sender_t;
 
-template <stdx::ct_string Name, typename R>
-struct debug::context_for<_thread_scheduler::op_state<Name, R>> {
+template <typename Name, typename R>
+struct debug::context_for<_thread_scheduler::detail::op_state<Name, R>> {
     using tag = thread_scheduler_sender_t;
-    constexpr static auto name = Name;
+    constexpr static auto name = async::detail::expand_v<Name>;
     using children = stdx::type_list<>;
-    using type = _thread_scheduler::op_state<Name, R>;
+    using type = _thread_scheduler::detail::op_state<Name, R>;
 };
 } // namespace async
 

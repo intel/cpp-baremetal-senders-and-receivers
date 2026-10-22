@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/debug.hpp>
 #include <async/debug_context.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 
 #include <stdx/call_by_need.hpp>
@@ -37,7 +38,8 @@ template <channel_tag T> struct caller_t {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename S, typename R,
+namespace detail {
+template <typename Name, typename HandleTags, typename S, typename R,
           typename... Fs>
 struct receiver {
     using is_receiver = void;
@@ -73,7 +75,7 @@ struct receiver {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename S, typename... Fs>
+template <typename Name, typename HandleTags, typename S, typename... Fs>
 struct sender {
     template <async::receiver R>
     [[nodiscard]] constexpr auto connect(R &&r) && {
@@ -111,8 +113,7 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename... Fs>
-struct pipeable {
+template <typename Name, typename HandleTags, typename... Fs> struct pipeable {
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
   private:
@@ -122,6 +123,11 @@ struct pipeable {
             std::forward<S>(s), std::forward<Self>(self).fs};
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename HandleTags, typename... Fs>
+using pipeable =
+    detail::pipeable<async::detail::shrink_t<Name>, HandleTags, Fs...>;
 } // namespace _observe
 
 template <
@@ -144,11 +150,11 @@ template <
 
 struct observe_t;
 
-template <stdx::ct_string Name, typename HandleTags, typename... Ts>
-struct debug::context_for<_observe::receiver<Name, HandleTags, Ts...>> {
+template <typename Name, typename HandleTags, typename... Ts>
+struct debug::context_for<_observe::detail::receiver<Name, HandleTags, Ts...>> {
     using tag = observe_t;
-    constexpr static auto name = Name;
-    using type = _observe::receiver<Name, HandleTags, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _observe::detail::receiver<Name, HandleTags, Ts...>;
     using children = stdx::type_list<debug::erased_context_for<
         connect_result_t<typename type::sender_t &&, type &&>>>;
 };

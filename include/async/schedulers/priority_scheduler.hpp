@@ -4,6 +4,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
 #include <async/schedulers/task_manager_interface.hpp>
@@ -18,7 +19,8 @@
 
 namespace async {
 namespace task_mgr {
-template <stdx::ct_string Name, priority_t P, typename Rcvr, typename Task>
+namespace detail {
+template <typename Name, priority_t P, typename Rcvr, typename Task>
 struct op_state final : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
@@ -56,6 +58,10 @@ struct op_state final : Task {
         return false;
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, priority_t P, typename Rcvr, typename Task>
+using op_state = detail::op_state<async::detail::shrink_t<Name>, P, Rcvr, Task>;
 } // namespace task_mgr
 
 template <priority_t P, stdx::ct_string Name = "fixed_priority_scheduler",
@@ -107,11 +113,11 @@ class fixed_priority_scheduler {
 
 struct priority_scheduler_sender_t;
 
-template <stdx::ct_string Name, priority_t P, typename Rcvr, typename Task>
-struct debug::context_for<task_mgr::op_state<Name, P, Rcvr, Task>> {
+template <typename Name, priority_t P, typename Rcvr, typename Task>
+struct debug::context_for<task_mgr::detail::op_state<Name, P, Rcvr, Task>> {
     using tag = priority_scheduler_sender_t;
-    constexpr static auto name = Name;
+    constexpr static auto name = async::detail::expand_v<Name>;
     using children = stdx::type_list<>;
-    using type = task_mgr::op_state<Name, P, Rcvr, Task>;
+    using type = task_mgr::detail::op_state<Name, P, Rcvr, Task>;
 };
 } // namespace async

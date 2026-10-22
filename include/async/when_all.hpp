@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/stop_token.hpp>
 
@@ -129,7 +130,7 @@ template <typename...> struct error_op_state;
 
 template <typename E> struct error_op_state<E, boost::mp11::mp_list<>> {
     [[nodiscard]] auto have_error() const -> bool { return false; }
-    template <stdx::ct_string Name, typename Op>
+    template <typename Name, typename Op>
     [[nodiscard]] auto release_error(auto &&) const -> bool {
         return false;
     }
@@ -143,7 +144,7 @@ struct error_op_state<E, boost::mp11::mp_list<Sndrs...>> {
             e.emplace(std::forward<Args>(args)...);
         }
     }
-    template <stdx::ct_string Name, typename Op, typename R>
+    template <typename Name, typename Op, typename R>
     [[nodiscard]] auto release_error(R &&r) -> bool {
         if (caught_error) {
             debug_signal<set_error_t::name, debug::erased_context_for<Op>>(
@@ -177,7 +178,8 @@ template <typename Rcvr> struct base_op_state {
     inplace_stop_source stop_source{};
 };
 
-template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
+namespace detail {
+template <typename Name, typename Rcvr, typename... Sndrs>
 struct op_state
     : base_op_state<Rcvr>,
       error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
@@ -283,7 +285,7 @@ template <typename Rcvr> struct nostop_base_op_state {
     [[no_unique_address]] Rcvr rcvr;
 };
 
-template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
+template <typename Name, typename Rcvr, typename... Sndrs>
 struct nostop_op_state
     : nostop_base_op_state<Rcvr>,
       error_op_state<env_of_t<Rcvr>, error_senders<env_of_t<Rcvr>, Sndrs...>>,
@@ -385,7 +387,7 @@ struct sync_receiver : base_sync_receiver<Ops, Rcvr> {
     }
 };
 
-template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
+template <typename Name, typename Rcvr, typename... Sndrs>
 struct sync_op_state {
     using base_receiver = base_sync_receiver<sync_op_state, Rcvr>;
     using env_t = env_of_t<base_receiver>;
@@ -487,11 +489,12 @@ struct sync_op_state {
 template <typename S, typename R>
 concept not_stoppable = not stoppable_sender<S, env_of_t<R>>;
 
-template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
+template <typename Name, typename Rcvr, typename... Sndrs>
 constexpr auto select_op_state() {
     if constexpr ((... and
                    synchronous<connect_result_t<
-                       Sndrs, detail::universal_receiver<env_of_t<Rcvr>>>>)) {
+                       Sndrs,
+                       async::detail::universal_receiver<env_of_t<Rcvr>>>>)) {
         return std::type_identity<sync_op_state<Name, Rcvr, Sndrs...>>{};
     } else if constexpr ((... and not_stoppable<Sndrs, Rcvr>)) {
         return std::type_identity<nostop_op_state<Name, Rcvr, Sndrs...>>{};
@@ -500,18 +503,16 @@ constexpr auto select_op_state() {
     }
 }
 
-template <stdx::ct_string Name, typename Rcvr, typename... Sndrs>
+template <typename Name, typename Rcvr, typename... Sndrs>
 using op_state_t =
     typename decltype(select_op_state<Name, Rcvr, Sndrs...>())::type;
 
-namespace detail {
 template <typename S, typename Tag, typename E>
 concept allowed_sender =
     single_sender<S, Tag, E> or
     std::same_as<value_signatures_of_t<S, E>, completion_signatures<>>;
-}
 
-template <stdx::ct_string Name, typename... Sndrs> struct sender {
+template <typename Name, typename... Sndrs> struct sender {
     using is_sender = void;
 
     [[no_unique_address]] stdx::tuple<Sndrs...> sndrs;
@@ -576,7 +577,7 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename Rcvr> struct op_state<Name, Rcvr> {
+template <typename Name, typename Rcvr> struct op_state<Name, Rcvr> {
     using child_ops_t = stdx::type_list<>;
 
     [[no_unique_address]] Rcvr rcvr;
@@ -604,7 +605,7 @@ template <stdx::ct_string Name, typename Rcvr> struct op_state<Name, Rcvr> {
     }
 };
 
-template <stdx::ct_string Name> struct sender<Name> {
+template <typename Name> struct sender<Name> {
     using is_sender = void;
 
     template <typename Env>
@@ -630,6 +631,10 @@ template <stdx::ct_string Name> struct sender<Name> {
         return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename... Sndrs>
+using sender = detail::sender<async::detail::shrink_t<Name>, Sndrs...>;
 } // namespace _when_all
 
 template <stdx::ct_string Name = "when_all", sender... Sndrs>
@@ -647,29 +652,29 @@ template <stdx::ct_string Name = "when_all", sender... Sndrs>
 
 struct when_all_t;
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_when_all::op_state<Name, Ts...>> {
+template <typename Name, typename... Ts>
+struct debug::context_for<_when_all::detail::op_state<Name, Ts...>> {
     using tag = when_all_t;
-    constexpr static auto name = Name;
-    using type = _when_all::op_state<Name, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _when_all::detail::op_state<Name, Ts...>;
     using children = boost::mp11::mp_transform<debug::erased_context_for,
                                                typename type::child_ops_t>;
 };
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_when_all::nostop_op_state<Name, Ts...>> {
+template <typename Name, typename... Ts>
+struct debug::context_for<_when_all::detail::nostop_op_state<Name, Ts...>> {
     using tag = when_all_t;
-    constexpr static auto name = Name;
-    using type = _when_all::nostop_op_state<Name, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _when_all::detail::nostop_op_state<Name, Ts...>;
     using children = boost::mp11::mp_transform<debug::erased_context_for,
                                                typename type::child_ops_t>;
 };
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_when_all::sync_op_state<Name, Ts...>> {
+template <typename Name, typename... Ts>
+struct debug::context_for<_when_all::detail::sync_op_state<Name, Ts...>> {
     using tag = when_all_t;
-    constexpr static auto name = Name;
-    using type = _when_all::sync_op_state<Name, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _when_all::detail::sync_op_state<Name, Ts...>;
     using children = boost::mp11::mp_transform<debug::erased_context_for,
                                                typename type::child_ops_t>;
 };

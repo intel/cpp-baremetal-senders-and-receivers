@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
 #include <async/type_traits.hpp>
@@ -108,7 +109,8 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
     }
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Func,
+namespace detail {
+template <typename Name, typename Sndr, typename Rcvr, typename Func,
           typename Sigs, channel_tag... Tags>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
@@ -198,7 +200,7 @@ struct op_state {
     state_t state;
 };
 
-template <stdx::ct_string Name, typename S, typename F, channel_tag... Tags>
+template <typename Name, typename S, typename F, channel_tag... Tags>
 struct sender {
     using is_sender = void;
 
@@ -238,7 +240,7 @@ struct sender {
 
   public:
     template <receiver_from<sender> R>
-    [[nodiscard]] constexpr auto connect(R &&r) && -> _let::op_state<
+    [[nodiscard]] constexpr auto connect(R &&r) && -> op_state<
         Name, S, std::remove_cvref_t<R>, F,
         boost::mp11::mp_first<raw_completions<env_of_t<R>>>, Tags...> {
         return {std::move(s), std::forward<R>(r), std::move(f)};
@@ -250,7 +252,7 @@ struct sender {
                  is_multishot_leftover_sender<R>::value and
                  boost::mp11::mp_all_of_q<dependent_senders<env_of_t<R>>,
                                           is_multishot_sender<R>>::value
-    [[nodiscard]] constexpr auto connect(R &&r) const & -> _let::op_state<
+    [[nodiscard]] constexpr auto connect(R &&r) const & -> op_state<
         Name, S, std::remove_cvref_t<R>, F,
         boost::mp11::mp_first<raw_completions<env_of_t<R>>>, Tags...> {
         return {s, std::forward<R>(r), f};
@@ -264,8 +266,8 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename F,
-          template <stdx::ct_string, typename...> typename Sndr>
+template <typename Name, typename F,
+          template <typename, typename...> typename Sndr>
 struct pipeable {
     [[no_unique_address]] F f;
 
@@ -276,17 +278,22 @@ struct pipeable {
             std::forward<S>(s), std::forward<Self>(self).f};
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename F,
+          template <typename, typename...> typename Sndr>
+using pipeable = detail::pipeable<async::detail::shrink_t<Name>, F, Sndr>;
 } // namespace _let
 
 template <typename...> struct let_t;
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Func,
+template <typename Name, typename Sndr, typename Rcvr, typename Func,
           typename Sigs, channel_tag... Tags>
 struct debug::context_for<
-    _let::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>> {
+    _let::detail::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>> {
     using tag = let_t<Tags...>;
-    constexpr static auto name = Name;
-    using type = _let::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _let::detail::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>;
     using children = boost::mp11::mp_transform<debug::erased_context_for,
                                                typename type::state_t>;
 };

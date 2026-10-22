@@ -14,16 +14,16 @@
 #include <utility>
 
 namespace async {
-namespace _let_value {
-template <stdx::ct_string Name, typename S, typename F>
-using sender = _let::sender<Name, S, F, set_value_t>;
-} // namespace _let_value
+namespace _let_value::detail {
+template <typename Name, typename S, typename F>
+using sender = _let::detail::sender<Name, S, F, set_value_t>;
+} // namespace _let_value::detail
 
 template <stdx::ct_string Name = "let_value", stdx::callable F>
 [[nodiscard]] constexpr auto let_value(F &&f) {
     return compose(
-        _let::pipeable<Name, std::remove_cvref_t<F>, _let_value::sender>{
-            std::forward<F>(f)});
+        _let::pipeable<Name, std::remove_cvref_t<F>,
+                       _let_value::detail::sender>{std::forward<F>(f)});
 }
 
 template <stdx::ct_string Name = "let_value", sender S, stdx::callable F>

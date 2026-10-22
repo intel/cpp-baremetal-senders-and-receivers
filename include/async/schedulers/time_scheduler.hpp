@@ -4,6 +4,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/schedulers/get_expiration.hpp>
 #include <async/schedulers/timer_manager_interface.hpp>
@@ -19,7 +20,8 @@
 
 namespace async {
 namespace timer_mgr {
-template <typename Rcvr, stdx::ct_string Name, typename Task>
+namespace detail {
+template <typename Rcvr, typename Name, typename Task>
 struct op_state_base : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
@@ -34,6 +36,7 @@ struct op_state_base : Task {
     [[no_unique_address]] Rcvr rcvr;
 };
 
+} // namespace detail
 struct DurationExpirationPolicy {
     template <typename Domain, typename Task> static auto schedule(Task &&t) {
         run_after<Domain>(std::forward<Task>(t), t.d);
@@ -46,12 +49,13 @@ struct TimepointExpirationPolicy {
     }
 };
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
+namespace detail {
+template <typename Domain, typename Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
 struct op_state;
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
+template <typename Domain, typename Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
     requires unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>
 struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
     : op_state_base<Rcvr, Name, Task> {
@@ -70,8 +74,8 @@ struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
     [[no_unique_address]] Duration d{};
 };
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
+template <typename Domain, typename Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
     requires(not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>)
 struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
     : op_state_base<Rcvr, Name, Task> {
@@ -116,6 +120,12 @@ struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
 
     std::optional<stop_callback_t> stop_cb{};
 };
+} // namespace detail
+
+template <typename Domain, stdx::ct_string Name, typename Duration,
+          typename Rcvr, typename Task, typename ExpirationPolicy>
+using op_state = detail::op_state<Domain, async::detail::shrink_t<Name>,
+                                  Duration, Rcvr, Task, ExpirationPolicy>;
 } // namespace timer_mgr
 
 template <typename Domain, stdx::ct_string Name, typename Duration,
@@ -244,17 +254,17 @@ constexpr auto time_scheduler_factory = []<typename... Ds>
 
 struct time_scheduler_sender_t;
 
-template <stdx::ct_string Name, typename Rcvr, typename Task>
-struct debug::context_for<timer_mgr::op_state_base<Rcvr, Name, Task>> {
+template <typename Name, typename Rcvr, typename Task>
+struct debug::context_for<timer_mgr::detail::op_state_base<Rcvr, Name, Task>> {
     using tag = time_scheduler_sender_t;
-    constexpr static auto name = Name;
-    using type = timer_mgr::op_state_base<Rcvr, Name, Task>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = timer_mgr::detail::op_state_base<Rcvr, Name, Task>;
     using children = stdx::type_list<>;
 };
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
-struct debug::context_for<
-    timer_mgr::op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy>>
-    : debug::context_for<timer_mgr::op_state_base<Rcvr, Name, Task>> {};
+template <typename Domain, typename Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
+struct debug::context_for<timer_mgr::detail::op_state<
+    Domain, Name, Duration, Rcvr, Task, ExpirationPolicy>>
+    : debug::context_for<timer_mgr::detail::op_state_base<Rcvr, Name, Task>> {};
 } // namespace async

@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
@@ -18,7 +19,8 @@
 
 namespace async {
 namespace _into_variant {
-template <stdx::ct_string Name, typename S, typename V, typename Rcvr>
+namespace detail {
+template <typename Name, typename S, typename V, typename Rcvr>
 struct receiver {
     using is_receiver = void;
     using sender_t = S;
@@ -49,7 +51,6 @@ struct receiver {
     [[no_unique_address]] Rcvr r;
 };
 
-namespace detail {
 template <typename... As> using discard_signatures = completion_signatures<>;
 
 template <typename... Ts>
@@ -58,9 +59,8 @@ using decayed_tuple = stdx::tuple<std::decay_t<Ts>...>;
 template <typename S, typename Env, template <typename...> typename V>
 using variant_t =
     boost::mp11::mp_unique<value_types_of_t<S, Env, decayed_tuple, V>>;
-} // namespace detail
 
-template <stdx::ct_string Name, typename S, template <typename...> typename V>
+template <typename Name, typename S, template <typename...> typename V>
 struct sender {
     using is_sender = void;
 
@@ -97,14 +97,17 @@ struct sender {
     [[no_unique_address]] S s;
 };
 
-template <stdx::ct_string Name, template <typename...> typename V>
-struct pipeable {
+template <typename Name, template <typename...> typename V> struct pipeable {
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&) -> async::sender auto {
         return sender<Name, std::remove_cvref_t<S>, V>{std::forward<S>(s)};
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, template <typename...> typename V>
+using pipeable = detail::pipeable<async::detail::shrink_t<Name>, V>;
 } // namespace _into_variant
 
 template <stdx::ct_string Name = "into_variant",
@@ -121,11 +124,11 @@ template <stdx::ct_string Name = "into_variant",
 
 struct into_variant_t;
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_into_variant::receiver<Name, Ts...>> {
+template <typename Name, typename... Ts>
+struct debug::context_for<_into_variant::detail::receiver<Name, Ts...>> {
     using tag = into_variant_t;
-    constexpr static auto name = Name;
-    using type = _into_variant::receiver<Name, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _into_variant::detail::receiver<Name, Ts...>;
     using children = stdx::type_list<debug::erased_context_for<
         connect_result_t<typename type::sender_t &&, type &&>>>;
 };
