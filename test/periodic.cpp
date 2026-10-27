@@ -509,3 +509,38 @@ TEST_CASE("expiration provider works with duration function", "[periodic]") {
 
     hal_t::disable();
 }
+
+TEST_CASE("periodic sets the expiration time according to function",
+          "[periodic]") {
+    int var{};
+    stoppable_receiver r{[&] { var = 42; }};
+
+    using hal_t = timer_hal<default_domain>;
+    using TP = typename hal_t::time_point_t;
+
+    auto d = 1s;
+    auto s =
+        async::time_scheduler{}.schedule() | async::periodic([&] { return d; });
+    auto op = async::connect(s, r);
+
+    current_time<default_domain, TP> = TP{1s};
+    calls<default_domain, TP>.clear();
+
+    // first schedule for 1s in the future
+    async::start(op);
+    REQUIRE(calls<default_domain, TP>.size() == 1);
+    CHECK(calls<default_domain, TP>[0] == TP{2s});
+    CHECK(not async::timer_mgr::is_idle());
+
+    // next schedule for 17s in the future
+    current_time<default_domain, TP> = TP{2s};
+    d = 17s;
+    async::timer_mgr::service_task();
+    REQUIRE(calls<default_domain, TP>.size() == 2);
+    CHECK(calls<default_domain, TP>[1] == TP{19s});
+    CHECK(not async::timer_mgr::is_idle());
+
+    r.request_stop();
+    CHECK(async::timer_mgr::is_idle());
+    CHECK(var == 42);
+}
