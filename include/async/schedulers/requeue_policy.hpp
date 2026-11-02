@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdx/compiler.hpp>
+#include <stdx/concepts.hpp>
 
 #include <conc/concurrency.hpp>
 
@@ -28,6 +29,28 @@ struct immediate {
                 return nullptr;
             });
     }
+
+    template <typename Mutex, typename Q,
+              stdx::predicate<typename Q::pointer> F>
+    [[nodiscard]] constexpr static auto pop_if(Q &q, F &&f) ->
+        typename Q::pointer {
+        auto task =
+            conc::call_in_critical_section<Mutex>([&]() -> typename Q::pointer {
+                if (not std::empty(q)) {
+                    auto t = q.pop_front();
+                    t->pending = false;
+                    return t;
+                }
+                return nullptr;
+            });
+        if (task and not std::forward<F>(f)(task)) {
+            conc::call_in_critical_section<Mutex>([&] {
+                task->pending = true;
+                q.push_front(task);
+            });
+        }
+        return task;
+    }
 };
 
 struct deferred {
@@ -43,6 +66,25 @@ struct deferred {
             auto task = q.pop_front();
             conc::call_in_critical_section<Mutex>(
                 [&] { task->pending = false; });
+            return task;
+        }
+        return nullptr;
+    }
+
+    template <typename Mutex, typename Q,
+              stdx::predicate<typename Q::pointer> F>
+    [[nodiscard]] constexpr static auto pop_if(Q &q, F &&f, Q &defer_q) ->
+        typename Q::pointer {
+        if (not std::empty(q)) {
+            auto task = q.pop_front();
+            conc::call_in_critical_section<Mutex>(
+                [&] { task->pending = false; });
+            if (not std::forward<F>(f)(task)) {
+                conc::call_in_critical_section<Mutex>([&] {
+                    task->pending = true;
+                    defer_q.push_back(task);
+                });
+            }
             return task;
         }
         return nullptr;
