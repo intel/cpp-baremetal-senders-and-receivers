@@ -16,8 +16,8 @@ else()
 endif()
 
 add_versioned_package(URI "gh:boostorg/mp11#boost-1.83.0" TARGET boost_mp11)
-add_versioned_package("gh:intel/cpp-baremetal-concurrency#63230eb")
-add_versioned_package("gh:intel/cpp-std-extensions#0006b57")
+add_versioned_package("gh:intel/cpp-baremetal-concurrency#77be791")
+add_versioned_package("gh:intel/cpp-std-extensions#d6e517f")
 
 if(NOT DEFINED CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 23)
