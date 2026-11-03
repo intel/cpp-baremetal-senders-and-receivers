@@ -82,9 +82,10 @@ struct op_state final
         set_value(std::move(rcvr), args...);
     }
 
-    auto cancel() -> void final {
+    auto cancel() -> bool final {
         this->clear_stop_cb();
         complete_stopped();
+        return true;
     }
 
     constexpr auto start() & -> void {

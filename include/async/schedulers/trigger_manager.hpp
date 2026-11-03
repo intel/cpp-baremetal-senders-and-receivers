@@ -23,7 +23,7 @@ template <typename... Args> struct trigger_task {
     trigger_task *next{};
 
     virtual auto run(Args const &...) -> void = 0;
-    virtual auto cancel() -> void = 0;
+    virtual auto cancel() -> bool = 0;
 
     constexpr trigger_task() = default;
     constexpr trigger_task(trigger_task &&) = delete;
@@ -35,42 +35,48 @@ template <typename... Args> struct trigger_task {
     }
 };
 
-namespace detail {
-struct runner {
-    template <typename... Args>
-    static auto complete(auto task, Args &&...args) -> void {
-        task->run(std::forward<Args>(args)...);
-    }
-};
-
-struct canceller {
-    template <typename... Args>
-    static auto complete(auto task, Args &&...) -> void {
-        task->cancel();
-    }
-};
-} // namespace detail
-
 namespace run_policy {
 struct one {
-    template <typename, typename Completer, typename M, typename... Args>
+    template <typename, typename M, typename... Args>
     static auto run(auto &&tasks, auto &count, Args &&...args) {
         using RQP = requeue_policy::immediate;
         decltype(auto) q = RQP::template get_queue<0, M>(tasks);
         if (auto task = RQP::template pop<M>(q); task) {
-            Completer::complete(task, std::forward<Args>(args)...);
+            task->run(std::forward<Args>(args)...);
+            --count;
+        }
+    }
+
+    template <typename M> static auto cancel(auto &&tasks, auto &count) {
+        using RQP = requeue_policy::immediate;
+        decltype(auto) q = RQP::template get_queue<0, M>(tasks);
+        if (auto task = RQP::template pop_if<M>(
+                q, [](auto t) -> bool { return t->cancel(); });
+            task) {
             --count;
         }
     }
 };
 
 struct all {
-    template <typename RQP, typename Completer, typename M, typename... Args>
+    template <typename RQP, typename M, typename... Args>
     static auto run(auto &&tasks, auto &count, Args &&...args) {
         decltype(auto) q = RQP::template get_queue<0, M>(tasks);
         for (auto task = RQP::template pop<M>(q); task;
              task = RQP::template pop<M>(q)) {
-            Completer::complete(task, args...);
+            task->run(std::forward<Args>(args)...);
+            --count;
+        }
+    }
+
+    template <typename M> static auto cancel(auto &&tasks, auto &count) {
+        using RQP = requeue_policy::deferred;
+        decltype(auto) q = RQP::template get_queue<0, M>(tasks);
+        for (auto task = RQP::template pop_if<M>(
+                 q, [](auto t) -> bool { return t->cancel(); }, tasks[0]);
+             task;
+             task = RQP::template pop_if<M>(
+                 q, [](auto t) -> bool { return t->cancel(); }, tasks[0])) {
             --count;
         }
     }
@@ -123,12 +129,15 @@ template <typename Name, typename... Args> struct trigger_manager {
     }
 
     template <typename RQP = requeue_policy::deferred,
-              typename RunPolicy = run_policy::all,
-              typename Completer = detail::runner, typename... As>
+              typename RunPolicy = run_policy::all, typename... As>
     auto run(As &&...args) -> void {
         static_assert((... and std::same_as<Args, std::remove_cvref_t<As>>));
-        RunPolicy::template run<RQP, Completer, mutex>(
-            tasks, task_count, std::forward<As>(args)...);
+        RunPolicy::template run<RQP, mutex>(tasks, task_count,
+                                            std::forward<As>(args)...);
+    }
+
+    template <typename RunPolicy = run_policy::all> auto cancel() -> void {
+        RunPolicy::template cancel<mutex>(tasks, task_count);
     }
 
     [[nodiscard]] auto empty() const -> bool { return task_count == 0; }
@@ -152,7 +161,7 @@ auto run_triggers(Args &&...args) -> void {
 }
 
 template <typename Name, typename... Args> auto cancel_triggers() -> void {
-    triggers<Name, Args...>.template run<requeue_policy::deferred, run_policy::all, detail::canceller>();
+    triggers<Name, Args...>.template cancel<run_policy::all>();
 }
 
 template <stdx::ct_string Name, typename... Args>
@@ -174,12 +183,11 @@ auto run_one_trigger(Args &&...args) -> void {
 }
 
 template <typename Name, typename... Args> auto cancel_one_trigger() -> void {
-    triggers<Name, Args...>.template run<requeue_policy::deferred, run_policy::one, detail::canceller>();
+    triggers<Name, Args...>.template cancel<run_policy::one>();
 }
 
 template <stdx::ct_string Name, typename... Args>
 auto cancel_one_trigger() -> void {
     cancel_one_trigger<stdx::cts_t<Name>, Args...>();
 }
-
 } // namespace async
