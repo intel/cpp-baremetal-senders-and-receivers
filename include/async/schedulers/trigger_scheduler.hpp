@@ -17,15 +17,36 @@
 
 namespace async {
 namespace trigger_mgr {
+struct stoppable {
+    template <typename... Args>
+    using completion_signatures =
+        async::completion_signatures<set_value_t(Args const &...),
+                                     set_stopped_t()>;
+
+    static auto cancel(auto ops) -> bool {
+        ops->clear_stop_cb();
+        ops->complete_stopped();
+        return true;
+    }
+};
+
+struct unstoppable {
+    template <typename... Args>
+    using completion_signatures =
+        async::completion_signatures<set_value_t(Args const &...)>;
+
+    static auto cancel(auto) -> bool { return false; }
+};
+
 template <typename T>
-constexpr auto name_of(T)
+consteval auto name_of(T)
     -> stdx::ct_string<stdx::type_as_string<T>().size() + 1> {
     return stdx::ct_string<stdx::type_as_string<T>().size() + 1>{
         stdx::type_as_string<T>()};
 }
 
 template <stdx::ct_string S>
-constexpr auto name_of(stdx::cts_t<S>) -> decltype(S) {
+consteval auto name_of(stdx::cts_t<S>) -> decltype(S) {
     return S;
 }
 
@@ -67,9 +88,11 @@ struct op_state_base<Rcvr, Ops> {
     auto clear_stop_cb() -> void {}
 };
 
-template <typename Name, typename Rcvr, typename QueuePolicy, typename... Args>
+template <typename Name, typename Rcvr, typename StopPolicy,
+          typename QueuePolicy, typename... Args>
 struct op_state final
-    : op_state_base<Rcvr, op_state<Name, Rcvr, QueuePolicy, Args...>>,
+    : op_state_base<Rcvr,
+                    op_state<Name, Rcvr, StopPolicy, QueuePolicy, Args...>>,
       trigger_task<Args...> {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
@@ -82,11 +105,7 @@ struct op_state final
         set_value(std::move(rcvr), args...);
     }
 
-    auto cancel() -> bool final {
-        this->clear_stop_cb();
-        complete_stopped();
-        return true;
-    }
+    auto cancel() -> bool final { return StopPolicy::cancel(this); }
 
     constexpr auto start() & -> void {
         debug_signal<"start", debug::erased_context_for<op_state>>(
@@ -113,14 +132,24 @@ struct op_state final
     [[no_unique_address]] Rcvr rcvr;
 };
 
-template <typename S, typename Name, typename QueuePolicy, typename... Args>
+template <typename S, typename Name, typename StopPolicy, typename QueuePolicy,
+          typename... Args>
 class scheduler {
     struct sender {
         using is_sender = void;
 
-        using completion_signatures =
-            async::completion_signatures<set_value_t(Args const &...),
-                                         set_stopped_t()>;
+        template <typename Env>
+        using stop_policy_for =
+            stdx::conditional_t<not unstoppable_token<stop_token_of_t<Env>> or
+                                    std::same_as<StopPolicy, stoppable>,
+                                stoppable, unstoppable>;
+
+        template <typename Env>
+        [[nodiscard]] constexpr static auto
+        get_completion_signatures(Env const &)
+            -> stop_policy_for<Env>::template completion_signatures<Args...> {
+            return {};
+        }
 
         [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
             return env{prop{get_completion_scheduler_t<set_value_t>{}, S{}},
@@ -130,7 +159,10 @@ class scheduler {
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const {
             check_connect<sender, R>();
-            return trigger_mgr::op_state<Name, std::remove_cvref_t<R>,
+
+            using Rcvr = std::remove_cvref_t<R>;
+            using Env = env_of_t<Rcvr>;
+            return trigger_mgr::op_state<Name, Rcvr, stop_policy_for<Env>,
                                          QueuePolicy, Args...>{
                 std::forward<R>(r)};
         }
@@ -157,11 +189,18 @@ class trigger_scheduler
 
 template <stdx::ct_string Name, typename... Args>
 using trigger_scheduler =
-    detail::trigger_scheduler<Name, trigger_mgr::queue_at_back, Args...>;
+    detail::trigger_scheduler<Name, trigger_mgr::stoppable,
+                              trigger_mgr::queue_at_back, Args...>;
 
 template <stdx::ct_string Name, typename... Args>
 using urgent_trigger_scheduler =
-    detail::trigger_scheduler<Name, trigger_mgr::queue_at_front, Args...>;
+    detail::trigger_scheduler<Name, trigger_mgr::stoppable,
+                              trigger_mgr::queue_at_front, Args...>;
+
+template <stdx::ct_string Name, typename... Args>
+using unstoppable_trigger_scheduler =
+    detail::trigger_scheduler<Name, trigger_mgr::unstoppable,
+                              trigger_mgr::queue_at_back, Args...>;
 
 struct trigger_scheduler_sender_t;
 

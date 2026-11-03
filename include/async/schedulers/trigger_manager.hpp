@@ -50,11 +50,15 @@ struct one {
     template <typename M> static auto cancel(auto &&tasks, auto &count) {
         using RQP = requeue_policy::immediate;
         decltype(auto) q = RQP::template get_queue<0, M>(tasks);
-        if (auto task = RQP::template pop_if<M>(
-                q, [](auto t) -> bool { return t->cancel(); });
-            task) {
-            --count;
-        }
+
+        auto try_cancel = [&](auto t) -> bool {
+            if (t->cancel()) {
+                --count;
+                return true;
+            }
+            return false;
+        };
+        [[maybe_unused]] auto task = RQP::template pop_if<M>(q, try_cancel);
     }
 };
 
@@ -72,12 +76,16 @@ struct all {
     template <typename M> static auto cancel(auto &&tasks, auto &count) {
         using RQP = requeue_policy::deferred;
         decltype(auto) q = RQP::template get_queue<0, M>(tasks);
-        for (auto task = RQP::template pop_if<M>(
-                 q, [](auto t) -> bool { return t->cancel(); }, tasks[0]);
-             task;
-             task = RQP::template pop_if<M>(
-                 q, [](auto t) -> bool { return t->cancel(); }, tasks[0])) {
-            --count;
+
+        auto try_cancel = [&](auto t) -> bool {
+            if (t->cancel()) {
+                --count;
+                return true;
+            }
+            return false;
+        };
+
+        while (RQP::template pop_if<M>(q, try_cancel, tasks[0])) {
         }
     }
 };
