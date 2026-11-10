@@ -194,8 +194,9 @@ struct op_state
         inplace_stop_source *stop_source;
     };
 
-    template <stdx::same_as_unqualified<Rcvr> R,
-              stdx::same_as_unqualified<Sndrs>... Ss>
+    template <typename R, typename... Ss>
+        requires(stdx::same_as_unqualified<R, Rcvr> and
+                 (... and stdx::same_as_unqualified<Ss, Sndrs>))
     constexpr explicit(true) op_state(R &&r, Ss &&...ss)
         : base_op_state<Rcvr>{std::forward<R>(r)},
           sub_op_state_t<Sndrs>{std::forward<Ss>(ss)}... {}
@@ -296,8 +297,9 @@ struct nostop_op_state
     using child_ops_t =
         stdx::type_list<typename sub_op_state_t<Sndrs>::ops_t...>;
 
-    template <stdx::same_as_unqualified<Rcvr> R,
-              stdx::same_as_unqualified<Sndrs>... Ss>
+    template <typename R, typename... Ss>
+        requires(stdx::same_as_unqualified<R, Rcvr> and
+                 (... and stdx::same_as_unqualified<Ss, Sndrs>))
     constexpr explicit(true) nostop_op_state(R &&r, Ss &&...ss)
         : nostop_base_op_state<Rcvr>{std::forward<R>(r)},
           sub_op_state_t<Sndrs>{std::forward<Ss>(ss)}... {}
@@ -407,8 +409,9 @@ struct sync_op_state {
         stdx::tuple,
         boost::mp11::mp_transform<single_values_t, value_senders_t>>;
 
-    template <stdx::same_as_unqualified<Rcvr> R,
-              stdx::same_as_unqualified<Sndrs>... Ss>
+    template <typename R, typename... Ss>
+        requires(stdx::same_as_unqualified<R, Rcvr> and
+                 (... and stdx::same_as_unqualified<Ss, Sndrs>))
     constexpr explicit(true) sync_op_state(R &&r, Ss &&...ss)
         : rcvr{std::forward<R>(r)}, sndrs{std::forward<Ss>(ss)...} {}
 
