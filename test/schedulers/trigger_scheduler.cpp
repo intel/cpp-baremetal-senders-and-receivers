@@ -46,6 +46,15 @@ TEMPLATE_TEST_CASE("trigger_scheduler sender advertises nothing",
     STATIC_CHECK(std::same_as<actual_t, expected_t>);
 }
 
+TEMPLATE_TEST_CASE("unstoppable_trigger_scheduler sender advertises nothing",
+                   "[trigger_scheduler]", decltype([] {})) {
+    using expected_t = async::completion_signatures<async::set_value_t()>;
+    using actual_t = async::completion_signatures_of_t<
+        decltype(async::unstoppable_trigger_scheduler<
+                 type_string<TestType>>::schedule())>;
+    STATIC_CHECK(std::same_as<actual_t, expected_t>);
+}
+
 TEMPLATE_TEST_CASE(
     "trigger_scheduler sender advertises args that will be used to trigger it",
     "[trigger_scheduler]", decltype([] {})) {
@@ -69,6 +78,24 @@ TEMPLATE_TEST_CASE("trigger_scheduler schedules tasks", "[trigger_scheduler]",
                    decltype([] {})) {
     constexpr auto name = type_string<TestType>;
     auto s = async::trigger_scheduler<name>{};
+    int var{};
+    async::sender auto sndr =
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
+    auto op = async::connect(sndr, universal_receiver{});
+
+    async::triggers<stdx::cts_t<name>>.run();
+    CHECK(var == 0);
+
+    async::start(op);
+    async::triggers<stdx::cts_t<name>>.run();
+    CHECK(var == 42);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+TEMPLATE_TEST_CASE("unstoppable_trigger_scheduler schedules tasks",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::unstoppable_trigger_scheduler<name>{};
     int var{};
     async::sender auto sndr =
         async::start_on(s, async::just_result_of([&] { var = 42; }));
@@ -396,5 +423,58 @@ TEMPLATE_TEST_CASE("cancel one trigger", "[trigger_scheduler]",
     async::run_triggers<name>();
     CHECK(var1 == 0);
     CHECK(var2 == 17);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+TEMPLATE_TEST_CASE(
+    "unstoppable_trigger_scheduler cannot be cancelled by cancel_triggers",
+    "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    auto s = async::unstoppable_trigger_scheduler<name>{};
+    int var{};
+    async::sender auto sndr =
+        async::start_on(s, async::just_result_of([&] { var = 42; }));
+    auto op = async::connect(sndr, universal_receiver{});
+    async::start(op);
+
+    async::cancel_triggers<name>();
+    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+
+    async::cancel_one_trigger<name>();
+    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+
+    async::run_triggers<name>();
+    CHECK(var == 42);
+    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+}
+
+TEMPLATE_TEST_CASE("mixture of stoppable/unstoppable trigger_schedulers",
+                   "[trigger_scheduler]", decltype([] {})) {
+    constexpr auto name = type_string<TestType>;
+    int var{17};
+
+    auto s0 = async::unstoppable_trigger_scheduler<name>{};
+    async::sender auto sndr0 =
+        async::start_on(s0, async::just_result_of([&] { ++var; }));
+    auto op0 = async::connect(sndr0, universal_receiver{});
+    async::start(op0);
+
+    auto s1 = async::trigger_scheduler<name>{};
+    async::sender auto sndr1 =
+        async::start_on(s1, async::just_result_of([&] { var *= 2; }));
+    auto op1 = async::connect(sndr1, universal_receiver{});
+    async::start(op1);
+
+    auto s2 = async::unstoppable_trigger_scheduler<name>{};
+    async::sender auto sndr2 =
+        async::start_on(s2, async::just_result_of([&] { var += 2; }));
+    auto op2 = async::connect(sndr2, universal_receiver{});
+    async::start(op2);
+
+    async::cancel_triggers<name>();
+    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+
+    async::run_triggers<name>();
+    CHECK(var == 20);
     CHECK(async::triggers<stdx::cts_t<name>>.empty());
 }
