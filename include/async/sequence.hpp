@@ -72,8 +72,9 @@ template <stdx::ct_string Name, typename Rcvr, typename Sndr, typename... Rest>
 struct op_state {
     template <std::size_t N> using receiver_t = receiver<N, op_state, Rcvr>;
 
-    template <typename R, stdx::same_as_unqualified<Sndr> S,
-              stdx::same_as_unqualified<Rest>... Rs>
+    template <typename R, typename S, typename... Rs>
+        requires(stdx::same_as_unqualified<S, Sndr> and
+                 (... and stdx::same_as_unqualified<Rs, Rest>))
     constexpr op_state(R &&r, S &&s, Rs &&...rs)
         : rcvr{std::forward<R>(r)}, rest{std::forward<Rs>(rs)...},
           state{std::in_place_index<0>, stdx::with_result_of{[&] {

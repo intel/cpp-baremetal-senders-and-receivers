@@ -10,6 +10,7 @@
 #include <async/let_value.hpp>
 #include <async/read_env.hpp>
 #include <async/schedulers/thread_scheduler.hpp>
+#include <async/sequence.hpp>
 #include <async/stop_token.hpp>
 #include <async/sync_wait.hpp>
 #include <async/then.hpp>
@@ -541,4 +542,16 @@ TEST_CASE("synchronous when_all doesn't run sub senders after error",
     async::start(op);
     CHECK(value == 42);
     CHECK(not run_after_error);
+}
+
+TEST_CASE("when_all can be connected as a const lvalue when sequenced",
+          "[when_all]") {
+    auto w = async::when_all(async::just_result_of([] { return 42; }),
+                             async::just_result_of([] { return 17; })) |
+             async::then([](auto x, auto y) { return x + y; });
+    auto s = async::just() | async::seq(w);
+
+    auto value = async::sync_wait(s);
+    REQUIRE(value.has_value());
+    CHECK(get<0>(*value) == 59);
 }
