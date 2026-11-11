@@ -53,6 +53,7 @@ add_tests(
     then_error
     timeout_after
     transform_error
+    transform_stopped
     type_traits
     upon_error
     upon_stopped

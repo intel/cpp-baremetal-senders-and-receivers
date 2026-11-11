@@ -701,6 +701,24 @@ auto te_sndr = async::transform_error(sndr, [] (int i) { return std::to_string(i
 NOTE: Like `then`, `transform_error` can distribute the sent values to the
 functions by arity. However, only one value is normally sent on the error channel.
 
+=== `transform_stopped`
+
+Found in the header: `async/then.hpp`
+
+`transform_stopped` works like `then`, but instead of applying the function to
+values, it applies to the stopped channel. Therefore the function must be
+nullary, and return `void`. But it may be useful for cleanup on a stopped signal.
+
+[source,cpp]
+----
+auto sndr = async::just_stopped();
+auto ts_sndr = async::transform_stopped(sndr, [] { /* do cleanup */; });
+// when run, ts_sndr will complete with set_stopped after running the function
+----
+
+NOTE: Like `then`, `transform_stopped` may take multiple functions to be called
+in sequence.
+
 === `upon_error`
 
 Found in the header: `async/then.hpp`

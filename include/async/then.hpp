@@ -211,6 +211,21 @@ template <stdx::ct_string Name = "transform_error", sender S,
     return std::forward<S>(s) | transform_error<Name>(std::forward<Fs>(fs)...);
 }
 
+template <stdx::ct_string Name = "transform_stopped", stdx::callable... Fs>
+[[nodiscard]] constexpr auto transform_stopped(Fs &&...fs) {
+    return compose(
+        _then::pipeable<Name, stdx::type_list<set_stopped_t>, set_stopped_t,
+                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
+}
+
+template <stdx::ct_string Name = "transform_stopped", sender S,
+          stdx::callable... Fs>
+[[nodiscard]] constexpr auto transform_stopped(S &&s, Fs &&...fs) -> sender
+    auto {
+    return std::forward<S>(s) |
+           transform_stopped<Name>(std::forward<Fs>(fs)...);
+}
+
 template <
     auto Channels = stdx::type_list<set_value_t, set_error_t, set_stopped_t>{},
     stdx::ct_string Name = "multithen", stdx::callable... Fs>
@@ -236,6 +251,8 @@ struct upon_stopped_t;
 struct then_error_t;
 struct transform_error_t;
 
+struct transform_stopped_t;
+
 struct multithen_t;
 
 namespace _then {
@@ -259,6 +276,10 @@ template <> struct debug_tag<stdx::type_list<set_value_t>, set_error_t> {
 };
 template <> struct debug_tag<stdx::type_list<set_error_t>, set_error_t> {
     using type = transform_error_t;
+};
+
+template <> struct debug_tag<stdx::type_list<set_stopped_t>, set_stopped_t> {
+    using type = transform_stopped_t;
 };
 
 template <typename HandleTags, typename CompleteTag>
