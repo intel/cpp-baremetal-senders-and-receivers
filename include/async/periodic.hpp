@@ -5,6 +5,7 @@
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/schedulers/get_expiration.hpp>
 #include <async/schedulers/timer_manager_interface.hpp>
@@ -129,7 +130,8 @@ template <template <typename> typename Expiry> struct expiry_wrapper {
     template <typename T> using fn = Expiry<T>;
 };
 
-template <stdx::ct_string Name, typename Expiry, typename Sndr, typename Rcvr,
+namespace detail {
+template <typename Name, typename Expiry, typename Sndr, typename Rcvr,
           typename Duration, stdx::callable Pred>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
@@ -216,8 +218,8 @@ struct op_state {
     std::variant<std::monostate, first_state_t, nth_state_t> state{};
 };
 
-template <stdx::ct_string Name, typename Expiry, typename Sndr,
-          typename Duration, typename Pred>
+template <typename Name, typename Expiry, typename Sndr, typename Duration,
+          typename Pred>
 struct sender {
     using is_sender = void;
     [[no_unique_address]] Sndr sndr;
@@ -252,15 +254,15 @@ struct sender {
     }
 };
 
-template <stdx::ct_string, typename, typename, typename> struct pipeable;
+template <typename, typename, typename, typename> struct pipeable;
 
-template <stdx::ct_string Name, typename Expiry, typename... Args>
+template <typename Name, typename Expiry, typename... Args>
 constexpr auto make_sender(Args &&...args)
     -> sender<Name, Expiry, std::remove_cvref_t<Args>...> {
     return {std::forward<Args>(args)...};
 }
 
-template <stdx::ct_string Name, typename Expiry, typename Duration,
+template <typename Name, typename Expiry, typename Duration,
           typename MatchValue>
 struct pipeable {
     Duration d;
@@ -277,7 +279,7 @@ struct pipeable {
     }
 };
 
-template <stdx::ct_string Name, typename Expiry, typename Duration,
+template <typename Name, typename Expiry, typename Duration,
           stdx::callable Pred>
 struct pipeable<Name, Expiry, Duration, Pred> {
     Duration d;
@@ -291,6 +293,12 @@ struct pipeable<Name, Expiry, Duration, Pred> {
                                          std::forward<Self>(self).p);
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename Expiry, typename Duration,
+          typename MatchValue>
+using pipeable = detail::pipeable<async::detail::shrink_t<Name>, Expiry,
+                                  Duration, MatchValue>;
 } // namespace _periodic
 
 using safe_immediate_expiry = _periodic::expiry_wrapper<
@@ -343,11 +351,11 @@ template <stdx::ct_string Name = "periodic_n",
 
 struct periodic_t;
 
-template <stdx::ct_string Name, typename Expiry, typename... Ts>
-struct debug::context_for<_periodic::op_state<Name, Expiry, Ts...>> {
+template <typename Name, typename Expiry, typename... Ts>
+struct debug::context_for<_periodic::detail::op_state<Name, Expiry, Ts...>> {
     using tag = periodic_t;
-    constexpr static auto name = Name;
-    using type = _periodic::op_state<Name, Expiry, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _periodic::detail::op_state<Name, Expiry, Ts...>;
     using children = stdx::type_list<
         debug::erased_context_for<typename type::first_state_t>>;
 };

@@ -5,6 +5,7 @@
 #include <async/compose.hpp>
 #include <async/concepts.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
@@ -59,8 +60,9 @@ template <typename Pred> struct callable_with {
     template <typename Sig> using fn = is_callable<Pred, Sig>;
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr,
-          stdx::callable Pred, typename LoopFn>
+namespace detail {
+template <typename Name, typename Sndr, typename Rcvr, stdx::callable Pred,
+          typename LoopFn>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using receiver_t = receiver<op_state, Rcvr>;
@@ -136,8 +138,7 @@ struct op_state {
     std::optional<state_t> state{};
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr,
-          stdx::callable Pred>
+template <typename Name, typename Sndr, typename Rcvr, stdx::callable Pred>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct sync_op_state {
     using receiver_t = receiver<sync_op_state, Rcvr>;
@@ -224,8 +225,7 @@ struct sync_op_state {
     bool *completed{};
 };
 
-namespace detail {
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred,
+template <typename Name, typename Sndr, typename Rcvr, typename Pred,
           typename LoopFn>
 constexpr auto select_op_state() {
     if constexpr (synchronous<connect_result_t<
@@ -241,7 +241,7 @@ constexpr auto select_op_state() {
     }
 }
 
-template <stdx::ct_string Name, typename... Ts>
+template <typename Name, typename... Ts>
 using op_state_t = typename decltype(select_op_state<Name, Ts...>())::type;
 
 template <typename Env>
@@ -249,9 +249,8 @@ using stopped_signatures =
     stdx::conditional_t<unstoppable_token<stop_token_of_t<Env>>,
                         completion_signatures<>,
                         completion_signatures<set_stopped_t()>>;
-} // namespace detail
 
-template <stdx::ct_string Name, typename Sndr, typename Pred, typename LoopFn>
+template <typename Name, typename Sndr, typename Pred, typename LoopFn>
 struct sender {
     using is_sender = void;
     [[no_unique_address]] Sndr sndr;
@@ -287,15 +286,15 @@ struct sender {
     }
 };
 
-template <stdx::ct_string, typename, stdx::callable> struct pipeable;
+template <typename, typename, stdx::callable> struct pipeable;
 
-template <stdx::ct_string Name, typename... Args>
+template <typename Name, typename... Args>
 constexpr auto make_sender(Args &&...args)
     -> sender<Name, std::remove_cvref_t<Args>...> {
     return {std::forward<Args>(args)...};
 }
 
-template <stdx::ct_string Name, typename MatchValue, stdx::callable LoopFn>
+template <typename Name, typename MatchValue, stdx::callable LoopFn>
 struct pipeable {
     MatchValue v;
     LoopFn f;
@@ -312,7 +311,7 @@ struct pipeable {
     }
 };
 
-template <stdx::ct_string Name, stdx::callable Pred, stdx::callable LoopFn>
+template <typename Name, stdx::callable Pred, stdx::callable LoopFn>
 struct pipeable<Name, Pred, LoopFn> {
     Pred p;
     LoopFn f;
@@ -324,6 +323,11 @@ struct pipeable<Name, Pred, LoopFn> {
                                  std::forward<Self>(self).f);
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename MatchValue, stdx::callable LoopFn>
+using pipeable =
+    detail::pipeable<async::detail::shrink_t<Name>, MatchValue, LoopFn>;
 } // namespace _repeat
 
 template <stdx::ct_string Name = "repeat_until", typename P,
@@ -362,16 +366,16 @@ template <stdx::ct_string Name = "repeat_n", sender S, typename... Args>
 
 struct repeat_t;
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_repeat::op_state<Name, Ts...>> {
+template <typename Name, typename... Ts>
+struct debug::context_for<_repeat::detail::op_state<Name, Ts...>> {
     using tag = repeat_t;
-    constexpr static auto name = Name;
-    using type = _repeat::op_state<Name, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _repeat::detail::op_state<Name, Ts...>;
     using children =
         stdx::type_list<debug::erased_context_for<typename type::state_t>>;
 };
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_repeat::sync_op_state<Name, Ts...>>
-    : debug::context_for<_repeat::op_state<
+template <typename Name, typename... Ts>
+struct debug::context_for<_repeat::detail::sync_op_state<Name, Ts...>>
+    : debug::context_for<_repeat::detail::op_state<
           Name, Ts..., std::remove_cvref_t<decltype(_repeat::no_loop_fn)>>> {};
 } // namespace async

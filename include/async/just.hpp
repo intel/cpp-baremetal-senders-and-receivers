@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
@@ -19,7 +20,8 @@
 
 namespace async {
 namespace _just {
-template <stdx::ct_string Name, typename Tag, typename R, typename... Vs>
+namespace detail {
+template <typename Name, typename Tag, typename R, typename... Vs>
 struct op_state {
     [[no_unique_address]] R receiver;
     [[no_unique_address]] stdx::tuple<Vs...> values;
@@ -39,7 +41,7 @@ struct op_state {
     }
 };
 
-template <stdx::ct_string Name, typename Tag, typename... Vs> struct sender {
+template <typename Name, typename Tag, typename... Vs> struct sender {
     using is_sender = void;
     using completion_signatures = async::completion_signatures<Tag(Vs...)>;
     [[no_unique_address]] stdx::tuple<Vs...> values;
@@ -64,6 +66,10 @@ template <stdx::ct_string Name, typename Tag, typename... Vs> struct sender {
     }
 };
 
+} // namespace detail
+
+template <stdx::ct_string Name, typename Tag, typename... Vs>
+using sender = detail::sender<async::detail::shrink_t<Name>, Tag, Vs...>;
 template <channel_tag Tag> constexpr inline auto name = stdx::ct_string{""};
 
 template <>
@@ -109,11 +115,11 @@ using just_tag_for =
                         stdx::conditional_t<std::same_as<Tag, set_error_t>,
                                             just_error_t, just_stopped_t>>;
 
-template <stdx::ct_string Name, typename Tag, typename R, typename... Vs>
-struct debug::context_for<_just::op_state<Name, Tag, R, Vs...>> {
+template <typename Name, typename Tag, typename R, typename... Vs>
+struct debug::context_for<_just::detail::op_state<Name, Tag, R, Vs...>> {
     using tag = just_tag_for<Tag>;
-    constexpr static auto name = Name;
+    constexpr static auto name = async::detail::expand_v<Name>;
     using children = stdx::type_list<>;
-    using type = _just::op_state<Name, Tag, R, Vs...>;
+    using type = _just::detail::op_state<Name, Tag, R, Vs...>;
 };
 } // namespace async

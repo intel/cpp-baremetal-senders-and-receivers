@@ -158,7 +158,9 @@ TEST_CASE("provide debug interface when one is not already in environment",
     auto e = async::with_debug_interface<"debug">(async::env<>{});
     auto dbg = async::get_debug_interface(e);
     STATIC_CHECK(
-        std::same_as<decltype(dbg), async::debug::named_interface<"debug">>);
+        []<typename Name>(async::debug::detail::named_interface<Name> *) {
+            return async::detail::expand_v<Name> == stdx::ct_string{"debug"};
+        }(static_cast<decltype(dbg) *>(nullptr)));
 }
 
 TEST_CASE("use existing debug interface when it is already in environment",

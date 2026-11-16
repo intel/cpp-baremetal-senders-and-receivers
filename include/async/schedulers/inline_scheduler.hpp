@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/get_completion_scheduler.hpp>
 #include <async/type_traits.hpp>
@@ -18,7 +19,8 @@
 
 namespace async {
 namespace _inline_scheduler {
-template <stdx::ct_string Name, typename R> struct op_state {
+namespace detail {
+template <typename Name, typename R> struct op_state {
     [[no_unique_address]] R receiver;
 
     constexpr auto start() & -> void {
@@ -33,6 +35,10 @@ template <stdx::ct_string Name, typename R> struct op_state {
         return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename R>
+using op_state = detail::op_state<async::detail::shrink_t<Name>, R>;
 } // namespace _inline_scheduler
 
 template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
@@ -86,11 +92,11 @@ template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
 
 struct inline_scheduler_sender_t;
 
-template <stdx::ct_string Name, typename R>
-struct debug::context_for<_inline_scheduler::op_state<Name, R>> {
+template <typename Name, typename R>
+struct debug::context_for<_inline_scheduler::detail::op_state<Name, R>> {
     using tag = inline_scheduler_sender_t;
-    constexpr static auto name = Name;
-    using type = _inline_scheduler::op_state<Name, R>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _inline_scheduler::detail::op_state<Name, R>;
     using children = stdx::type_list<>;
 };
 } // namespace async

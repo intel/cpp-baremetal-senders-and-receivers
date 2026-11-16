@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
@@ -48,7 +49,8 @@ template <stdx::ct_string Name, typename... Tags> constexpr auto get_name() {
 }
 } // namespace detail
 
-template <stdx::ct_string Name, typename R, typename... Tags> struct op_state {
+namespace detail {
+template <typename Name, typename R, typename... Tags> struct op_state {
     [[no_unique_address]] R receiver;
 
     constexpr auto start() & -> void {
@@ -63,7 +65,7 @@ template <stdx::ct_string Name, typename R, typename... Tags> struct op_state {
     }
 };
 
-template <stdx::ct_string Name, typename... Tags> struct sender {
+template <typename Name, typename... Tags> struct sender {
     using is_sender = void;
 
     template <typename Env>
@@ -79,12 +81,17 @@ template <stdx::ct_string Name, typename... Tags> struct sender {
 
     template <receiver R>
     [[nodiscard]] constexpr static auto connect(R &&r)
-        -> op_state<detail::get_name<Name, Tags...>(), std::remove_cvref_t<R>,
-                    Tags...> {
+        -> op_state<Name, std::remove_cvref_t<R>, Tags...> {
         check_connect<sender, R>();
         return {std::forward<R>(r)};
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename... Tags>
+using sender =
+    detail::sender<async::detail::shrink_t<detail::get_name<Name, Tags...>()>,
+                   Tags...>;
 } // namespace _read_env
 
 template <stdx::ct_string Name = "", typename... Tags>
@@ -95,11 +102,11 @@ template <stdx::ct_string Name = "", typename... Tags>
 
 template <typename...> struct read_env_t;
 
-template <stdx::ct_string Name, typename R, typename... Tags>
-struct debug::context_for<_read_env::op_state<Name, R, Tags...>> {
+template <typename Name, typename R, typename... Tags>
+struct debug::context_for<_read_env::detail::op_state<Name, R, Tags...>> {
     using tag = read_env_t<Tags...>;
-    constexpr static auto name = Name;
+    constexpr static auto name = async::detail::expand_v<Name>;
     using children = stdx::type_list<>;
-    using type = _read_env::op_state<Name, R, Tags...>;
+    using type = _read_env::detail::op_state<Name, R, Tags...>;
 };
 } // namespace async

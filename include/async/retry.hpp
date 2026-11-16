@@ -6,6 +6,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
@@ -58,7 +59,8 @@ template <typename Pred> struct callable_with {
     template <typename Sig> using fn = is_callable<Pred, Sig>;
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred>
+namespace detail {
+template <typename Name, typename Sndr, typename Rcvr, typename Pred>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using receiver_t = receiver<op_state, Rcvr>;
@@ -130,7 +132,7 @@ struct op_state {
     std::optional<state_t> state{};
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred>
+template <typename Name, typename Sndr, typename Rcvr, typename Pred>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct sync_op_state {
     using receiver_t = receiver<sync_op_state, Rcvr>;
@@ -218,8 +220,7 @@ struct sync_op_state {
     bool *completed{};
 };
 
-namespace detail {
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred>
+template <typename Name, typename Sndr, typename Rcvr, typename Pred>
 constexpr auto select_op_state() {
     if constexpr (synchronous<connect_result_t<
                       Sndr,
@@ -230,7 +231,7 @@ constexpr auto select_op_state() {
     }
 }
 
-template <stdx::ct_string Name, typename... Ts>
+template <typename Name, typename... Ts>
 using op_state_t = typename decltype(select_op_state<Name, Ts...>())::type;
 
 template <typename Env>
@@ -238,9 +239,8 @@ using stopped_signatures =
     stdx::conditional_t<unstoppable_token<stop_token_of_t<Env>>,
                         completion_signatures<>,
                         completion_signatures<set_stopped_t()>>;
-} // namespace detail
 
-template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
+template <typename Name, typename Sndr, typename Pred> struct sender {
     using is_sender = void;
     [[no_unique_address]] Sndr sndr;
     [[no_unique_address]] Pred p;
@@ -275,15 +275,15 @@ template <stdx::ct_string Name, typename Sndr, typename Pred> struct sender {
     }
 };
 
-template <stdx::ct_string, typename> struct pipeable;
+template <typename, typename> struct pipeable;
 
-template <stdx::ct_string Name, typename... Args>
+template <typename Name, typename... Args>
 constexpr auto make_sender(Args &&...args)
     -> sender<Name, std::remove_cvref_t<Args>...> {
     return {std::forward<Args>(args)...};
 }
 
-template <stdx::ct_string Name, typename MatchValue> struct pipeable {
+template <typename Name, typename MatchValue> struct pipeable {
     MatchValue v;
 
   private:
@@ -295,8 +295,7 @@ template <stdx::ct_string Name, typename MatchValue> struct pipeable {
     }
 };
 
-template <stdx::ct_string Name, stdx::callable Pred>
-struct pipeable<Name, Pred> {
+template <typename Name, stdx::callable Pred> struct pipeable<Name, Pred> {
     Pred p;
 
   private:
@@ -306,6 +305,10 @@ struct pipeable<Name, Pred> {
                                  std::forward<Self>(self).p);
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename MatchValue>
+using pipeable = detail::pipeable<async::detail::shrink_t<Name>, MatchValue>;
 } // namespace _retry
 
 template <stdx::ct_string Name = "retry_until", typename P>
@@ -330,15 +333,15 @@ template <stdx::ct_string Name = "retry", sender S>
 
 struct retry_t;
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_retry::op_state<Name, Ts...>> {
+template <typename Name, typename... Ts>
+struct debug::context_for<_retry::detail::op_state<Name, Ts...>> {
     using tag = retry_t;
-    constexpr static auto name = Name;
-    using type = _retry::op_state<Name, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _retry::detail::op_state<Name, Ts...>;
     using children =
         stdx::type_list<debug::erased_context_for<typename type::state_t>>;
 };
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_retry::sync_op_state<Name, Ts...>>
-    : debug::context_for<_retry::op_state<Name, Ts...>> {};
+template <typename Name, typename... Ts>
+struct debug::context_for<_retry::detail::sync_op_state<Name, Ts...>>
+    : debug::context_for<_retry::detail::op_state<Name, Ts...>> {};
 } // namespace async

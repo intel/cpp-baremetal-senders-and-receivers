@@ -2,6 +2,7 @@
 
 #include <async/concepts.hpp>
 #include <async/debug_context.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/forwarding_query.hpp>
 
 #include <stdx/ct_string.hpp>
@@ -51,16 +52,22 @@ auto signal(Args &&...args) -> void {
         std::forward<Args>(args)...);
 }
 
-template <stdx::ct_string ChainName, typename... Ts>
+namespace detail {
+template <typename ChainName, typename... Ts>
 struct named_interface : stdx::tuple<Ts...> {
     template <stdx::ct_string Signal, contextlike Ctx, typename... Args>
     constexpr auto signal(Args &&...args) const -> void {
         this->apply([&](Ts const &...ts) {
-            debug::signal<ChainName, Signal, Ctx>(ts...,
-                                                  std::forward<Args>(args)...);
+            debug::signal<async::detail::expand_v<ChainName>, Signal, Ctx>(
+                ts..., std::forward<Args>(args)...);
         });
     }
 };
+} // namespace detail
+
+template <stdx::ct_string ChainName, typename... Ts>
+using named_interface =
+    detail::named_interface<async::detail::shrink_t<ChainName>, Ts...>;
 
 template <stdx::ct_string Name>
 constexpr auto make_named_interface = []<typename... Ts>(Ts &&...ts) {

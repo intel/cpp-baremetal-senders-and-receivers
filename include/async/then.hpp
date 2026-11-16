@@ -5,6 +5,7 @@
 #include <async/concepts.hpp>
 #include <async/connect.hpp>
 #include <async/debug.hpp>
+#include <async/detail/shrink.hpp>
 #include <async/env.hpp>
 #include <async/forwarding_query.hpp>
 #include <async/type_traits.hpp>
@@ -26,8 +27,9 @@
 
 namespace async {
 namespace _then {
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
-          typename S, typename R, typename... Fs>
+namespace detail {
+template <typename Name, typename HandleTags, typename CompleteTag, typename S,
+          typename R, typename... Fs>
 struct receiver {
     using is_receiver = void;
     [[no_unique_address]] R r;
@@ -70,14 +72,12 @@ struct receiver {
     }
 };
 
-namespace detail {
 template <typename Tag> struct as_signature {
     template <typename... As> using fn = Tag(As...);
 };
-} // namespace detail
 
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
-          typename S, typename... Fs>
+template <typename Name, typename HandleTags, typename CompleteTag, typename S,
+          typename... Fs>
 struct sender {
     template <async::receiver R>
     [[nodiscard]] constexpr auto connect(R &&r) && {
@@ -136,7 +136,7 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
+template <typename Name, typename HandleTags, typename CompleteTag,
           typename... Fs>
 struct pipeable {
     [[no_unique_address]] stdx::tuple<Fs...> fs;
@@ -148,6 +148,12 @@ struct pipeable {
                       Fs...>{std::forward<S>(s), std::forward<Self>(self).fs};
     }
 };
+} // namespace detail
+
+template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
+          typename... Fs>
+using pipeable = detail::pipeable<async::detail::shrink_t<Name>, HandleTags,
+                                  CompleteTag, Fs...>;
 } // namespace _then
 
 template <stdx::ct_string Name = "then", stdx::callable... Fs>
@@ -287,13 +293,13 @@ using debug_tag_t = typename debug_tag<HandleTags, CompleteTag>::type;
 } // namespace detail
 } // namespace _then
 
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
+template <typename Name, typename HandleTags, typename CompleteTag,
           typename... Ts>
 struct debug::context_for<
-    _then::receiver<Name, HandleTags, CompleteTag, Ts...>> {
+    _then::detail::receiver<Name, HandleTags, CompleteTag, Ts...>> {
     using tag = _then::detail::debug_tag_t<HandleTags, CompleteTag>;
-    constexpr static auto name = Name;
-    using type = _then::receiver<Name, HandleTags, CompleteTag, Ts...>;
+    constexpr static auto name = async::detail::expand_v<Name>;
+    using type = _then::detail::receiver<Name, HandleTags, CompleteTag, Ts...>;
     using children = stdx::type_list<debug::erased_context_for<
         connect_result_t<typename type::sender_t &&, type &&>>>;
 };

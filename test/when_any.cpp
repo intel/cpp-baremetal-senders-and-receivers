@@ -267,11 +267,13 @@ TEST_CASE("when_any with zero args never completes", "[when_any]") {
                                 async::completion_signatures<>>);
     auto r = receiver{[] {}};
     auto op = async::connect(w, r);
-    STATIC_REQUIRE(
-        std::is_same_v<decltype(op),
-                       async::_when_any::op_state<
-                           "when_any", async::_when_any::first_noncancelled,
-                           decltype(r)>>);
+    [[maybe_unused]] auto test_op_state =
+        []<typename Name>(async::_when_any::detail::op_state<
+                          Name, async::_when_any::first_noncancelled,
+                          decltype(r)> const &) {};
+    STATIC_REQUIRE(requires { test_op_state(op); });
+    STATIC_REQUIRE(async::debug::context_for<decltype(op)>::name ==
+                   stdx::ct_string{"when_any"});
 }
 
 TEST_CASE("when_any with zero args can be stopped (before start)",
@@ -339,8 +341,8 @@ TEST_CASE("normal, (internally) stoppable op_state", "[when_any]") {
 
     [[maybe_unused]] auto op = async::connect(w, receiver{[&](auto...) {}});
     [[maybe_unused]] auto test_op_state =
-        []<stdx::ct_string Name, typename P, typename R, typename... Ss>(
-            async::_when_any::op_state<Name, P, R, Ss...> const &) {};
+        []<typename Name, typename P, typename R, typename... Ss>(
+            async::_when_any::detail::op_state<Name, P, R, Ss...> const &) {};
 
     STATIC_REQUIRE(requires { test_op_state(op); });
 }
@@ -353,8 +355,9 @@ TEST_CASE("optimized op_state for unstoppable", "[when_any]") {
     [[maybe_unused]] auto op =
         async::connect(w, stoppable_receiver{[&](auto) {}});
     [[maybe_unused]] auto test_op_state =
-        []<stdx::ct_string Name, typename P, typename R, typename... Ss>(
-            async::_when_any::nostop_op_state<Name, P, R, Ss...> const &) {};
+        []<typename Name, typename P, typename R, typename... Ss>(
+            async::_when_any::detail::nostop_op_state<Name, P, R, Ss...> const
+                &) {};
 
     STATIC_REQUIRE(requires { test_op_state(op); });
 }
