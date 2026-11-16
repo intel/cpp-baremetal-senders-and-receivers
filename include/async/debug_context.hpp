@@ -25,7 +25,7 @@ constexpr auto erased_context = []<typename C>(C) {
 template <typename T>
 using erased_context_for = decltype(detail::erased_context<T>);
 
-template <typename T> constexpr auto name_of = T::name;
+template <typename T> constexpr auto name_of = stdx::name_of_v<T>;
 template <typename T> using tag_of = typename T::tag;
 template <typename T> using children_of = typename T::children;
 template <typename T> using type_of = typename T::type;
