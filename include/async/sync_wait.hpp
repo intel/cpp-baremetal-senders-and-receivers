@@ -10,6 +10,7 @@
 #include <async/schedulers/runloop_scheduler.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
@@ -178,7 +179,7 @@ class pipeable<static_t, Env> : public pipeable_base<Env> {
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] auto sync_wait_dynamic(Env &&e = {})
+[[nodiscard]] ALWAYS_INLINE auto sync_wait_dynamic(Env &&e = {})
     -> _sync_wait::pipeable<Uniq, Env> {
     return {std::forward<Env>(e)};
 }
@@ -186,7 +187,7 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto sync_wait_dynamic(Env &&e = {}) {
-    return sync_wait_dynamic<stdx::cts_t<Name>>(
+    return sync_wait_dynamic<decltype(stdx::shrink<Name>())>(
         with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
@@ -202,7 +203,7 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
 
 template <typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] auto sync_wait_static(Env &&e = {})
+[[nodiscard]] ALWAYS_INLINE auto sync_wait_static(Env &&e = {})
     -> _sync_wait::pipeable<_sync_wait::static_t, Env> {
     return {std::forward<Env>(e)};
 }
@@ -221,7 +222,7 @@ template <stdx::ct_string Name = debug::default_chain_name, sender S,
 
 template <typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] auto sync_wait(Env &&e = {})
+[[nodiscard]] ALWAYS_INLINE auto sync_wait(Env &&e = {})
     -> _sync_wait::pipeable<_sync_wait::static_t, Env> {
     return {std::forward<Env>(e)};
 }
@@ -241,9 +242,9 @@ template <stdx::ct_string Name = debug::default_chain_name, sender S,
 struct sync_wait_t;
 
 template <typename... Ts>
-struct debug::context_for<_sync_wait::receiver<Ts...>> {
+struct debug::context_for<_sync_wait::receiver<Ts...>>
+    : stdx::with_shrunk_name<stdx::shrink<"sync_wait">()> {
     using tag = sync_wait_t;
-    constexpr static auto name = stdx::ct_string{"sync_wait"};
     using children = stdx::type_list<>;
     using type = _sync_wait::receiver<Ts...>;
 };

@@ -8,6 +8,7 @@
 #include <async/schedulers/runloop_scheduler.hpp>
 #include <async/stop_token.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/optional.hpp>
@@ -204,7 +205,8 @@ template <typename Uniq, typename StopSource, typename Env> struct pipeable {
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] constexpr auto start_detached_stoppable(Env &&e = {})
+[[nodiscard]] ALWAYS_INLINE constexpr auto
+start_detached_stoppable(Env &&e = {})
     -> _start_detached::pipeable<Uniq, inplace_stop_source, Env> {
     return {std::forward<Env>(e)};
 }
@@ -212,7 +214,7 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached_stoppable(Env &&e = {}) {
-    return start_detached_stoppable<stdx::cts_t<Name>>(
+    return start_detached_stoppable<decltype(stdx::shrink<Name>())>(
         with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
@@ -230,7 +232,8 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] constexpr auto start_detached_unstoppable(Env &&e = {})
+[[nodiscard]] ALWAYS_INLINE constexpr auto
+start_detached_unstoppable(Env &&e = {})
     -> _start_detached::pipeable<Uniq, never_stop_source, Env> {
     return {std::forward<Env>(e)};
 }
@@ -238,7 +241,7 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached_unstoppable(Env &&e = {}) {
-    return start_detached_unstoppable<stdx::cts_t<Name>>(
+    return start_detached_unstoppable<decltype(stdx::shrink<Name>())>(
         with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
@@ -256,7 +259,7 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] constexpr auto start_detached(Env &&e = {})
+[[nodiscard]] ALWAYS_INLINE constexpr auto start_detached(Env &&e = {})
     -> _start_detached::pipeable<Uniq, never_stop_source, Env> {
     return {std::forward<Env>(e)};
 }
@@ -264,7 +267,7 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached(Env &&e = {}) {
-    return start_detached<stdx::cts_t<Name>>(
+    return start_detached<decltype(stdx::shrink<Name>())>(
         with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
@@ -282,8 +285,8 @@ template <typename Uniq> auto stop_detached() {
     return _start_detached::stop_handle<Uniq>{}.request_stop();
 }
 
-template <stdx::ct_string Name> auto stop_detached() {
-    return stop_detached<stdx::cts_t<Name>>();
+template <stdx::ct_string Name> ALWAYS_INLINE auto stop_detached() {
+    return stop_detached<decltype(stdx::shrink<Name>())>();
 }
 
 template <typename Uniq> auto sync_stop_detached() {
@@ -291,24 +294,24 @@ template <typename Uniq> auto sync_stop_detached() {
     return _start_detached::stop_handle<Uniq>{}.sync_wait();
 }
 
-template <stdx::ct_string Name> auto sync_stop_detached() {
-    return sync_stop_detached<stdx::cts_t<Name>>();
+template <stdx::ct_string Name> ALWAYS_INLINE auto sync_stop_detached() {
+    return sync_stop_detached<decltype(stdx::shrink<Name>())>();
 }
 
 template <typename Uniq> auto sync_wait_detached() {
     return _start_detached::stop_handle<Uniq>{}.sync_wait();
 }
 
-template <stdx::ct_string Name> auto sync_wait_detached() {
-    return sync_wait_detached<stdx::cts_t<Name>>();
+template <stdx::ct_string Name> ALWAYS_INLINE auto sync_wait_detached() {
+    return sync_wait_detached<decltype(stdx::shrink<Name>())>();
 }
 
 struct start_detached_t;
 
 template <typename... Ts>
-struct debug::context_for<_start_detached::op_state<Ts...>> {
+struct debug::context_for<_start_detached::op_state<Ts...>>
+    : stdx::with_shrunk_name<stdx::shrink<"start_detached">()> {
     using tag = start_detached_t;
-    constexpr static auto name = stdx::ct_string{"start_detached"};
     using children = stdx::type_list<>;
     using type = _start_detached::op_state<Ts...>;
 };

@@ -51,16 +51,18 @@ auto signal(Args &&...args) -> void {
         std::forward<Args>(args)...);
 }
 
-template <stdx::ct_string ChainName, typename... Ts>
-struct named_interface : stdx::tuple<Ts...> {
+template <auto ChainName, typename... Ts> struct nif : stdx::tuple<Ts...> {
     template <stdx::ct_string Signal, contextlike Ctx, typename... Args>
     constexpr auto signal(Args &&...args) const -> void {
         this->apply([&](Ts const &...ts) {
-            debug::signal<ChainName, Signal, Ctx>(ts...,
-                                                  std::forward<Args>(args)...);
+            debug::signal<stdx::expand(ChainName), Signal, Ctx>(
+                ts..., std::forward<Args>(args)...);
         });
     }
 };
+
+template <stdx::ct_string ChainName, typename... Ts>
+using named_interface = nif<stdx::shrink<ChainName>(), Ts...>;
 
 template <stdx::ct_string Name>
 constexpr auto make_named_interface = []<typename... Ts>(Ts &&...ts) {
