@@ -17,8 +17,8 @@
 #include <utility>
 
 namespace async {
-namespace _inline_scheduler {
-template <stdx::ct_string Name, typename R> struct op_state {
+namespace _in_line {
+template <auto Name, typename R> struct op_state {
     [[no_unique_address]] R receiver;
 
     constexpr auto start() & -> void {
@@ -33,25 +33,23 @@ template <stdx::ct_string Name, typename R> struct op_state {
         return prop{completes_synchronously_t{}, std::true_type{}};
     }
 };
-} // namespace _inline_scheduler
 
-template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
+template <auto Name> class scheduler {
     struct sender_base {
         using is_sender = void;
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
         [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
-            return env{prop{completes_synchronously_t{}, std::true_type{}},
-                       prop{get_completion_scheduler<set_value_t>,
-                            inline_scheduler{}}};
+            return env{
+                prop{completes_synchronously_t{}, std::true_type{}},
+                prop{get_completion_scheduler<set_value_t>, scheduler{}}};
         }
     };
 
     struct multishot_sender : sender_base {
         template <receiver R>
-        [[nodiscard]] constexpr auto connect(R &&r) const
-            -> _inline_scheduler::op_state<Name, R> {
+        [[nodiscard]] constexpr auto connect(R &&r) const -> op_state<Name, R> {
             check_connect<multishot_sender, R>();
             return {std::forward<R>(r)};
         }
@@ -59,15 +57,13 @@ template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
 
     struct singleshot_sender : sender_base {
         template <receiver R>
-        [[nodiscard]] constexpr auto
-        connect(R &&r) && -> _inline_scheduler::op_state<Name, R> {
+        [[nodiscard]] constexpr auto connect(R &&r) && -> op_state<Name, R> {
             check_connect<singleshot_sender &&, R>();
             return {std::forward<R>(r)};
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(inline_scheduler,
-                                                   inline_scheduler)
+    [[nodiscard]] friend constexpr auto operator==(scheduler, scheduler)
         -> bool = default;
 
   public:
@@ -84,13 +80,19 @@ template <stdx::ct_string Name = "inline_scheduler"> class inline_scheduler {
     }
 };
 
+scheduler() -> scheduler<stdx::shrink<"inline_scheduler">()>;
+} // namespace _in_line
+
+template <stdx::ct_string Name = "inline_scheduler">
+using inline_scheduler = _in_line::scheduler<stdx::shrink<Name>()>;
+
 struct inline_scheduler_sender_t;
 
-template <stdx::ct_string Name, typename R>
-struct debug::context_for<_inline_scheduler::op_state<Name, R>> {
+template <auto Name, typename R>
+struct debug::context_for<_in_line::op_state<Name, R>>
+    : stdx::with_shrunk_name<Name> {
     using tag = inline_scheduler_sender_t;
-    constexpr static auto name = Name;
-    using type = _inline_scheduler::op_state<Name, R>;
+    using type = _in_line::op_state<Name, R>;
     using children = stdx::type_list<>;
 };
 } // namespace async

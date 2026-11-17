@@ -12,15 +12,13 @@
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 
-#include <memory>
 #include <optional>
 #include <type_traits>
 #include <utility>
 
 namespace async {
 namespace timer_mgr {
-template <typename Rcvr, stdx::ct_string Name, typename Task>
-struct op_state_base : Task {
+template <typename Rcvr, auto Name, typename Task> struct op_state_base : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     constexpr explicit(true) op_state_base(R &&r) : rcvr{std::forward<R>(r)} {}
@@ -46,12 +44,12 @@ struct TimepointExpirationPolicy {
     }
 };
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
+template <typename Domain, auto Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
 struct op_state;
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
+template <typename Domain, auto Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
     requires unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>
 struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
     : op_state_base<Rcvr, Name, Task> {
@@ -70,8 +68,8 @@ struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
     [[no_unique_address]] Duration d{};
 };
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
+template <typename Domain, auto Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
     requires(not unstoppable_token<stop_token_of_t<env_of_t<Rcvr>>>)
 struct op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy> final
     : op_state_base<Rcvr, Name, Task> {
@@ -148,7 +146,7 @@ class time_scheduler {
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const & {
             check_connect<sender, R>();
-            return timer_mgr::op_state<Domain, Name, Duration,
+            return timer_mgr::op_state<Domain, stdx::shrink<Name>(), Duration,
                                        std::remove_cvref_t<R>, Task,
                                        timer_mgr::DurationExpirationPolicy>{
                 std::forward<R>(r), d};
@@ -207,7 +205,8 @@ class time_scheduler<Domain, Name, detail::no_duration_t, detail::no_task_t> {
                 get_env(r)))>;
             using TP = typename EP::time_point_t;
             using task_t = timer_task<TP>;
-            return timer_mgr::op_state<Domain, Name, detail::no_duration_t,
+            return timer_mgr::op_state<Domain, stdx::shrink<Name>(),
+                                       detail::no_duration_t,
                                        std::remove_cvref_t<R>, task_t,
                                        timer_mgr::TimepointExpirationPolicy>{
                 std::forward<R>(r), {}};
@@ -233,7 +232,7 @@ template <typename Domain = timer_mgr::default_domain,
           stdx::ct_string Name = "time_scheduler">
 constexpr auto time_scheduler_factory = []<typename... Ds>
     requires(sizeof...(Ds) <= 1u)
-(Ds... ds) {
+(Ds... ds) __attribute__((always_inline)) {
     if constexpr (sizeof...(Ds) == 0) {
         return time_scheduler<Domain, Name, detail::no_duration_t,
                               detail::no_task_t>{};
@@ -244,16 +243,16 @@ constexpr auto time_scheduler_factory = []<typename... Ds>
 
 struct time_scheduler_sender_t;
 
-template <stdx::ct_string Name, typename Rcvr, typename Task>
-struct debug::context_for<timer_mgr::op_state_base<Rcvr, Name, Task>> {
+template <auto Name, typename Rcvr, typename Task>
+struct debug::context_for<timer_mgr::op_state_base<Rcvr, Name, Task>>
+    : stdx::with_shrunk_name<Name> {
     using tag = time_scheduler_sender_t;
-    constexpr static auto name = Name;
     using type = timer_mgr::op_state_base<Rcvr, Name, Task>;
     using children = stdx::type_list<>;
 };
 
-template <typename Domain, stdx::ct_string Name, typename Duration,
-          typename Rcvr, typename Task, typename ExpirationPolicy>
+template <typename Domain, auto Name, typename Duration, typename Rcvr,
+          typename Task, typename ExpirationPolicy>
 struct debug::context_for<
     timer_mgr::op_state<Domain, Name, Duration, Rcvr, Task, ExpirationPolicy>>
     : debug::context_for<timer_mgr::op_state_base<Rcvr, Name, Task>> {};

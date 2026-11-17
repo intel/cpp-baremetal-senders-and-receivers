@@ -21,14 +21,13 @@
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 
-#include <concepts>
 #include <thread>
 #include <type_traits>
 #include <utility>
 
 namespace async {
-namespace _thread_scheduler {
-template <stdx::ct_string Name, typename R> struct op_state {
+namespace _thread {
+template <auto Name, typename R> struct op_state {
     [[no_unique_address]] R receiver;
 
     auto start() & -> void {
@@ -41,43 +40,46 @@ template <stdx::ct_string Name, typename R> struct op_state {
         }}.detach();
     }
 };
-} // namespace _thread_scheduler
 
-template <stdx::ct_string Name = "thread_scheduler"> class thread_scheduler {
+template <auto Name> class scheduler {
     struct sender {
         using is_sender = void;
         using completion_signatures =
             async::completion_signatures<set_value_t()>;
 
         [[nodiscard]] constexpr static auto query(get_env_t) noexcept {
-            return prop{get_completion_scheduler<set_value_t>,
-                        thread_scheduler{}};
+            return prop{get_completion_scheduler<set_value_t>, scheduler{}};
         }
 
         template <receiver R>
         [[nodiscard]] constexpr static auto connect(R &&r)
-            -> _thread_scheduler::op_state<Name, std::remove_cvref_t<R>> {
+            -> op_state<Name, std::remove_cvref_t<R>> {
             check_connect<sender, R>();
             return {std::forward<R>(r)};
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(thread_scheduler,
-                                                   thread_scheduler)
+    [[nodiscard]] friend constexpr auto operator==(scheduler, scheduler)
         -> bool = default;
 
   public:
     [[nodiscard]] constexpr static auto schedule() -> sender { return {}; }
 };
 
+scheduler() -> scheduler<stdx::shrink<"thread_scheduler">()>;
+} // namespace _thread
+
+template <stdx::ct_string Name = "thread_scheduler">
+using thread_scheduler = _thread::scheduler<stdx::shrink<Name>()>;
+
 struct thread_scheduler_sender_t;
 
-template <stdx::ct_string Name, typename R>
-struct debug::context_for<_thread_scheduler::op_state<Name, R>> {
+template <auto Name, typename R>
+struct debug::context_for<_thread::op_state<Name, R>>
+    : stdx::with_shrunk_name<Name> {
     using tag = thread_scheduler_sender_t;
-    constexpr static auto name = Name;
     using children = stdx::type_list<>;
-    using type = _thread_scheduler::op_state<Name, R>;
+    using type = _thread::op_state<Name, R>;
 };
 } // namespace async
 

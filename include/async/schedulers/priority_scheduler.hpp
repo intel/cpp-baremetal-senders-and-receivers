@@ -12,13 +12,12 @@
 
 #include <stdx/concepts.hpp>
 
-#include <concepts>
 #include <type_traits>
 #include <utility>
 
 namespace async {
-namespace task_mgr {
-template <stdx::ct_string Name, priority_t P, typename Rcvr, typename Task>
+namespace _pri {
+template <auto Name, priority_t P, typename Rcvr, typename Task>
 struct op_state final : Task {
     template <stdx::same_as_unqualified<Rcvr> R>
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
@@ -36,7 +35,7 @@ struct op_state final : Task {
         debug_signal<"start", debug::erased_context_for<op_state>>(
             get_env(rcvr));
         if (not check_stopped()) {
-            enqueue_task(*this, P);
+            task_mgr::enqueue_task(*this, P);
         }
     }
 
@@ -56,17 +55,14 @@ struct op_state final : Task {
         return false;
     }
 };
-} // namespace task_mgr
 
-template <priority_t P, stdx::ct_string Name = "fixed_priority_scheduler",
-          typename Task = priority_task>
-class fixed_priority_scheduler {
+template <priority_t P, auto Name, typename Task = priority_task>
+class scheduler {
     struct sender {
         using is_sender = void;
 
         [[nodiscard]] constexpr auto query(get_env_t) const noexcept {
-            return prop{get_completion_scheduler_t<set_value_t>{},
-                        fixed_priority_scheduler{}};
+            return prop{get_completion_scheduler_t<set_value_t>{}, scheduler{}};
         }
 
         template <typename Env>
@@ -87,13 +83,12 @@ class fixed_priority_scheduler {
         template <receiver R>
         [[nodiscard]] constexpr auto connect(R &&r) const {
             check_connect<sender, R>();
-            return task_mgr::op_state<Name, P, std::remove_cvref_t<R>, Task>{
+            return op_state<Name, P, std::remove_cvref_t<R>, Task>{
                 std::forward<R>(r)};
         }
     };
 
-    [[nodiscard]] friend constexpr auto operator==(fixed_priority_scheduler,
-                                                   fixed_priority_scheduler)
+    [[nodiscard]] friend constexpr auto operator==(scheduler, scheduler)
         -> bool = default;
 
   public:
@@ -104,14 +99,19 @@ class fixed_priority_scheduler {
         return {};
     }
 };
+} // namespace _pri
+
+template <priority_t P, stdx::ct_string Name = "fixed_priority_scheduler",
+          typename Task = priority_task>
+using fixed_priority_scheduler = _pri::scheduler<P, stdx::shrink<Name>(), Task>;
 
 struct priority_scheduler_sender_t;
 
-template <stdx::ct_string Name, priority_t P, typename Rcvr, typename Task>
-struct debug::context_for<task_mgr::op_state<Name, P, Rcvr, Task>> {
+template <auto Name, priority_t P, typename Rcvr, typename Task>
+struct debug::context_for<_pri::op_state<Name, P, Rcvr, Task>>
+    : stdx::with_shrunk_name<Name> {
     using tag = priority_scheduler_sender_t;
-    constexpr static auto name = Name;
     using children = stdx::type_list<>;
-    using type = task_mgr::op_state<Name, P, Rcvr, Task>;
+    using type = _pri::op_state<Name, P, Rcvr, Task>;
 };
 } // namespace async
