@@ -19,7 +19,6 @@
 
 #include <algorithm>
 #include <concepts>
-#include <optional>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -129,7 +128,7 @@ template <template <typename> typename Expiry> struct expiry_wrapper {
     template <typename T> using fn = Expiry<T>;
 };
 
-template <stdx::ct_string Name, typename Expiry, typename Sndr, typename Rcvr,
+template <auto Name, typename Expiry, typename Sndr, typename Rcvr,
           typename Duration, stdx::callable Pred>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
@@ -216,8 +215,8 @@ struct op_state {
     std::variant<std::monostate, first_state_t, nth_state_t> state{};
 };
 
-template <stdx::ct_string Name, typename Expiry, typename Sndr,
-          typename Duration, typename Pred>
+template <auto Name, typename Expiry, typename Sndr, typename Duration,
+          typename Pred>
 struct sender {
     using is_sender = void;
     [[no_unique_address]] Sndr sndr;
@@ -252,16 +251,15 @@ struct sender {
     }
 };
 
-template <stdx::ct_string, typename, typename, typename> struct pipeable;
+template <auto, typename, typename, typename> struct pipeable;
 
-template <stdx::ct_string Name, typename Expiry, typename... Args>
+template <auto Name, typename Expiry, typename... Args>
 constexpr auto make_sender(Args &&...args)
     -> sender<Name, Expiry, std::remove_cvref_t<Args>...> {
     return {std::forward<Args>(args)...};
 }
 
-template <stdx::ct_string Name, typename Expiry, typename Duration,
-          typename MatchValue>
+template <auto Name, typename Expiry, typename Duration, typename MatchValue>
 struct pipeable {
     Duration d;
     MatchValue v;
@@ -277,8 +275,7 @@ struct pipeable {
     }
 };
 
-template <stdx::ct_string Name, typename Expiry, typename Duration,
-          stdx::callable Pred>
+template <auto Name, typename Expiry, typename Duration, stdx::callable Pred>
 struct pipeable<Name, Expiry, Duration, Pred> {
     Duration d;
     Pred p;
@@ -303,50 +300,52 @@ using unsafe_expiry =
 template <stdx::ct_string Name = "periodic_until",
           typename Expiry = safe_immediate_expiry, typename Duration,
           typename P>
-[[nodiscard]] constexpr auto periodic_until(Duration d, P &&p)
-    -> _periodic::pipeable<Name, Expiry, Duration, std::remove_cvref_t<P>> {
+[[nodiscard]] ALWAYS_INLINE constexpr auto periodic_until(Duration d, P &&p)
+    -> _periodic::pipeable<stdx::shrink<Name>(), Expiry, Duration,
+                           std::remove_cvref_t<P>> {
     return {d, std::forward<P>(p)};
 }
 
 template <stdx::ct_string Name = "periodic_until",
           typename Expiry = safe_immediate_expiry, sender S, typename Duration,
           typename P>
-[[nodiscard]] auto periodic_until(S &&s, Duration d, P &&p) {
+[[nodiscard]] ALWAYS_INLINE auto periodic_until(S &&s, Duration d, P &&p) {
     return std::forward<S>(s) |
            periodic_until<Name, Expiry>(d, std::forward<P>(p));
 }
 
 template <stdx::ct_string Name = "periodic",
           typename Expiry = safe_immediate_expiry, typename Duration>
-[[nodiscard]] constexpr auto periodic(Duration d) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto periodic(Duration d) {
     return periodic_until<Name, Expiry>(d, _periodic::never_stop);
 }
 
 template <stdx::ct_string Name = "periodic",
           typename Expiry = safe_immediate_expiry, sender S, typename Duration>
-[[nodiscard]] auto periodic(S &&s, Duration d) {
+[[nodiscard]] ALWAYS_INLINE auto periodic(S &&s, Duration d) {
     return std::forward<S>(s) | periodic<Name, Expiry>(d);
 }
 
 template <stdx::ct_string Name = "periodic_n",
           typename Expiry = safe_immediate_expiry, typename Duration>
-[[nodiscard]] constexpr auto periodic_n(Duration d, unsigned int n) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto periodic_n(Duration d,
+                                                      unsigned int n) {
     return periodic_until<Name, Expiry>(
         d, [n](auto &&...) mutable { return n-- == 0; });
 }
 
 template <stdx::ct_string Name = "periodic_n",
           typename Expiry = safe_immediate_expiry, sender S, typename Duration>
-[[nodiscard]] auto periodic_n(S &&s, Duration d, unsigned int n) {
+[[nodiscard]] ALWAYS_INLINE auto periodic_n(S &&s, Duration d, unsigned int n) {
     return std::forward<S>(s) | periodic_n<Name, Expiry>(d, n);
 }
 
 struct periodic_t;
 
-template <stdx::ct_string Name, typename Expiry, typename... Ts>
-struct debug::context_for<_periodic::op_state<Name, Expiry, Ts...>> {
+template <auto Name, typename Expiry, typename... Ts>
+struct debug::context_for<_periodic::op_state<Name, Expiry, Ts...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = periodic_t;
-    constexpr static auto name = Name;
     using type = _periodic::op_state<Name, Expiry, Ts...>;
     using children = stdx::type_list<
         debug::erased_context_for<typename type::first_state_t>>;
