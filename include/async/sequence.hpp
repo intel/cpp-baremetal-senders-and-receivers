@@ -8,6 +8,7 @@
 #include <async/debug.hpp>
 #include <async/env.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
@@ -67,7 +68,7 @@ struct receiver : base_receiver<Ops, Rcvr> {
     }
 };
 
-template <stdx::ct_string Name, typename Rcvr, typename Sndr, typename... Rest>
+template <auto Name, typename Rcvr, typename Sndr, typename... Rest>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     template <std::size_t N> using receiver_t = receiver<N, op_state, Rcvr>;
@@ -141,10 +142,10 @@ struct op_state {
     boost::mp11::mp_apply<std::variant, ops_t> state;
 };
 
-template <stdx::ct_string Name, typename... Sndrs> struct sender {
+template <auto Name, typename... Sndrs> struct sender {
     using is_sender = void;
     using seq_sender_tag = void;
-    constexpr static auto name = Name;
+    constexpr static auto name = stdx::expand(Name);
 
     [[no_unique_address]] stdx::tuple<Sndrs...> sndrs;
 
@@ -197,12 +198,12 @@ template <stdx::ct_string Name, typename... Sndrs> struct sender {
     }
 };
 
-template <typename S, stdx::ct_string Name>
+template <typename S, auto Name>
 concept matching_sequence_sender = async::sender<S> and requires {
     typename std::remove_cvref_t<S>::seq_sender_tag;
-} and Name == std::remove_cvref_t<S>::name;
+} and S::name == stdx::expand(Name);
 
-template <stdx::ct_string Name, typename S2> struct pipeable {
+template <auto Name, typename S2> struct pipeable {
     [[no_unique_address]] S2 s2;
 
   private:
@@ -225,28 +226,29 @@ template <stdx::ct_string Name, typename S2> struct pipeable {
 
 template <stdx::ct_string Name = "sequence", typename... Fs>
     requires(sizeof...(Fs) > 0)
-[[nodiscard]] constexpr auto sequence(Fs &&...fs) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto sequence(Fs &&...fs) {
     if constexpr (sizeof...(Fs) == 1) {
-        return compose(_seq::pipeable<Name, std::remove_cvref_t<Fs>...>{
-            std::forward<Fs>(fs)...});
+        return compose(
+            _seq::pipeable<stdx::shrink<Name>(), std::remove_cvref_t<Fs>...>{
+                std::forward<Fs>(fs)...});
     } else {
-        return _seq::sender<Name, std::remove_cvref_t<Fs>...>{
+        return _seq::sender<stdx::shrink<Name>(), std::remove_cvref_t<Fs>...>{
             std::forward<Fs>(fs)...};
     }
 }
 
 template <stdx::ct_string Name = "seq", sender... Ss>
     requires(sizeof...(Ss) > 0)
-[[nodiscard]] constexpr auto seq(Ss &&...ss) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto seq(Ss &&...ss) {
     return sequence<Name>(std::forward<Ss>(ss)...);
 }
 
 struct sequence_t;
 
-template <stdx::ct_string Name, typename Rcvr, typename Sndr, typename... Sndrs>
-struct debug::context_for<_seq::op_state<Name, Rcvr, Sndr, Sndrs...>> {
+template <auto Name, typename Rcvr, typename Sndr, typename... Sndrs>
+struct debug::context_for<_seq::op_state<Name, Rcvr, Sndr, Sndrs...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = sequence_t;
-    constexpr static auto name = Name;
     using type = _seq::op_state<Name, Rcvr, Sndr, Sndrs...>;
     using children = boost::mp11::mp_apply<
         stdx::type_list, boost::mp11::mp_transform<debug::erased_context_for,
