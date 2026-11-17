@@ -8,6 +8,7 @@
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
@@ -23,7 +24,7 @@
 
 namespace async {
 namespace _just_result_of {
-template <stdx::ct_string Name, typename Tag, typename R, typename... Fs>
+template <auto Name, typename Tag, typename R, typename... Fs>
 struct op_state : Fs... {
     template <typename F>
     using has_void_result = std::is_void<std::invoke_result_t<F>>;
@@ -53,8 +54,7 @@ struct op_state : Fs... {
     }
 };
 
-template <stdx::ct_string Name, typename Tag, std::invocable... Fs>
-struct sender : Fs... {
+template <auto Name, typename Tag, std::invocable... Fs> struct sender : Fs... {
     template <receiver R>
     [[nodiscard]] constexpr auto
     connect(R &&r) && -> op_state<Name, Tag, std::remove_cvref_t<R>, Fs...> {
@@ -87,15 +87,17 @@ struct sender : Fs... {
 } // namespace _just_result_of
 
 template <stdx::ct_string Name = "just_result_of", std::invocable... Fs>
-[[nodiscard]] constexpr auto just_result_of(Fs &&...fs) -> sender auto {
-    return _just_result_of::sender<Name, set_value_t,
+[[nodiscard]] ALWAYS_INLINE constexpr auto just_result_of(Fs &&...fs) -> sender
+    auto {
+    return _just_result_of::sender<stdx::shrink<Name>(), set_value_t,
                                    std::remove_cvref_t<Fs>...>{
         std::forward<Fs>(fs)...};
 }
 
 template <stdx::ct_string Name = "just_error_result_of", std::invocable... Fs>
-[[nodiscard]] constexpr auto just_error_result_of(Fs &&...fs) -> sender auto {
-    return _just_result_of::sender<Name, set_error_t,
+[[nodiscard]] ALWAYS_INLINE constexpr auto just_error_result_of(Fs &&...fs)
+    -> sender auto {
+    return _just_result_of::sender<stdx::shrink<Name>(), set_error_t,
                                    std::remove_cvref_t<Fs>...>{
         std::forward<Fs>(fs)...};
 }
@@ -108,10 +110,10 @@ using just_result_of_tag_for =
     stdx::conditional_t<std::same_as<Tag, set_value_t>, just_result_of_t,
                         just_error_result_of_t>;
 
-template <stdx::ct_string Name, typename Tag, typename R, typename... Fs>
-struct debug::context_for<_just_result_of::op_state<Name, Tag, R, Fs...>> {
+template <auto Name, typename Tag, typename R, typename... Fs>
+struct debug::context_for<_just_result_of::op_state<Name, Tag, R, Fs...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = async::just_result_of_tag_for<Tag>;
-    constexpr static auto name = Name;
     using children = stdx::type_list<>;
     using type = _just_result_of::op_state<Name, Tag, R, Fs...>;
 };
