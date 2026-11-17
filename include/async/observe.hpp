@@ -8,6 +8,7 @@
 #include <async/env.hpp>
 
 #include <stdx/call_by_need.hpp>
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
@@ -37,7 +38,7 @@ template <channel_tag T> struct caller_t {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename S, typename R,
+template <auto Name, typename HandleTags, typename S, typename R,
           typename... Fs>
 struct receiver {
     using is_receiver = void;
@@ -73,7 +74,7 @@ struct receiver {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename S, typename... Fs>
+template <auto Name, typename HandleTags, typename S, typename... Fs>
 struct sender {
     template <async::receiver R>
     [[nodiscard]] constexpr auto connect(R &&r) && {
@@ -111,8 +112,7 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename... Fs>
-struct pipeable {
+template <auto Name, typename HandleTags, typename... Fs> struct pipeable {
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
   private:
@@ -127,27 +127,28 @@ struct pipeable {
 template <
     auto Channels = stdx::type_list<set_value_t, set_error_t, set_stopped_t>{},
     stdx::ct_string Name = "observe", stdx::callable... Fs>
-[[nodiscard]] constexpr auto observe(Fs &&...fs) {
-    return compose(
-        _observe::pipeable<Name, std::remove_cvref_t<decltype(Channels)>,
-                           std::remove_cvref_t<Fs>...>{
-            std::forward<Fs>(fs)...});
+[[nodiscard]] ALWAYS_INLINE constexpr auto observe(Fs &&...fs) {
+    return compose(_observe::pipeable<stdx::shrink<Name>(),
+                                      std::remove_cvref_t<decltype(Channels)>,
+                                      std::remove_cvref_t<Fs>...>{
+        std::forward<Fs>(fs)...});
 }
 
 template <
     auto Channels = stdx::type_list<set_value_t, set_error_t, set_stopped_t>{},
     stdx::ct_string Name = "observe", sender S, stdx::callable... Fs>
-[[nodiscard]] constexpr auto observe(S &&s, Fs &&...fs) -> sender auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto observe(S &&s, Fs &&...fs) -> sender
+    auto {
     return std::forward<S>(s) |
            observe<Channels, Name>(std::forward<Fs>(fs)...);
 }
 
 struct observe_t;
 
-template <stdx::ct_string Name, typename HandleTags, typename... Ts>
-struct debug::context_for<_observe::receiver<Name, HandleTags, Ts...>> {
+template <auto Name, typename HandleTags, typename... Ts>
+struct debug::context_for<_observe::receiver<Name, HandleTags, Ts...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = observe_t;
-    constexpr static auto name = Name;
     using type = _observe::receiver<Name, HandleTags, Ts...>;
     using children = stdx::type_list<debug::erased_context_for<
         connect_result_t<typename type::sender_t &&, type &&>>>;
