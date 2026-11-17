@@ -10,6 +10,7 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/call_by_need.hpp>
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
@@ -26,8 +27,8 @@
 
 namespace async {
 namespace _then {
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
-          typename S, typename R, typename... Fs>
+template <auto Name, typename HandleTags, typename CompleteTag, typename S,
+          typename R, typename... Fs>
 struct receiver {
     using is_receiver = void;
     [[no_unique_address]] R r;
@@ -76,8 +77,8 @@ template <typename Tag> struct as_signature {
 };
 } // namespace detail
 
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
-          typename S, typename... Fs>
+template <auto Name, typename HandleTags, typename CompleteTag, typename S,
+          typename... Fs>
 struct sender {
     template <async::receiver R>
     [[nodiscard]] constexpr auto connect(R &&r) && {
@@ -136,8 +137,7 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
-          typename... Fs>
+template <auto Name, typename HandleTags, typename CompleteTag, typename... Fs>
 struct pipeable {
     [[no_unique_address]] stdx::tuple<Fs...> fs;
 
@@ -151,77 +151,88 @@ struct pipeable {
 } // namespace _then
 
 template <stdx::ct_string Name = "then", stdx::callable... Fs>
-[[nodiscard]] constexpr auto then(Fs &&...fs) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto then(Fs &&...fs) {
     return compose(
-        _then::pipeable<Name, stdx::type_list<set_value_t>, set_value_t,
-                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
+        _then::pipeable<stdx::shrink<Name>(), stdx::type_list<set_value_t>,
+                        set_value_t, std::remove_cvref_t<Fs>...>{
+            std::forward<Fs>(fs)...});
 }
 
 template <stdx::ct_string Name = "then", sender S, stdx::callable... Fs>
-[[nodiscard]] constexpr auto then(S &&s, Fs &&...fs) -> sender auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto then(S &&s, Fs &&...fs) -> sender
+    auto {
     return std::forward<S>(s) | then<Name>(std::forward<Fs>(fs)...);
 }
 
 template <stdx::ct_string Name = "upon_error", stdx::callable F>
-[[nodiscard]] constexpr auto upon_error(F &&f) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto upon_error(F &&f) {
     return compose(
-        _then::pipeable<Name, stdx::type_list<set_error_t>, set_value_t,
-                        std::remove_cvref_t<F>>{std::forward<F>(f)});
+        _then::pipeable<stdx::shrink<Name>(), stdx::type_list<set_error_t>,
+                        set_value_t, std::remove_cvref_t<F>>{
+            std::forward<F>(f)});
 }
 
 template <stdx::ct_string Name = "upon_error", sender S, stdx::callable F>
-[[nodiscard]] constexpr auto upon_error(S &&s, F &&f) -> sender auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto upon_error(S &&s, F &&f) -> sender
+    auto {
     return std::forward<S>(s) | upon_error<Name>(std::forward<F>(f));
 }
 
 template <stdx::ct_string Name = "upon_stopped", stdx::callable F>
-[[nodiscard]] constexpr auto upon_stopped(F &&f) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto upon_stopped(F &&f) {
     return compose(
-        _then::pipeable<Name, stdx::type_list<set_stopped_t>, set_value_t,
-                        std::remove_cvref_t<F>>{std::forward<F>(f)});
+        _then::pipeable<stdx::shrink<Name>(), stdx::type_list<set_stopped_t>,
+                        set_value_t, std::remove_cvref_t<F>>{
+            std::forward<F>(f)});
 }
 
 template <stdx::ct_string Name = "upon_stopped", sender S, stdx::callable F>
-[[nodiscard]] constexpr auto upon_stopped(S &&s, F &&f) -> sender auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto upon_stopped(S &&s, F &&f) -> sender
+    auto {
     return std::forward<S>(s) | upon_stopped<Name>(std::forward<F>(f));
 }
 
 template <stdx::ct_string Name = "then_error", stdx::callable... Fs>
-[[nodiscard]] constexpr auto then_error(Fs &&...fs) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto then_error(Fs &&...fs) {
     return compose(
-        _then::pipeable<Name, stdx::type_list<set_value_t>, set_error_t,
-                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
+        _then::pipeable<stdx::shrink<Name>(), stdx::type_list<set_value_t>,
+                        set_error_t, std::remove_cvref_t<Fs>...>{
+            std::forward<Fs>(fs)...});
 }
 
 template <stdx::ct_string Name = "then_error", sender S, stdx::callable... Fs>
-[[nodiscard]] constexpr auto then_error(S &&s, Fs &&...fs) -> sender auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto then_error(S &&s, Fs &&...fs)
+    -> sender auto {
     return std::forward<S>(s) | then_error<Name>(std::forward<Fs>(fs)...);
 }
 
 template <stdx::ct_string Name = "transform_error", stdx::callable... Fs>
-[[nodiscard]] constexpr auto transform_error(Fs &&...fs) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto transform_error(Fs &&...fs) {
     return compose(
-        _then::pipeable<Name, stdx::type_list<set_error_t>, set_error_t,
-                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
+        _then::pipeable<stdx::shrink<Name>(), stdx::type_list<set_error_t>,
+                        set_error_t, std::remove_cvref_t<Fs>...>{
+            std::forward<Fs>(fs)...});
 }
 
 template <stdx::ct_string Name = "transform_error", sender S,
           stdx::callable... Fs>
-[[nodiscard]] constexpr auto transform_error(S &&s, Fs &&...fs) -> sender auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto transform_error(S &&s, Fs &&...fs)
+    -> sender auto {
     return std::forward<S>(s) | transform_error<Name>(std::forward<Fs>(fs)...);
 }
 
 template <stdx::ct_string Name = "transform_stopped", stdx::callable... Fs>
-[[nodiscard]] constexpr auto transform_stopped(Fs &&...fs) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto transform_stopped(Fs &&...fs) {
     return compose(
-        _then::pipeable<Name, stdx::type_list<set_stopped_t>, set_stopped_t,
-                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
+        _then::pipeable<stdx::shrink<Name>(), stdx::type_list<set_stopped_t>,
+                        set_stopped_t, std::remove_cvref_t<Fs>...>{
+            std::forward<Fs>(fs)...});
 }
 
 template <stdx::ct_string Name = "transform_stopped", sender S,
           stdx::callable... Fs>
-[[nodiscard]] constexpr auto transform_stopped(S &&s, Fs &&...fs) -> sender
-    auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto transform_stopped(S &&s, Fs &&...fs)
+    -> sender auto {
     return std::forward<S>(s) |
            transform_stopped<Name>(std::forward<Fs>(fs)...);
 }
@@ -229,17 +240,18 @@ template <stdx::ct_string Name = "transform_stopped", sender S,
 template <
     auto Channels = stdx::type_list<set_value_t, set_error_t, set_stopped_t>{},
     stdx::ct_string Name = "multithen", stdx::callable... Fs>
-[[nodiscard]] constexpr auto multithen(Fs &&...fs) {
+[[nodiscard]] ALWAYS_INLINE constexpr auto multithen(Fs &&...fs) {
     return compose(
-        _then::pipeable<Name, std::remove_cvref_t<decltype(Channels)>,
-                        set_value_t, std::remove_cvref_t<Fs>...>{
-            std::forward<Fs>(fs)...});
+        _then::pipeable<stdx::shrink<Name>(),
+                        std::remove_cvref_t<decltype(Channels)>, set_value_t,
+                        std::remove_cvref_t<Fs>...>{std::forward<Fs>(fs)...});
 }
 
 template <
     auto Channels = stdx::type_list<set_value_t, set_error_t, set_stopped_t>{},
     stdx::ct_string Name = "multithen", sender S, stdx::callable... Fs>
-[[nodiscard]] constexpr auto multithen(S &&s, Fs &&...fs) -> sender auto {
+[[nodiscard]] ALWAYS_INLINE constexpr auto multithen(S &&s, Fs &&...fs)
+    -> sender auto {
     return std::forward<S>(s) |
            multithen<Channels, Name>(std::forward<Fs>(fs)...);
 }
@@ -287,12 +299,10 @@ using debug_tag_t = typename debug_tag<HandleTags, CompleteTag>::type;
 } // namespace detail
 } // namespace _then
 
-template <stdx::ct_string Name, typename HandleTags, typename CompleteTag,
-          typename... Ts>
-struct debug::context_for<
-    _then::receiver<Name, HandleTags, CompleteTag, Ts...>> {
+template <auto Name, typename HandleTags, typename CompleteTag, typename... Ts>
+struct debug::context_for<_then::receiver<Name, HandleTags, CompleteTag, Ts...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = _then::detail::debug_tag_t<HandleTags, CompleteTag>;
-    constexpr static auto name = Name;
     using type = _then::receiver<Name, HandleTags, CompleteTag, Ts...>;
     using children = stdx::type_list<debug::erased_context_for<
         connect_result_t<typename type::sender_t &&, type &&>>>;
