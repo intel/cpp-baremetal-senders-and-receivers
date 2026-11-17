@@ -8,47 +8,40 @@
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_conversions.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
 
-#include <concepts>
 #include <type_traits>
 #include <utility>
 
 namespace async {
 namespace _read_env {
 namespace detail {
-template <stdx::ct_string Name, typename... Tags> constexpr auto get_name() {
-    if constexpr (not Name.empty()) {
+template <auto Name, typename... Tags> consteval auto get_name() {
+    constexpr auto name = stdx::expand(Name);
+    if constexpr (not name.empty()) {
         return Name;
     } else {
-        auto const f = []<typename Tag>() {
-            if constexpr (requires {
-                              []<auto N>(stdx::ct_string<N>) {}(Tag::name);
-                          }) {
-                return Tag::name;
-            } else {
-                constexpr auto s = stdx::type_as_string<Tag>();
-                return stdx::ct_string<s.size() + 1>{s};
-            }
-        };
         using namespace stdx::literals;
         if constexpr (sizeof...(Tags) == 1) {
-            return f.template operator()<Tags...>();
+            return stdx::shrink<stdx::name_for<Tags...>()>();
         } else {
-            return "read_env<"_cts +
-                   stdx::tuple{f.template operator()<Tags>()...}.join(
-                       ""_cts,
-                       [](auto lhs, auto rhs) { return lhs + ","_cts + rhs; }) +
-                   ">"_cts;
+            constexpr auto multi_name =
+                "read_env<"_cts +
+                stdx::tuple{stdx::name_for<Tags>()...}.join(
+                    ""_cts,
+                    [](auto lhs, auto rhs) { return lhs + ","_cts + rhs; }) +
+                ">"_cts;
+            return stdx::shrink<multi_name>();
         }
     }
 }
 } // namespace detail
 
-template <stdx::ct_string Name, typename R, typename... Tags> struct op_state {
+template <auto Name, typename R, typename... Tags> struct op_state {
     [[no_unique_address]] R receiver;
 
     constexpr auto start() & -> void {
@@ -63,7 +56,7 @@ template <stdx::ct_string Name, typename R, typename... Tags> struct op_state {
     }
 };
 
-template <stdx::ct_string Name, typename... Tags> struct sender {
+template <auto Name, typename... Tags> struct sender {
     using is_sender = void;
 
     template <typename Env>
@@ -89,16 +82,16 @@ template <stdx::ct_string Name, typename... Tags> struct sender {
 
 template <stdx::ct_string Name = "", typename... Tags>
     requires(sizeof...(Tags) > 0)
-[[nodiscard]] constexpr auto read_env(Tags...) -> sender auto {
-    return _read_env::sender<Name, Tags...>{};
+[[nodiscard]] ALWAYS_INLINE constexpr auto read_env(Tags...) -> sender auto {
+    return _read_env::sender<stdx::shrink<Name>(), Tags...>{};
 }
 
 template <typename...> struct read_env_t;
 
-template <stdx::ct_string Name, typename R, typename... Tags>
-struct debug::context_for<_read_env::op_state<Name, R, Tags...>> {
+template <auto Name, typename R, typename... Tags>
+struct debug::context_for<_read_env::op_state<Name, R, Tags...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = read_env_t<Tags...>;
-    constexpr static auto name = Name;
     using children = stdx::type_list<>;
     using type = _read_env::op_state<Name, R, Tags...>;
 };
