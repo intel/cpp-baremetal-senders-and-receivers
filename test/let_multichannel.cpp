@@ -14,13 +14,14 @@
 #include <utility>
 
 namespace {
-template <stdx::ct_string Name, typename S, typename F>
+template <auto Name, typename S, typename F>
 using multilet_sender =
     async::_let::sender<Name, S, F, async::set_value_t, async::set_stopped_t>;
 
 template <typename F>
 [[nodiscard]] constexpr auto multilet(F &&f)
-    -> async::_let::pipeable<"", std::remove_cvref_t<F>, multilet_sender> {
+    -> async::_let::pipeable<stdx::shrink<"">(), std::remove_cvref_t<F>,
+                             multilet_sender> {
     return {std::forward<F>(f)};
 }
 struct wrapped_int {
@@ -79,14 +80,15 @@ TEST_CASE("multi-channel let can be single shot with passthrough",
 }
 
 namespace {
-template <stdx::ct_string Name, typename S, typename F>
+template <auto Name, typename S, typename F>
 using allchannel_sender =
     async::_let::sender<Name, S, F, async::set_value_t, async::set_error_t,
                         async::set_stopped_t>;
 
 template <typename F>
 [[nodiscard]] constexpr auto all_let(F &&f)
-    -> async::_let::pipeable<"", std::remove_cvref_t<F>, allchannel_sender> {
+    -> async::_let::pipeable<stdx::shrink<"">(), std::remove_cvref_t<F>,
+                             allchannel_sender> {
     return {std::forward<F>(f)};
 }
 } // namespace
