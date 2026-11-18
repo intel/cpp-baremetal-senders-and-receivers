@@ -8,7 +8,6 @@
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
 #include <stdx/type_traits.hpp>
@@ -108,13 +107,13 @@ template <auto Name, template <typename...> typename V> struct pipeable {
 
 template <stdx::ct_string Name = "into_variant",
           template <typename...> typename V = std::variant>
-[[nodiscard]] ALWAYS_INLINE constexpr auto into_variant() {
+[[nodiscard]] constexpr auto into_variant() {
     return compose(_into_variant::pipeable<stdx::shrink<Name>(), V>{});
 }
 
 template <stdx::ct_string Name = "into_variant",
           template <typename...> typename V = std::variant, sender S>
-[[nodiscard]] ALWAYS_INLINE constexpr auto into_variant(S &&s) -> sender auto {
+[[nodiscard]] constexpr auto into_variant(S &&s) -> sender auto {
     return std::forward<S>(s) | into_variant<Name, V>();
 }
 

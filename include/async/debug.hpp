@@ -4,7 +4,6 @@
 #include <async/debug_context.hpp>
 #include <async/forwarding_query.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
 
@@ -48,7 +47,7 @@ consteval static auto get_handler() -> auto & {
 
 template <stdx::ct_string ChainName, stdx::ct_string Signal, contextlike Ctx,
           typename... DummyArgs, typename... Args>
-ALWAYS_INLINE auto signal(Args &&...args) -> void {
+auto signal(Args &&...args) -> void {
     auto &handler = get_handler<ChainName, name_of<Ctx>, DummyArgs...>();
     handler.template signal<ChainName, Signal, Ctx>(
         std::forward<Args>(args)...);

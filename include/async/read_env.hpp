@@ -8,7 +8,6 @@
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_conversions.hpp>
 #include <stdx/ct_string.hpp>
@@ -82,7 +81,7 @@ template <auto Name, typename... Tags> struct sender {
 
 template <stdx::ct_string Name = "", typename... Tags>
     requires(sizeof...(Tags) > 0)
-[[nodiscard]] ALWAYS_INLINE constexpr auto read_env(Tags...) -> sender auto {
+[[nodiscard]] constexpr auto read_env(Tags...) -> sender auto {
     return _read_env::sender<stdx::shrink<Name>(), Tags...>{};
 }
 

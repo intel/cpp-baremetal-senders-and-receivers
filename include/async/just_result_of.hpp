@@ -8,7 +8,6 @@
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
@@ -87,16 +86,14 @@ template <auto Name, typename Tag, std::invocable... Fs> struct sender : Fs... {
 } // namespace _just_result_of
 
 template <stdx::ct_string Name = "just_result_of", std::invocable... Fs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto just_result_of(Fs &&...fs) -> sender
-    auto {
+[[nodiscard]] constexpr auto just_result_of(Fs &&...fs) -> sender auto {
     return _just_result_of::sender<stdx::shrink<Name>(), set_value_t,
                                    std::remove_cvref_t<Fs>...>{
         std::forward<Fs>(fs)...};
 }
 
 template <stdx::ct_string Name = "just_error_result_of", std::invocable... Fs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto just_error_result_of(Fs &&...fs)
-    -> sender auto {
+[[nodiscard]] constexpr auto just_error_result_of(Fs &&...fs) -> sender auto {
     return _just_result_of::sender<stdx::shrink<Name>(), set_error_t,
                                    std::remove_cvref_t<Fs>...>{
         std::forward<Fs>(fs)...};

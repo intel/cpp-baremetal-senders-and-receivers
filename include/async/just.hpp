@@ -8,7 +8,6 @@
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
@@ -76,7 +75,7 @@ constexpr inline auto name<set_stopped_t> = stdx::ct_string{"just_stopped"};
 
 template <channel_tag Tag = set_value_t,
           stdx::ct_string Name = _just::name<Tag>, typename... Vs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto just(Vs &&...vs) -> sender auto {
+[[nodiscard]] constexpr auto just(Vs &&...vs) -> sender auto {
     static_assert(sizeof...(Vs) == 0 or not std::same_as<Tag, set_stopped_t>,
                   "Can't send any values on the stopped channel");
 
@@ -85,19 +84,17 @@ template <channel_tag Tag = set_value_t,
 }
 
 template <stdx::ct_string Name = _just::name<set_value_t>, typename... Vs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto just_value(Vs &&...vs) -> sender
-    auto {
+[[nodiscard]] constexpr auto just_value(Vs &&...vs) -> sender auto {
     return just<set_value_t, Name>(std::forward<Vs>(vs)...);
 }
 
 template <stdx::ct_string Name = _just::name<set_error_t>, typename... Vs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto just_error(Vs &&...vs) -> sender
-    auto {
+[[nodiscard]] constexpr auto just_error(Vs &&...vs) -> sender auto {
     return just<set_error_t, Name>(std::forward<Vs>(vs)...);
 }
 
 template <stdx::ct_string Name = _just::name<set_stopped_t>>
-[[nodiscard]] ALWAYS_INLINE constexpr auto just_stopped() -> sender auto {
+[[nodiscard]] constexpr auto just_stopped() -> sender auto {
     return just<set_stopped_t, Name>();
 }
 

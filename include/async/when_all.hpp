@@ -9,7 +9,6 @@
 #include <async/stop_token.hpp>
 
 #include <stdx/atomic.hpp>
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/meta.hpp>
@@ -635,8 +634,7 @@ template <auto Name> struct sender<Name> {
 } // namespace _when_all
 
 template <stdx::ct_string Name = "when_all", sender... Sndrs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto when_all(Sndrs &&...sndrs) -> sender
-    auto {
+[[nodiscard]] constexpr auto when_all(Sndrs &&...sndrs) -> sender auto {
     if constexpr (sizeof...(Sndrs) == 1) {
         return (sndrs, ...);
     } else {

@@ -328,37 +328,35 @@ struct pipeable<Name, Pred, LoopFn> {
 template <stdx::ct_string Name = "repeat_until", typename P,
           typename F = std::remove_cvref_t<decltype(_repeat::no_loop_fn)>>
     requires(not sender<P>)
-[[nodiscard]] ALWAYS_INLINE constexpr auto repeat_until(P &&p, F &&f = {})
+[[nodiscard]] constexpr auto repeat_until(P &&p, F &&f = {})
     -> _repeat::pipeable<stdx::shrink<Name>(), std::remove_cvref_t<P>,
                          std::remove_cvref_t<F>> {
     return {std::forward<P>(p), std::forward<F>(f)};
 }
 
 template <stdx::ct_string Name = "repeat_until", sender S, typename... Args>
-[[nodiscard]] ALWAYS_INLINE auto repeat_until(S &&s, Args &&...args) {
+[[nodiscard]] auto repeat_until(S &&s, Args &&...args) {
     return std::forward<S>(s) | repeat_until(std::forward<Args>(args)...);
 }
 
 template <stdx::ct_string Name = "repeat", typename... Args>
-[[nodiscard]] ALWAYS_INLINE constexpr auto repeat(Args &&...args) {
+[[nodiscard]] constexpr auto repeat(Args &&...args) {
     return repeat_until<Name>(_repeat::never_stop, std::forward<Args>(args)...);
 }
 
 template <stdx::ct_string Name = "repeat", sender S, typename... Args>
-[[nodiscard]] ALWAYS_INLINE auto repeat(S &&s, Args &&...args) {
+[[nodiscard]] auto repeat(S &&s, Args &&...args) {
     return std::forward<S>(s) | repeat<Name>(std::forward<Args>(args)...);
 }
 
 template <stdx::ct_string Name = "repeat_n", typename... Args>
-[[nodiscard]] ALWAYS_INLINE constexpr auto repeat_n(unsigned int n,
-                                                    Args &&...args) {
+[[nodiscard]] constexpr auto repeat_n(unsigned int n, Args &&...args) {
     return repeat_until<Name>([n](auto &&...) mutable { return n-- == 0; },
                               std::forward<Args>(args)...);
 }
 
 template <stdx::ct_string Name = "repeat_n", sender S, typename... Args>
-[[nodiscard]] ALWAYS_INLINE auto repeat_n(S &&s, unsigned int n,
-                                          Args &&...args) {
+[[nodiscard]] auto repeat_n(S &&s, unsigned int n, Args &&...args) {
     return std::forward<S>(s) | repeat_n<Name>(n, std::forward<Args>(args)...);
 }
 

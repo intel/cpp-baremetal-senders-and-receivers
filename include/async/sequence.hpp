@@ -8,7 +8,6 @@
 #include <async/debug.hpp>
 #include <async/env.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
 #include <stdx/tuple.hpp>
@@ -226,7 +225,7 @@ template <auto Name, typename S2> struct pipeable {
 
 template <stdx::ct_string Name = "sequence", typename... Fs>
     requires(sizeof...(Fs) > 0)
-[[nodiscard]] ALWAYS_INLINE constexpr auto sequence(Fs &&...fs) {
+[[nodiscard]] constexpr auto sequence(Fs &&...fs) {
     if constexpr (sizeof...(Fs) == 1) {
         return compose(
             _seq::pipeable<stdx::shrink<Name>(), std::remove_cvref_t<Fs>...>{
@@ -239,7 +238,7 @@ template <stdx::ct_string Name = "sequence", typename... Fs>
 
 template <stdx::ct_string Name = "seq", sender... Ss>
     requires(sizeof...(Ss) > 0)
-[[nodiscard]] ALWAYS_INLINE constexpr auto seq(Ss &&...ss) {
+[[nodiscard]] constexpr auto seq(Ss &&...ss) {
     return sequence<Name>(std::forward<Ss>(ss)...);
 }
 

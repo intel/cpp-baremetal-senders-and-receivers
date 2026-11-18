@@ -8,7 +8,6 @@
 #include <async/schedulers/runloop_scheduler.hpp>
 #include <async/stop_token.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/optional.hpp>
@@ -205,8 +204,7 @@ template <typename Uniq, typename StopSource, typename Env> struct pipeable {
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] ALWAYS_INLINE constexpr auto
-start_detached_stoppable(Env &&e = {})
+[[nodiscard]] constexpr auto start_detached_stoppable(Env &&e = {})
     -> _start_detached::pipeable<Uniq, inplace_stop_source, Env> {
     return {std::forward<Env>(e)};
 }
@@ -232,8 +230,7 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] ALWAYS_INLINE constexpr auto
-start_detached_unstoppable(Env &&e = {})
+[[nodiscard]] constexpr auto start_detached_unstoppable(Env &&e = {})
     -> _start_detached::pipeable<Uniq, never_stop_source, Env> {
     return {std::forward<Env>(e)};
 }
@@ -259,7 +256,7 @@ template <stdx::ct_string Name, sender S, typename Env = empty_env>
 
 template <typename Uniq = decltype([] {}), typename Env = empty_env>
     requires(not sender<Env>)
-[[nodiscard]] ALWAYS_INLINE constexpr auto start_detached(Env &&e = {})
+[[nodiscard]] constexpr auto start_detached(Env &&e = {})
     -> _start_detached::pipeable<Uniq, never_stop_source, Env> {
     return {std::forward<Env>(e)};
 }
@@ -285,7 +282,7 @@ template <typename Uniq> auto stop_detached() {
     return _start_detached::stop_handle<Uniq>{}.request_stop();
 }
 
-template <stdx::ct_string Name> ALWAYS_INLINE auto stop_detached() {
+template <stdx::ct_string Name> auto stop_detached() {
     return stop_detached<decltype(stdx::shrink<Name>())>();
 }
 
@@ -294,7 +291,7 @@ template <typename Uniq> auto sync_stop_detached() {
     return _start_detached::stop_handle<Uniq>{}.sync_wait();
 }
 
-template <stdx::ct_string Name> ALWAYS_INLINE auto sync_stop_detached() {
+template <stdx::ct_string Name> auto sync_stop_detached() {
     return sync_stop_detached<decltype(stdx::shrink<Name>())>();
 }
 
@@ -302,7 +299,7 @@ template <typename Uniq> auto sync_wait_detached() {
     return _start_detached::stop_handle<Uniq>{}.sync_wait();
 }
 
-template <stdx::ct_string Name> ALWAYS_INLINE auto sync_wait_detached() {
+template <stdx::ct_string Name> auto sync_wait_detached() {
     return sync_wait_detached<decltype(stdx::shrink<Name>())>();
 }
 

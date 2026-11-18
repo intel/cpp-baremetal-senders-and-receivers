@@ -300,7 +300,7 @@ using unsafe_expiry =
 template <stdx::ct_string Name = "periodic_until",
           typename Expiry = safe_immediate_expiry, typename Duration,
           typename P>
-[[nodiscard]] ALWAYS_INLINE constexpr auto periodic_until(Duration d, P &&p)
+[[nodiscard]] constexpr auto periodic_until(Duration d, P &&p)
     -> _periodic::pipeable<stdx::shrink<Name>(), Expiry, Duration,
                            std::remove_cvref_t<P>> {
     return {d, std::forward<P>(p)};
@@ -309,34 +309,33 @@ template <stdx::ct_string Name = "periodic_until",
 template <stdx::ct_string Name = "periodic_until",
           typename Expiry = safe_immediate_expiry, sender S, typename Duration,
           typename P>
-[[nodiscard]] ALWAYS_INLINE auto periodic_until(S &&s, Duration d, P &&p) {
+[[nodiscard]] auto periodic_until(S &&s, Duration d, P &&p) {
     return std::forward<S>(s) |
            periodic_until<Name, Expiry>(d, std::forward<P>(p));
 }
 
 template <stdx::ct_string Name = "periodic",
           typename Expiry = safe_immediate_expiry, typename Duration>
-[[nodiscard]] ALWAYS_INLINE constexpr auto periodic(Duration d) {
+[[nodiscard]] constexpr auto periodic(Duration d) {
     return periodic_until<Name, Expiry>(d, _periodic::never_stop);
 }
 
 template <stdx::ct_string Name = "periodic",
           typename Expiry = safe_immediate_expiry, sender S, typename Duration>
-[[nodiscard]] ALWAYS_INLINE auto periodic(S &&s, Duration d) {
+[[nodiscard]] auto periodic(S &&s, Duration d) {
     return std::forward<S>(s) | periodic<Name, Expiry>(d);
 }
 
 template <stdx::ct_string Name = "periodic_n",
           typename Expiry = safe_immediate_expiry, typename Duration>
-[[nodiscard]] ALWAYS_INLINE constexpr auto periodic_n(Duration d,
-                                                      unsigned int n) {
+[[nodiscard]] constexpr auto periodic_n(Duration d, unsigned int n) {
     return periodic_until<Name, Expiry>(
         d, [n](auto &&...) mutable { return n-- == 0; });
 }
 
 template <stdx::ct_string Name = "periodic_n",
           typename Expiry = safe_immediate_expiry, sender S, typename Duration>
-[[nodiscard]] ALWAYS_INLINE auto periodic_n(S &&s, Duration d, unsigned int n) {
+[[nodiscard]] auto periodic_n(S &&s, Duration d, unsigned int n) {
     return std::forward<S>(s) | periodic_n<Name, Expiry>(d, n);
 }
 

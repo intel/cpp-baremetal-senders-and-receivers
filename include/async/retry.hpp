@@ -9,7 +9,6 @@
 #include <async/env.hpp>
 #include <async/type_traits.hpp>
 
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/functional.hpp>
 
@@ -309,23 +308,22 @@ template <auto Name, stdx::callable Pred> struct pipeable<Name, Pred> {
 } // namespace _retry
 
 template <stdx::ct_string Name = "retry_until", typename P>
-[[nodiscard]] ALWAYS_INLINE constexpr auto retry_until(P &&p)
+[[nodiscard]] constexpr auto retry_until(P &&p)
     -> _retry::pipeable<stdx::shrink<Name>(), std::remove_cvref_t<P>> {
     return {std::forward<P>(p)};
 }
 
 template <stdx::ct_string Name = "retry_until", sender S, typename P>
-[[nodiscard]] ALWAYS_INLINE auto retry_until(S &&s, P &&p) {
+[[nodiscard]] auto retry_until(S &&s, P &&p) {
     return std::forward<S>(s) | retry_until<Name>(std::forward<P>(p));
 }
 
-template <stdx::ct_string Name = "retry">
-[[nodiscard]] ALWAYS_INLINE constexpr auto retry() {
+template <stdx::ct_string Name = "retry"> [[nodiscard]] constexpr auto retry() {
     return retry_until<Name>(_retry::never_stop);
 }
 
 template <stdx::ct_string Name = "retry", sender S>
-[[nodiscard]] ALWAYS_INLINE auto retry(S &&s) {
+[[nodiscard]] auto retry(S &&s) {
     return std::forward<S>(s) | retry<Name>();
 }
 

@@ -10,7 +10,6 @@
 #include <async/type_traits.hpp>
 
 #include <stdx/atomic.hpp>
-#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/functional.hpp>
@@ -535,8 +534,7 @@ template <auto Name, typename Sndr> struct pipeable {
 
 template <stdx::ct_string Name = "when_any",
           typename StopPolicy = _when_any::first_noncancelled, sender... Sndrs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto when_any(Sndrs &&...sndrs) -> sender
-    auto {
+[[nodiscard]] constexpr auto when_any(Sndrs &&...sndrs) -> sender auto {
     if constexpr (sizeof...(Sndrs) == 1) {
         return (sndrs, ...);
     } else {
@@ -550,22 +548,20 @@ template <stdx::ct_string Name = "when_any",
 }
 
 template <stdx::ct_string Name = "first_successful", sender... Sndrs>
-[[nodiscard]] ALWAYS_INLINE constexpr auto first_successful(Sndrs &&...sndrs)
-    -> sender auto {
+[[nodiscard]] constexpr auto first_successful(Sndrs &&...sndrs) -> sender auto {
     return when_any<Name, _when_any::first_successful>(
         std::forward<Sndrs>(sndrs)...);
 }
 
 template <stdx::ct_string Name = "stop_when", typename Trigger>
-[[nodiscard]] ALWAYS_INLINE constexpr auto stop_when(Trigger &&t) {
+[[nodiscard]] constexpr auto stop_when(Trigger &&t) {
     return compose(
         _when_any::pipeable<stdx::shrink<Name>(), std::remove_cvref_t<Trigger>>{
             std::forward<Trigger>(t)});
 }
 
 template <stdx::ct_string Name = "stop_when", sender Sndr, sender Trigger>
-[[nodiscard]] ALWAYS_INLINE constexpr auto stop_when(Sndr &&s, Trigger &&t)
-    -> sender auto {
+[[nodiscard]] constexpr auto stop_when(Sndr &&s, Trigger &&t) -> sender auto {
     return std::forward<Sndr>(s) | stop_when<Name>(std::forward<Trigger>(t));
 }
 
