@@ -7,12 +7,6 @@ namespace debug {
 template <typename T> struct context_for;
 
 namespace detail {
-template <std::size_t N>
-constexpr auto is_ct_string(stdx::ct_string<N>) -> std::true_type;
-constexpr auto is_ct_string(...) -> std::false_type;
-template <auto V>
-concept ct_stringlike = decltype(is_ct_string(V))::value;
-
 template <typename T>
 constexpr auto erased_context = []<typename C>(C) {
     struct Ctx : C {
@@ -33,7 +27,7 @@ template <typename T> using type_of = typename T::type;
 template <typename T> constexpr auto contextlike_v = false;
 
 template <typename T>
-concept contextlike = detail::ct_stringlike<T::name> and requires {
+concept contextlike = stdx::named<T> and requires {
     typename T::tag;
     typename T::type;
 } and[]<template <typename...> typename L, typename... Ts>(L<Ts...> *) {

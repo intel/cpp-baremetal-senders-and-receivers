@@ -4,6 +4,7 @@
 #include <async/debug_context.hpp>
 #include <async/forwarding_query.hpp>
 
+#include <stdx/compiler.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/tuple.hpp>
 
@@ -22,22 +23,24 @@ struct null_handler {
 template <typename...>
 inline auto injected_debug_handler = debug::null_handler{};
 
+template <stdx::ct_string S> using debug_name = decltype(stdx::shrink<S>());
+
 namespace debug {
 template <stdx::ct_string ChainName, stdx::ct_string LinkName,
           typename... DummyArgs>
-constexpr static auto get_handler() -> auto & {
+consteval static auto get_handler() -> auto & {
     if constexpr (not std::same_as<
-                      decltype(injected_debug_handler<stdx::cts_t<ChainName>,
-                                                      stdx::cts_t<LinkName>,
+                      decltype(injected_debug_handler<debug_name<ChainName>,
+                                                      debug_name<LinkName>,
                                                       DummyArgs...>),
                       null_handler>) {
-        return injected_debug_handler<stdx::cts_t<ChainName>,
-                                      stdx::cts_t<LinkName>, DummyArgs...>;
+        return injected_debug_handler<debug_name<ChainName>,
+                                      debug_name<LinkName>, DummyArgs...>;
     } else if constexpr (not std::same_as<
                              decltype(injected_debug_handler<
-                                      stdx::cts_t<ChainName>, DummyArgs...>),
+                                      debug_name<ChainName>, DummyArgs...>),
                              null_handler>) {
-        return injected_debug_handler<stdx::cts_t<ChainName>, DummyArgs...>;
+        return injected_debug_handler<debug_name<ChainName>, DummyArgs...>;
     } else {
         return injected_debug_handler<DummyArgs...>;
     }
@@ -45,7 +48,7 @@ constexpr static auto get_handler() -> auto & {
 
 template <stdx::ct_string ChainName, stdx::ct_string Signal, contextlike Ctx,
           typename... DummyArgs, typename... Args>
-auto signal(Args &&...args) -> void {
+ALWAYS_INLINE auto signal(Args &&...args) -> void {
     auto &handler = get_handler<ChainName, name_of<Ctx>, DummyArgs...>();
     handler.template signal<ChainName, Signal, Ctx>(
         std::forward<Args>(args)...);
