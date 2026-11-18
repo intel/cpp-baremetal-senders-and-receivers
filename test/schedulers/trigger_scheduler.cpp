@@ -68,24 +68,26 @@ TEMPLATE_TEST_CASE(
 TEMPLATE_TEST_CASE("trigger_scheduler schedules tasks", "[trigger_scheduler]",
                    decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
     int var{};
     async::sender auto sndr =
         async::start_on(s, async::just_result_of([&] { var = 42; }));
     auto op = async::connect(sndr, universal_receiver{});
 
-    async::triggers<stdx::cts_t<name>>.run();
+    async::triggers<Name>.run();
     CHECK(var == 0);
 
     async::start(op);
-    async::triggers<stdx::cts_t<name>>.run();
+    async::triggers<Name>.run();
     CHECK(var == 42);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler can be triggered with arguments",
                    "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name, int>{};
     int var{};
     async::sender auto sndr =
@@ -96,15 +98,16 @@ TEMPLATE_TEST_CASE("trigger_scheduler can be triggered with arguments",
     CHECK(var == 0);
 
     async::start(op);
-    CHECK(not async::triggers<stdx::cts_t<name>, int>.empty());
+    CHECK(not async::triggers<Name, int>.empty());
     async::run_triggers<name>(42);
     CHECK(var == 42);
-    CHECK(async::triggers<stdx::cts_t<name>, int>.empty());
+    CHECK(async::triggers<Name, int>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler is cancellable before start",
                    "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
     int var{};
     async::sender auto sndr =
@@ -115,12 +118,13 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable before start",
     r.request_stop();
     async::start(op);
     CHECK(var == 17);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler is cancellable after start",
                    "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
     int var{};
     async::sender auto sndr =
@@ -131,12 +135,13 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable after start",
     async::start(op);
     r.request_stop();
     CHECK(var == 17);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler is cancellable by cancel_triggers",
                    "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
     int var{};
     async::sender auto sndr =
@@ -147,7 +152,7 @@ TEMPLATE_TEST_CASE("trigger_scheduler is cancellable by cancel_triggers",
     async::start(op);
     async::cancel_triggers<name>();
     CHECK(var == 17);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEST_CASE("request and response", "[trigger_scheduler]") {
@@ -177,8 +182,8 @@ TEST_CASE("request and response", "[trigger_scheduler]") {
     CHECK(var == 2);
     async::run_triggers<"client">();
     CHECK(var == 86);
-    CHECK(async::triggers<stdx::cts_t<"client">>.empty());
-    CHECK(async::triggers<stdx::cts_t<"server">>.empty());
+    CHECK(async::triggers<async::trigger_name<"client">>.empty());
+    CHECK(async::triggers<async::trigger_name<"server">>.empty());
 }
 
 namespace {
@@ -244,6 +249,7 @@ TEST_CASE("trigger_scheduler produces set_stopped debug signal",
 TEMPLATE_TEST_CASE("trigger_scheduler runs all triggers by default",
                    "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
 
     int var1{};
@@ -259,12 +265,13 @@ TEMPLATE_TEST_CASE("trigger_scheduler runs all triggers by default",
     async::run_triggers<name>();
     CHECK(var1 == 42);
     CHECK(var2 == 42);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEMPLATE_TEST_CASE("trigger_scheduler can be policized for multi-stimulus",
                    "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
 
     int var1{};
@@ -279,16 +286,17 @@ TEMPLATE_TEST_CASE("trigger_scheduler can be policized for multi-stimulus",
 
     async::run_one_trigger<name>();
     CHECK(var1 == 42);
-    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(not async::triggers<Name>.empty());
 
     async::run_one_trigger<name>();
     CHECK(var2 == 17);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEMPLATE_TEST_CASE("triggered task can start a new task on the same trigger",
                    "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
 
     auto start = [&](auto f) {
@@ -305,11 +313,11 @@ TEMPLATE_TEST_CASE("triggered task can start a new task on the same trigger",
 
     async::run_one_trigger<name>();
     CHECK(var == 1);
-    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(not async::triggers<Name>.empty());
 
     async::run_one_trigger<name>();
     CHECK(var == 42);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEST_CASE("thread safety for immediate execution", "[trigger_scheduler]") {
@@ -353,13 +361,14 @@ TEST_CASE("thread safety for immediate execution", "[trigger_scheduler]") {
     CHECK(started == 3);
     CHECK(var1 == 18);
     CHECK(var2 == 42);
-    CHECK(async::triggers<stdx::cts_t<"rqp_imm">>.empty());
+    CHECK(async::triggers<async::trigger_name<"rqp_imm">>.empty());
 }
 
 TEMPLATE_TEST_CASE(
     "urgent_trigger_scheduler puts a task at the front of the queue",
     "[trigger_scheduler]", decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::urgent_trigger_scheduler<name>{};
 
     int var1{};
@@ -372,12 +381,13 @@ TEMPLATE_TEST_CASE(
 
     async::run_triggers<name>();
     CHECK(var1 == 84);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }
 
 TEMPLATE_TEST_CASE("cancel one trigger", "[trigger_scheduler]",
                    decltype([] {})) {
     constexpr auto name = type_string<TestType>;
+    using Name = async::trigger_name<name>;
     auto s = async::trigger_scheduler<name>{};
 
     int var1{};
@@ -391,10 +401,10 @@ TEMPLATE_TEST_CASE("cancel one trigger", "[trigger_scheduler]",
     CHECK(async::start_detached(sndr2));
 
     async::cancel_one_trigger<name>();
-    CHECK(not async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(not async::triggers<Name>.empty());
 
     async::run_triggers<name>();
     CHECK(var1 == 0);
     CHECK(var2 == 17);
-    CHECK(async::triggers<stdx::cts_t<name>>.empty());
+    CHECK(async::triggers<Name>.empty());
 }

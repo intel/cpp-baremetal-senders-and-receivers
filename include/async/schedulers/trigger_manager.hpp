@@ -3,6 +3,7 @@
 #include <async/schedulers/requeue_policy.hpp>
 
 #include <stdx/atomic.hpp>
+#include <stdx/compiler.hpp>
 #include <stdx/concepts.hpp>
 #include <stdx/ct_string.hpp>
 #include <stdx/intrusive_list.hpp>
@@ -146,6 +147,8 @@ template <typename Name, typename... Args> struct trigger_manager {
 template <typename Name, typename... Args>
 inline auto triggers = trigger_manager<Name, Args...>{};
 
+template <stdx::ct_string S> using trigger_name = decltype(stdx::shrink<S>());
+
 template <typename Name, typename RQP = requeue_policy::deferred,
           typename RunPolicy = run_policy::all, typename... Args>
 auto run_triggers(Args &&...args) -> void {
@@ -155,8 +158,8 @@ auto run_triggers(Args &&...args) -> void {
 
 template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
           typename RunPolicy = run_policy::all, typename... Args>
-auto run_triggers(Args &&...args) -> void {
-    run_triggers<stdx::cts_t<Name>, RQP, RunPolicy>(
+ALWAYS_INLINE auto run_triggers(Args &&...args) -> void {
+    run_triggers<trigger_name<Name>, RQP, RunPolicy>(
         std::forward<Args>(args)...);
 }
 
@@ -165,8 +168,8 @@ template <typename Name, typename... Args> auto cancel_triggers() -> void {
 }
 
 template <stdx::ct_string Name, typename... Args>
-auto cancel_triggers() -> void {
-    cancel_triggers<stdx::cts_t<Name>, Args...>();
+ALWAYS_INLINE auto cancel_triggers() -> void {
+    cancel_triggers<trigger_name<Name>, Args...>();
 }
 
 template <typename Name, typename RQP = requeue_policy::deferred,
@@ -177,8 +180,8 @@ auto run_one_trigger(Args &&...args) -> void {
 
 template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
           typename... Args>
-auto run_one_trigger(Args &&...args) -> void {
-    run_triggers<stdx::cts_t<Name>, RQP, run_policy::one>(
+ALWAYS_INLINE auto run_one_trigger(Args &&...args) -> void {
+    run_triggers<trigger_name<Name>, RQP, run_policy::one>(
         std::forward<Args>(args)...);
 }
 
@@ -187,7 +190,7 @@ template <typename Name, typename... Args> auto cancel_one_trigger() -> void {
 }
 
 template <stdx::ct_string Name, typename... Args>
-auto cancel_one_trigger() -> void {
-    cancel_one_trigger<stdx::cts_t<Name>, Args...>();
+ALWAYS_INLINE auto cancel_one_trigger() -> void {
+    cancel_one_trigger<trigger_name<Name>, Args...>();
 }
 } // namespace async
