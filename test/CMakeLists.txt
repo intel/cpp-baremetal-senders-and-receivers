@@ -61,5 +61,19 @@ add_tests(
     when_all
     when_any)
 
+add_unit_test(
+    "start_detached_multi_tu_test"
+    CATCH2
+    FILES
+    "start_detached1.cpp"
+    "start_detached2.cpp"
+    INCLUDE_DIRECTORIES
+    ${PROJECT_SOURCE_DIR}/test
+    LIBRARIES
+    warnings
+    async
+    fmt::fmt-header-only
+    pthread)
+
 add_subdirectory(schedulers)
 add_subdirectory(fail)

@@ -212,7 +212,7 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached_stoppable(Env &&e = {}) {
-    return start_detached_stoppable<decltype(stdx::shrink<Name>())>(
+    return start_detached_stoppable<stdx::cts_t<Name>>(
         with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
@@ -238,7 +238,7 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached_unstoppable(Env &&e = {}) {
-    return start_detached_unstoppable<decltype(stdx::shrink<Name>())>(
+    return start_detached_unstoppable<stdx::cts_t<Name>>(
         with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
@@ -264,7 +264,7 @@ template <typename Uniq = decltype([] {}), typename Env = empty_env>
 template <stdx::ct_string Name, typename Env = empty_env>
     requires(not sender<Env>)
 [[nodiscard]] auto start_detached(Env &&e = {}) {
-    return start_detached<decltype(stdx::shrink<Name>())>(
+    return start_detached<stdx::cts_t<Name>>(
         with_debug_interface<Name>(std::forward<Env>(e)));
 }
 
@@ -283,7 +283,7 @@ template <typename Uniq> auto stop_detached() {
 }
 
 template <stdx::ct_string Name> auto stop_detached() {
-    return stop_detached<decltype(stdx::shrink<Name>())>();
+    return stop_detached<stdx::cts_t<Name>>();
 }
 
 template <typename Uniq> auto sync_stop_detached() {
@@ -292,7 +292,7 @@ template <typename Uniq> auto sync_stop_detached() {
 }
 
 template <stdx::ct_string Name> auto sync_stop_detached() {
-    return sync_stop_detached<decltype(stdx::shrink<Name>())>();
+    return sync_stop_detached<stdx::cts_t<Name>>();
 }
 
 template <typename Uniq> auto sync_wait_detached() {
@@ -300,7 +300,7 @@ template <typename Uniq> auto sync_wait_detached() {
 }
 
 template <stdx::ct_string Name> auto sync_wait_detached() {
-    return sync_wait_detached<decltype(stdx::shrink<Name>())>();
+    return sync_wait_detached<stdx::cts_t<Name>>();
 }
 
 struct start_detached_t;
