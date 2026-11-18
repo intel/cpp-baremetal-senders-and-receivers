@@ -140,6 +140,6 @@ TEST_CASE("incite_on_any", "[incite_on]") {
     auto op = async::connect(s, receiver{[&](int x) { value = x; }});
     async::start(op);
     CHECK(value == 42);
-    CHECK(async::triggers<stdx::cts_t<"0">>.empty());
-    CHECK(async::triggers<stdx::cts_t<"1">>.empty());
+    CHECK(async::triggers<async::trigger_name<"0">>.empty());
+    CHECK(async::triggers<async::trigger_name<"1">>.empty());
 }

@@ -59,8 +59,8 @@ template <typename Pred> struct callable_with {
     template <typename Sig> using fn = is_callable<Pred, Sig>;
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr,
-          stdx::callable Pred, typename LoopFn>
+template <auto Name, typename Sndr, typename Rcvr, stdx::callable Pred,
+          typename LoopFn>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using receiver_t = receiver<op_state, Rcvr>;
@@ -136,8 +136,7 @@ struct op_state {
     std::optional<state_t> state{};
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr,
-          stdx::callable Pred>
+template <auto Name, typename Sndr, typename Rcvr, stdx::callable Pred>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct sync_op_state {
     using receiver_t = receiver<sync_op_state, Rcvr>;
@@ -225,7 +224,7 @@ struct sync_op_state {
 };
 
 namespace detail {
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Pred,
+template <auto Name, typename Sndr, typename Rcvr, typename Pred,
           typename LoopFn>
 constexpr auto select_op_state() {
     if constexpr (synchronous<connect_result_t<
@@ -241,7 +240,7 @@ constexpr auto select_op_state() {
     }
 }
 
-template <stdx::ct_string Name, typename... Ts>
+template <auto Name, typename... Ts>
 using op_state_t = typename decltype(select_op_state<Name, Ts...>())::type;
 
 template <typename Env>
@@ -251,7 +250,7 @@ using stopped_signatures =
                         completion_signatures<set_stopped_t()>>;
 } // namespace detail
 
-template <stdx::ct_string Name, typename Sndr, typename Pred, typename LoopFn>
+template <auto Name, typename Sndr, typename Pred, typename LoopFn>
 struct sender {
     using is_sender = void;
     [[no_unique_address]] Sndr sndr;
@@ -287,15 +286,15 @@ struct sender {
     }
 };
 
-template <stdx::ct_string, typename, stdx::callable> struct pipeable;
+template <auto, typename, stdx::callable> struct pipeable;
 
-template <stdx::ct_string Name, typename... Args>
+template <auto Name, typename... Args>
 constexpr auto make_sender(Args &&...args)
     -> sender<Name, std::remove_cvref_t<Args>...> {
     return {std::forward<Args>(args)...};
 }
 
-template <stdx::ct_string Name, typename MatchValue, stdx::callable LoopFn>
+template <auto Name, typename MatchValue, stdx::callable LoopFn>
 struct pipeable {
     MatchValue v;
     LoopFn f;
@@ -312,7 +311,7 @@ struct pipeable {
     }
 };
 
-template <stdx::ct_string Name, stdx::callable Pred, stdx::callable LoopFn>
+template <auto Name, stdx::callable Pred, stdx::callable LoopFn>
 struct pipeable<Name, Pred, LoopFn> {
     Pred p;
     LoopFn f;
@@ -330,7 +329,8 @@ template <stdx::ct_string Name = "repeat_until", typename P,
           typename F = std::remove_cvref_t<decltype(_repeat::no_loop_fn)>>
     requires(not sender<P>)
 [[nodiscard]] constexpr auto repeat_until(P &&p, F &&f = {})
-    -> _repeat::pipeable<Name, std::remove_cvref_t<P>, std::remove_cvref_t<F>> {
+    -> _repeat::pipeable<stdx::shrink<Name>(), std::remove_cvref_t<P>,
+                         std::remove_cvref_t<F>> {
     return {std::forward<P>(p), std::forward<F>(f)};
 }
 
@@ -362,15 +362,15 @@ template <stdx::ct_string Name = "repeat_n", sender S, typename... Args>
 
 struct repeat_t;
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_repeat::op_state<Name, Ts...>> {
+template <auto Name, typename... Ts>
+struct debug::context_for<_repeat::op_state<Name, Ts...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = repeat_t;
-    constexpr static auto name = Name;
     using type = _repeat::op_state<Name, Ts...>;
     using children =
         stdx::type_list<debug::erased_context_for<typename type::state_t>>;
 };
-template <stdx::ct_string Name, typename... Ts>
+template <auto Name, typename... Ts>
 struct debug::context_for<_repeat::sync_op_state<Name, Ts...>>
     : debug::context_for<_repeat::op_state<
           Name, Ts..., std::remove_cvref_t<decltype(_repeat::no_loop_fn)>>> {};

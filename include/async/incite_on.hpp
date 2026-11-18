@@ -176,9 +176,9 @@ template <sender S, typename Sched>
 }
 
 namespace _incite_on {
-template <typename Uniq>
+template <typename Name>
 class trigger_scheduler
-    : public trigger_mgr::scheduler<trigger_scheduler<Uniq>, Uniq,
+    : public trigger_mgr::scheduler<trigger_scheduler<Name>, Name,
                                     trigger_mgr::queue_at_back> {
     [[nodiscard]] friend constexpr auto operator==(trigger_scheduler,
                                                    trigger_scheduler)
@@ -188,6 +188,8 @@ class trigger_scheduler
 template <typename Uniq, typename... Scheds> struct any_pipeable {
     [[no_unique_address]] stdx::tuple<Scheds...> scheds;
 
+    constexpr static auto name = stdx::name_for<Uniq>();
+
   private:
     template <async::sender S, stdx::same_as_unqualified<any_pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&self) -> async::sender auto {
@@ -195,11 +197,11 @@ template <typename Uniq, typename... Scheds> struct any_pipeable {
             [&]<typename... Ss>(Ss &&...ss) {
                 return s | then([&]<typename F>(F &&f) {
                            return [f = std::forward<F>(f)] {
-                               run_triggers<Uniq>();
+                               run_triggers<name>();
                                std::move(f)();
                            };
                        }) |
-                       incite_on(trigger_scheduler<Uniq>{}) |
+                       incite_on(trigger_scheduler<trigger_name<name>>{}) |
                        seq(when_any(std::forward<Ss>(ss).schedule()...));
             });
     }

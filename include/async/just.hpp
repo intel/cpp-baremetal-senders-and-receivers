@@ -19,8 +19,7 @@
 
 namespace async {
 namespace _just {
-template <stdx::ct_string Name, typename Tag, typename R, typename... Vs>
-struct op_state {
+template <auto Name, typename Tag, typename R, typename... Vs> struct op_state {
     [[no_unique_address]] R receiver;
     [[no_unique_address]] stdx::tuple<Vs...> values;
 
@@ -39,7 +38,7 @@ struct op_state {
     }
 };
 
-template <stdx::ct_string Name, typename Tag, typename... Vs> struct sender {
+template <auto Name, typename Tag, typename... Vs> struct sender {
     using is_sender = void;
     using completion_signatures = async::completion_signatures<Tag(Vs...)>;
     [[no_unique_address]] stdx::tuple<Vs...> values;
@@ -80,7 +79,7 @@ template <channel_tag Tag = set_value_t,
     static_assert(sizeof...(Vs) == 0 or not std::same_as<Tag, set_stopped_t>,
                   "Can't send any values on the stopped channel");
 
-    return _just::sender<Name, Tag, std::remove_cvref_t<Vs>...>{
+    return _just::sender<stdx::shrink<Name>(), Tag, std::remove_cvref_t<Vs>...>{
         {std::forward<Vs>(vs)...}};
 }
 
@@ -109,10 +108,10 @@ using just_tag_for =
                         stdx::conditional_t<std::same_as<Tag, set_error_t>,
                                             just_error_t, just_stopped_t>>;
 
-template <stdx::ct_string Name, typename Tag, typename R, typename... Vs>
-struct debug::context_for<_just::op_state<Name, Tag, R, Vs...>> {
+template <auto Name, typename Tag, typename R, typename... Vs>
+struct debug::context_for<_just::op_state<Name, Tag, R, Vs...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = just_tag_for<Tag>;
-    constexpr static auto name = Name;
     using children = stdx::type_list<>;
     using type = _just::op_state<Name, Tag, R, Vs...>;
 };

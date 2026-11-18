@@ -19,7 +19,6 @@
 #include <boost/mp11/list.hpp>
 
 #include <array>
-#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <limits>
@@ -283,9 +282,9 @@ template <stdx::callable F> constexpr auto make_optional_sender(bool b, F &&f) {
 struct variant_t;
 
 template <typename... Ops>
-struct debug::context_for<_variant::op_state<Ops...>> {
+struct debug::context_for<_variant::op_state<Ops...>>
+    : stdx::with_name<"variant"> {
     using tag = variant_t;
-    constexpr static auto name = stdx::ct_string{"variant"};
     using type = _variant::op_state<Ops...>;
     using children = boost::mp11::mp_transform<debug::erased_context_for,
                                                typename type::variant_t>;

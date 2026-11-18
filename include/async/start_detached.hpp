@@ -306,9 +306,9 @@ template <stdx::ct_string Name> auto sync_wait_detached() {
 struct start_detached_t;
 
 template <typename... Ts>
-struct debug::context_for<_start_detached::op_state<Ts...>> {
+struct debug::context_for<_start_detached::op_state<Ts...>>
+    : stdx::with_shrunk_name<stdx::shrink<"start_detached">()> {
     using tag = start_detached_t;
-    constexpr static auto name = stdx::ct_string{"start_detached"};
     using children = stdx::type_list<>;
     using type = _start_detached::op_state<Ts...>;
 };

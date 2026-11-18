@@ -18,8 +18,7 @@
 
 namespace async {
 namespace _into_variant {
-template <stdx::ct_string Name, typename S, typename V, typename Rcvr>
-struct receiver {
+template <auto Name, typename S, typename V, typename Rcvr> struct receiver {
     using is_receiver = void;
     using sender_t = S;
 
@@ -60,7 +59,7 @@ using variant_t =
     boost::mp11::mp_unique<value_types_of_t<S, Env, decayed_tuple, V>>;
 } // namespace detail
 
-template <stdx::ct_string Name, typename S, template <typename...> typename V>
+template <auto Name, typename S, template <typename...> typename V>
 struct sender {
     using is_sender = void;
 
@@ -97,8 +96,7 @@ struct sender {
     [[no_unique_address]] S s;
 };
 
-template <stdx::ct_string Name, template <typename...> typename V>
-struct pipeable {
+template <auto Name, template <typename...> typename V> struct pipeable {
   private:
     template <async::sender S, stdx::same_as_unqualified<pipeable> Self>
     friend constexpr auto operator|(S &&s, Self &&) -> async::sender auto {
@@ -110,7 +108,7 @@ struct pipeable {
 template <stdx::ct_string Name = "into_variant",
           template <typename...> typename V = std::variant>
 [[nodiscard]] constexpr auto into_variant() {
-    return compose(_into_variant::pipeable<Name, V>{});
+    return compose(_into_variant::pipeable<stdx::shrink<Name>(), V>{});
 }
 
 template <stdx::ct_string Name = "into_variant",
@@ -121,10 +119,10 @@ template <stdx::ct_string Name = "into_variant",
 
 struct into_variant_t;
 
-template <stdx::ct_string Name, typename... Ts>
-struct debug::context_for<_into_variant::receiver<Name, Ts...>> {
+template <auto Name, typename... Ts>
+struct debug::context_for<_into_variant::receiver<Name, Ts...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = into_variant_t;
-    constexpr static auto name = Name;
     using type = _into_variant::receiver<Name, Ts...>;
     using children = stdx::type_list<debug::erased_context_for<
         connect_result_t<typename type::sender_t &&, type &&>>>;
