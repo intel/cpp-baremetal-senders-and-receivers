@@ -97,21 +97,26 @@ struct queue_at_back {
 };
 } // namespace trigger_mgr
 
-template <typename Name, typename... Args> struct trigger_manager {
+namespace detail {
+template <stdx::ct_string, typename task> struct tm_q {
+    static inline std::array<stdx::intrusive_list<task>, 1> tasks{};
+    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
+    static inline stdx::atomic<int> task_count{};
+};
+} // namespace detail
+
+template <typename Name, typename... Args>
+struct trigger_manager
+    : detail::tm_q<stdx::expand(Name{}), trigger_task<Args...>> {
+    struct mutex;
     using task_t = trigger_task<Args...>;
 
-  private:
-    struct mutex;
-    std::array<stdx::intrusive_list<task_t>, 1> tasks{};
-    stdx::atomic<int> task_count;
-
-  public:
     template <typename QueuePolicy> auto enqueue(task_t &t) -> bool {
         return conc::call_in_critical_section<mutex>([&]() -> bool {
             auto const added = not std::exchange(t.pending, true);
             if (added) {
-                ++task_count;
-                QueuePolicy::push(tasks[0], t);
+                ++this->task_count;
+                QueuePolicy::push(this->tasks[0], t);
             }
             return added;
         });
@@ -120,8 +125,8 @@ template <typename Name, typename... Args> struct trigger_manager {
     auto dequeue(task_t &t) -> bool {
         return conc::call_in_critical_section<mutex>([&]() -> bool {
             if (std::exchange(t.pending, false)) {
-                tasks[0].remove(std::addressof(t));
-                --task_count;
+                this->tasks[0].remove(std::addressof(t));
+                --this->task_count;
                 return true;
             }
             return false;
@@ -132,19 +137,21 @@ template <typename Name, typename... Args> struct trigger_manager {
               typename RunPolicy = run_policy::all, typename... As>
     auto run(As &&...args) -> void {
         static_assert((... and std::same_as<Args, std::remove_cvref_t<As>>));
-        RunPolicy::template run<RQP, mutex>(tasks, task_count,
+        RunPolicy::template run<RQP, mutex>(this->tasks, this->task_count,
                                             std::forward<As>(args)...);
     }
 
     template <typename RunPolicy = run_policy::all> auto cancel() -> void {
-        RunPolicy::template cancel<mutex>(tasks, task_count);
+        RunPolicy::template cancel<mutex>(this->tasks, this->task_count);
     }
 
-    [[nodiscard]] auto empty() const -> bool { return task_count == 0; }
+    [[nodiscard]] auto empty() const -> bool { return this->task_count == 0; }
 };
 
 template <typename Name, typename... Args>
 inline auto triggers = trigger_manager<Name, Args...>{};
+
+template <stdx::ct_string S> using trigger_name = decltype(stdx::shrink<S>());
 
 template <typename Name, typename RQP = requeue_policy::deferred,
           typename RunPolicy = run_policy::all, typename... Args>
@@ -156,7 +163,7 @@ auto run_triggers(Args &&...args) -> void {
 template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
           typename RunPolicy = run_policy::all, typename... Args>
 auto run_triggers(Args &&...args) -> void {
-    run_triggers<stdx::cts_t<Name>, RQP, RunPolicy>(
+    run_triggers<trigger_name<Name>, RQP, RunPolicy>(
         std::forward<Args>(args)...);
 }
 
@@ -166,7 +173,7 @@ template <typename Name, typename... Args> auto cancel_triggers() -> void {
 
 template <stdx::ct_string Name, typename... Args>
 auto cancel_triggers() -> void {
-    cancel_triggers<stdx::cts_t<Name>, Args...>();
+    cancel_triggers<trigger_name<Name>, Args...>();
 }
 
 template <typename Name, typename RQP = requeue_policy::deferred,
@@ -178,7 +185,7 @@ auto run_one_trigger(Args &&...args) -> void {
 template <stdx::ct_string Name, typename RQP = requeue_policy::deferred,
           typename... Args>
 auto run_one_trigger(Args &&...args) -> void {
-    run_triggers<stdx::cts_t<Name>, RQP, run_policy::one>(
+    run_triggers<trigger_name<Name>, RQP, run_policy::one>(
         std::forward<Args>(args)...);
 }
 
@@ -188,6 +195,6 @@ template <typename Name, typename... Args> auto cancel_one_trigger() -> void {
 
 template <stdx::ct_string Name, typename... Args>
 auto cancel_one_trigger() -> void {
-    cancel_one_trigger<stdx::cts_t<Name>, Args...>();
+    cancel_one_trigger<trigger_name<Name>, Args...>();
 }
 } // namespace async

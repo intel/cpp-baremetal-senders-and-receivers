@@ -108,8 +108,8 @@ template <typename Ops, typename Rcvr, channel_tag... Tags> struct receiver {
     }
 };
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Func,
-          typename Sigs, channel_tag... Tags>
+template <auto Name, typename Sndr, typename Rcvr, typename Func, typename Sigs,
+          channel_tag... Tags>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct op_state {
     using first_rcvr = receiver<op_state, Rcvr, Tags...>;
@@ -198,7 +198,7 @@ struct op_state {
     state_t state;
 };
 
-template <stdx::ct_string Name, typename S, typename F, channel_tag... Tags>
+template <auto Name, typename S, typename F, channel_tag... Tags>
 struct sender {
     using is_sender = void;
 
@@ -264,8 +264,7 @@ struct sender {
     }
 };
 
-template <stdx::ct_string Name, typename F,
-          template <stdx::ct_string, typename...> typename Sndr>
+template <auto Name, typename F, template <auto, typename...> typename Sndr>
 struct pipeable {
     [[no_unique_address]] F f;
 
@@ -280,12 +279,11 @@ struct pipeable {
 
 template <typename...> struct let_t;
 
-template <stdx::ct_string Name, typename Sndr, typename Rcvr, typename Func,
-          typename Sigs, channel_tag... Tags>
-struct debug::context_for<
-    _let::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>> {
+template <auto Name, typename Sndr, typename Rcvr, typename Func, typename Sigs,
+          channel_tag... Tags>
+struct debug::context_for<_let::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>>
+    : stdx::with_shrunk_name<Name> {
     using tag = let_t<Tags...>;
-    constexpr static auto name = Name;
     using type = _let::op_state<Name, Sndr, Rcvr, Func, Sigs, Tags...>;
     using children = boost::mp11::mp_transform<debug::erased_context_for,
                                                typename type::state_t>;

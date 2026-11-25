@@ -36,11 +36,12 @@ template <stdx::ct_string Name> struct context {
 } // namespace
 
 template <>
-inline auto async::injected_debug_handler<stdx::cts_t<"A">, stdx::cts_t<"B">> =
+inline auto async::injected_debug_handler<async::debug_name<"A">,
+                                          async::debug_name<"B">> =
     debug_handler<"AX", "BY", int>{};
 
 template <>
-inline auto async::injected_debug_handler<stdx::cts_t<"A">> =
+inline auto async::injected_debug_handler<async::debug_name<"A">> =
     debug_handler<"AX", "", float>{};
 
 template <>
@@ -77,8 +78,8 @@ TEST_CASE("supplied debug interface", "[debug]") {
 }
 
 template <>
-inline auto async::injected_debug_handler<stdx::cts_t<"named_chain_0">,
-                                          stdx::cts_t<"named_link_0">> =
+inline auto async::injected_debug_handler<async::debug_name<"named_chain_0">,
+                                          async::debug_name<"named_link_0">> =
     debug_handler<"chain_0", "link_0", int, double>{};
 
 TEST_CASE("named interface signal", "[debug]") {
@@ -100,7 +101,7 @@ template <typename... Ts> struct debug_handler_B {
 } // namespace
 
 template <>
-inline auto async::injected_debug_handler<stdx::cts_t<"chainB">> =
+inline auto async::injected_debug_handler<async::debug_name<"chainB">> =
     debug_handler_B<int, double>{};
 
 TEST_CASE("send debug signal through environment", "[debug]") {
@@ -136,7 +137,7 @@ TEST_CASE("custom signal with custom signal handler in environment",
 }
 
 template <>
-inline auto async::injected_debug_handler<stdx::cts_t<"unknown">> =
+inline auto async::injected_debug_handler<async::debug_name<"unknown">> =
     debug_handler<"unknown", "">{};
 
 TEST_CASE(

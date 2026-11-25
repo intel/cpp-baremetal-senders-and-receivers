@@ -17,18 +17,6 @@
 
 namespace async {
 namespace trigger_mgr {
-template <typename T>
-constexpr auto name_of(T)
-    -> stdx::ct_string<stdx::type_as_string<T>().size() + 1> {
-    return stdx::ct_string<stdx::type_as_string<T>().size() + 1>{
-        stdx::type_as_string<T>()};
-}
-
-template <stdx::ct_string S>
-constexpr auto name_of(stdx::cts_t<S>) -> decltype(S) {
-    return S;
-}
-
 template <typename Rcvr, typename Ops> struct op_state_base {
     auto check_stopped() -> bool {
         return get_stop_token(get_env(as_derived().rcvr)).stop_requested();
@@ -145,10 +133,10 @@ class scheduler {
 } // namespace trigger_mgr
 
 namespace detail {
-template <stdx::ct_string Name, typename... Args>
+template <typename Name, typename... Args>
 class trigger_scheduler
-    : public trigger_mgr::scheduler<trigger_scheduler<Name, Args...>,
-                                    stdx::cts_t<Name>, Args...> {
+    : public trigger_mgr::scheduler<trigger_scheduler<Name, Args...>, Name,
+                                    Args...> {
     [[nodiscard]] friend constexpr auto operator==(trigger_scheduler,
                                                    trigger_scheduler)
         -> bool = default;
@@ -157,18 +145,20 @@ class trigger_scheduler
 
 template <stdx::ct_string Name, typename... Args>
 using trigger_scheduler =
-    detail::trigger_scheduler<Name, trigger_mgr::queue_at_back, Args...>;
+    detail::trigger_scheduler<trigger_name<Name>, trigger_mgr::queue_at_back,
+                              Args...>;
 
 template <stdx::ct_string Name, typename... Args>
 using urgent_trigger_scheduler =
-    detail::trigger_scheduler<Name, trigger_mgr::queue_at_front, Args...>;
+    detail::trigger_scheduler<trigger_name<Name>, trigger_mgr::queue_at_front,
+                              Args...>;
 
 struct trigger_scheduler_sender_t;
 
 template <typename Name, typename Rcvr, typename... Args>
-struct debug::context_for<trigger_mgr::op_state<Name, Rcvr, Args...>> {
+struct debug::context_for<trigger_mgr::op_state<Name, Rcvr, Args...>>
+    : stdx::with_shrunk_name<Name{}> {
     using tag = trigger_scheduler_sender_t;
-    constexpr static auto name = trigger_mgr::name_of(Name{});
     using children = stdx::type_list<>;
     using type = trigger_mgr::op_state<Name, Rcvr, Args...>;
 };

@@ -22,22 +22,24 @@ struct null_handler {
 template <typename...>
 inline auto injected_debug_handler = debug::null_handler{};
 
+template <stdx::ct_string S> using debug_name = decltype(stdx::shrink<S>());
+
 namespace debug {
 template <stdx::ct_string ChainName, stdx::ct_string LinkName,
           typename... DummyArgs>
-constexpr static auto get_handler() -> auto & {
+consteval static auto get_handler() -> auto & {
     if constexpr (not std::same_as<
-                      decltype(injected_debug_handler<stdx::cts_t<ChainName>,
-                                                      stdx::cts_t<LinkName>,
+                      decltype(injected_debug_handler<debug_name<ChainName>,
+                                                      debug_name<LinkName>,
                                                       DummyArgs...>),
                       null_handler>) {
-        return injected_debug_handler<stdx::cts_t<ChainName>,
-                                      stdx::cts_t<LinkName>, DummyArgs...>;
+        return injected_debug_handler<debug_name<ChainName>,
+                                      debug_name<LinkName>, DummyArgs...>;
     } else if constexpr (not std::same_as<
                              decltype(injected_debug_handler<
-                                      stdx::cts_t<ChainName>, DummyArgs...>),
+                                      debug_name<ChainName>, DummyArgs...>),
                              null_handler>) {
-        return injected_debug_handler<stdx::cts_t<ChainName>, DummyArgs...>;
+        return injected_debug_handler<debug_name<ChainName>, DummyArgs...>;
     } else {
         return injected_debug_handler<DummyArgs...>;
     }
@@ -51,16 +53,18 @@ auto signal(Args &&...args) -> void {
         std::forward<Args>(args)...);
 }
 
-template <stdx::ct_string ChainName, typename... Ts>
-struct named_interface : stdx::tuple<Ts...> {
+template <auto ChainName, typename... Ts> struct nif : stdx::tuple<Ts...> {
     template <stdx::ct_string Signal, contextlike Ctx, typename... Args>
     constexpr auto signal(Args &&...args) const -> void {
         this->apply([&](Ts const &...ts) {
-            debug::signal<ChainName, Signal, Ctx>(ts...,
-                                                  std::forward<Args>(args)...);
+            debug::signal<stdx::expand(ChainName), Signal, Ctx>(
+                ts..., std::forward<Args>(args)...);
         });
     }
 };
+
+template <stdx::ct_string ChainName, typename... Ts>
+using named_interface = nif<stdx::shrink<ChainName>(), Ts...>;
 
 template <stdx::ct_string Name>
 constexpr auto make_named_interface = []<typename... Ts>(Ts &&...ts) {
